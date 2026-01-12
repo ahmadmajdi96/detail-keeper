@@ -1,30 +1,35 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, UserRole } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
+
+type UserRole = Database['public']['Enums']['user_role'];
+type UserStatus = Database['public']['Enums']['user_status'];
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  team_id: string | null;
+  status: UserStatus;
+  avatar: string | null;
+  created_at: string;
+  last_login: string | null;
+}
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, name: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasPermission: (requiredRole: UserRole | UserRole[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Mock user for demo
-const mockUser: User = {
-  user_id: '1',
-  email: 'admin@qualixa.io',
-  name: 'Alex Johnson',
-  role: 'admin',
-  team_id: '1',
-  status: 'active',
-  created_date: new Date().toISOString(),
-  last_login: new Date().toISOString(),
-  avatar: undefined,
-};
 
 const roleHierarchy: Record<UserRole, number> = {
   admin: 4,
@@ -35,50 +40,105 @@ const roleHierarchy: Record<UserRole, number> = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for existing session
-    const storedUser = localStorage.getItem('qualixa_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  const fetchUserProfile = async (userId: string): Promise<User | null> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error || !data) {
+      console.error('Error fetching user profile:', error);
+      return null;
     }
-    setIsLoading(false);
+    
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      team_id: data.team_id,
+      status: data.status,
+      avatar: data.avatar,
+      created_at: data.created_at,
+      last_login: data.last_login,
+    };
+  };
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      
+      if (session?.user) {
+        // Use setTimeout to avoid Supabase auth deadlock
+        setTimeout(async () => {
+          const profile = await fetchUserProfile(session.user.id);
+          setUser(profile);
+          setIsLoading(false);
+        }, 0);
+      } else {
+        setUser(null);
+        setIsLoading(false);
+      }
+    });
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        const profile = await fetchUserProfile(session.user.id);
+        setUser(profile);
+      }
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     
-    // Demo: accept any credentials
-    const loggedInUser = { ...mockUser, email };
-    setUser(loggedInUser);
-    localStorage.setItem('qualixa_user', JSON.stringify(loggedInUser));
-    setIsLoading(false);
+    if (error) {
+      setIsLoading(false);
+      throw error;
+    }
+    // Auth state change will handle the rest
   };
 
   const register = async (email: string, name: string, password: string) => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newUser: User = {
-      ...mockUser,
-      user_id: crypto.randomUUID(),
+    const { error } = await supabase.auth.signUp({
       email,
-      name,
-      role: 'qa_engineer',
-      status: 'pending',
-      created_date: new Date().toISOString(),
-    };
-    setUser(newUser);
-    localStorage.setItem('qualixa_user', JSON.stringify(newUser));
-    setIsLoading(false);
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          name,
+        },
+      },
+    });
+    
+    if (error) {
+      setIsLoading(false);
+      throw error;
+    }
+    // Auth state change will handle the rest
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('qualixa_user');
+    setSession(null);
   };
 
   const hasPermission = (requiredRole: UserRole | UserRole[]) => {
@@ -94,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        session,
         isAuthenticated: !!user,
         isLoading,
         login,

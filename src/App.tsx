@@ -10,6 +10,10 @@ import DashboardPage from "./pages/DashboardPage";
 import WorkspacesPage from "./pages/WorkspacesPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import TestPlansPage from "./pages/TestPlansPage";
+import UsersPage from "./pages/UsersPage";
+import TestCasesPage from "./pages/TestCasesPage";
+import ExecutionsPage from "./pages/ExecutionsPage";
+import AutomationPage from "./pages/AutomationPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +35,10 @@ const App = () => (
             <Route path="/workspaces" element={<WorkspacesPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/test-plans" element={<TestPlansPage />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/test-cases" element={<TestCasesPage />} />
+            <Route path="/executions" element={<ExecutionsPage />} />
+            <Route path="/automation" element={<AutomationPage />} />
             
             {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

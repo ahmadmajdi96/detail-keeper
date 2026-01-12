@@ -1,31 +1,64 @@
-// User Roles
-export type UserRole = 'admin' | 'qa_manager' | 'qa_engineer' | 'viewer';
+import type { Database } from '@/integrations/supabase/types';
 
-export type UserStatus = 'active' | 'inactive' | 'pending';
+// Re-export database enums as types
+export type UserRole = Database['public']['Enums']['user_role'];
+export type UserStatus = Database['public']['Enums']['user_status'];
+export type TestCaseStatus = Database['public']['Enums']['test_case_status'];
+export type ExecutionStatus = Database['public']['Enums']['execution_status'];
+export type DefectSeverity = Database['public']['Enums']['defect_severity'];
+export type DefectPriority = Database['public']['Enums']['defect_priority'];
+export type AgentStatus = Database['public']['Enums']['agent_status'];
 
-export interface User {
-  user_id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  team_id?: string;
-  status: UserStatus;
-  created_date: string;
-  last_login?: string;
-  avatar?: string;
+// Database row types
+export type Profile = Database['public']['Tables']['profiles']['Row'];
+export type Team = Database['public']['Tables']['teams']['Row'];
+export type TestCase = Database['public']['Tables']['test_cases']['Row'];
+export type TestCaseStep = Database['public']['Tables']['test_case_steps']['Row'];
+export type TestCaseVersion = Database['public']['Tables']['test_case_versions']['Row'];
+export type TestExecution = Database['public']['Tables']['test_executions']['Row'];
+export type ExecutionStepResult = Database['public']['Tables']['execution_step_results']['Row'];
+export type Defect = Database['public']['Tables']['defects']['Row'];
+export type Evidence = Database['public']['Tables']['evidence']['Row'];
+export type AIAgent = Database['public']['Tables']['ai_agents']['Row'];
+export type AgentLearningSession = Database['public']['Tables']['agent_learning_sessions']['Row'];
+export type AgentExecutionLog = Database['public']['Tables']['agent_execution_logs']['Row'];
+
+// Extended types with relations
+export interface ProfileWithTeam extends Profile {
+  team?: Team | null;
 }
 
-// Teams
-export interface Team {
-  team_id: string;
-  name: string;
-  description?: string;
-  manager_id?: string;
-  created_date: string;
+export interface TestCaseWithSteps extends TestCase {
+  steps?: TestCaseStep[];
+  creator?: Profile | null;
 }
 
-// Workspaces
+export interface TestExecutionWithDetails extends TestExecution {
+  test_case?: TestCase;
+  executor?: Profile | null;
+  step_results?: ExecutionStepResult[];
+}
+
+export interface DefectWithDetails extends Defect {
+  reporter?: Profile | null;
+  assignee?: Profile | null;
+  execution?: TestExecution | null;
+}
+
+export interface AIAgentWithSessions extends AIAgent {
+  learning_sessions?: AgentLearningSession[];
+  execution_logs?: AgentExecutionLog[];
+}
+
+// Legacy types for backwards compatibility
+export type Priority = 'low' | 'medium' | 'high' | 'critical';
 export type WorkspaceStatus = 'active' | 'archived';
+export type ProjectStatus = 'active' | 'inactive' | 'completed';
+export type DocumentStatus = 'uploaded' | 'processing' | 'processed' | 'failed';
+export type TestPlanStatus = 'draft' | 'active' | 'completed' | 'archived';
+export type TestRunStatus = 'planned' | 'in_progress' | 'completed' | 'blocked';
+export type DefectStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
 export interface Workspace {
   workspace_id: string;
@@ -40,9 +73,6 @@ export interface Workspace {
   members_count?: number;
 }
 
-// Projects
-export type ProjectStatus = 'active' | 'inactive' | 'completed';
-
 export interface Project {
   project_id: string;
   workspace_id: string;
@@ -51,9 +81,6 @@ export interface Project {
   status: ProjectStatus;
   created_date: string;
 }
-
-// Documents
-export type DocumentStatus = 'uploaded' | 'processing' | 'processed' | 'failed';
 
 export interface Document {
   doc_id: string;
@@ -68,9 +95,6 @@ export interface Document {
   requirements_count?: number;
 }
 
-// Requirements
-export type Priority = 'low' | 'medium' | 'high' | 'critical';
-
 export interface Requirement {
   req_id: string;
   doc_id: string;
@@ -80,9 +104,6 @@ export interface Requirement {
   extracted_date: string;
   confidence_score: number;
 }
-
-// Test Plans
-export type TestPlanStatus = 'draft' | 'active' | 'completed' | 'archived';
 
 export interface TestPlan {
   plan_id: string;
@@ -96,9 +117,6 @@ export interface TestPlan {
   runs_count?: number;
   progress?: number;
 }
-
-// Test Runs
-export type TestRunStatus = 'planned' | 'in_progress' | 'completed' | 'blocked';
 
 export interface TestRun {
   run_id: string;
@@ -114,75 +132,6 @@ export interface TestRun {
   progress?: number;
 }
 
-// Test Cases
-export type TestCaseType = 'functional' | 'business' | 'regression' | 'negative';
-export type TestCaseStatus = 'draft' | 'active' | 'deprecated';
-
-export interface TestCase {
-  case_id: string;
-  req_id: string;
-  title: string;
-  description?: string;
-  steps: TestStep[];
-  expected_result: string;
-  type: TestCaseType;
-  priority: Priority;
-  status: TestCaseStatus;
-  ai_generated: boolean;
-  created_date: string;
-}
-
-export interface TestStep {
-  step_number: number;
-  action: string;
-  expected_result: string;
-}
-
-// Test Executions
-export type ExecutionStatus = 'not_started' | 'in_progress' | 'passed' | 'failed' | 'blocked';
-
-export interface TestExecution {
-  execution_id: string;
-  run_id: string;
-  case_id: string;
-  executor_id: string;
-  executor_name?: string;
-  start_time?: string;
-  end_time?: string;
-  status: ExecutionStatus;
-  notes?: string;
-  execution_time?: number;
-}
-
-// Defects
-export type DefectStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
-
-export interface Defect {
-  defect_id: string;
-  execution_id: string;
-  title: string;
-  description?: string;
-  severity: Priority;
-  priority: Priority;
-  status: DefectStatus;
-  created_date: string;
-}
-
-// Automation Agents
-export type AgentType = 'ui' | 'api';
-export type AgentStatus = 'idle' | 'learning' | 'ready' | 'executing' | 'error';
-
-export interface AutomationAgent {
-  agent_id: string;
-  name: string;
-  type: AgentType;
-  status: AgentStatus;
-  created_date: string;
-  last_active?: string;
-  learning_progress?: number;
-}
-
-// Metrics for Dashboard
 export interface QualityMetrics {
   test_coverage: number;
   pass_rate: number;
@@ -193,9 +142,6 @@ export interface QualityMetrics {
   critical_defects: number;
   automation_coverage: number;
 }
-
-// Notifications
-export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
 export interface Notification {
   notification_id: string;
