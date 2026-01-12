@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { Play, CheckCircle2, XCircle, AlertTriangle, Clock, Bug, Camera, FileText, Loader2, ChevronRight, Upload } from "lucide-react";
 import type { TestExecution, TestCase, ExecutionStatus, DefectSeverity, DefectPriority } from "@/types";
 
+type ExecutionWithTestCase = TestExecution & { test_case: TestCase | null };
+
 const statusConfig: Record<ExecutionStatus, { color: string; icon: React.ReactNode }> = {
   pending: { color: "bg-muted text-muted-foreground", icon: <Clock className="h-4 w-4" /> },
   in_progress: { color: "bg-accent/10 text-accent", icon: <Play className="h-4 w-4" /> },
@@ -31,7 +33,7 @@ const statusConfig: Record<ExecutionStatus, { color: string; icon: React.ReactNo
 export default function ExecutionsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [selectedExecution, setSelectedExecution] = useState<TestExecution | null>(null);
+  const [selectedExecution, setSelectedExecution] = useState<ExecutionWithTestCase | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isDefectDialogOpen, setIsDefectDialogOpen] = useState(false);
   const [defectTitle, setDefectTitle] = useState("");
