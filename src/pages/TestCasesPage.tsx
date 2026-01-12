@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +84,7 @@ const statusIcons: Record<TestCaseStatus, React.ReactNode> = {
 };
 
 export default function TestCasesPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -269,7 +271,7 @@ export default function TestCasesPage() {
                 <Sparkles className="mr-2 h-4 w-4 text-accent" />
                 AI Generate
               </Button>
-              <Button className="ai-gradient text-white" onClick={() => setIsCreateDialogOpen(true)}>
+              <Button className="ai-gradient text-white" onClick={() => navigate("/test-cases/new")}>
                 <Plus className="mr-2 h-4 w-4" />
                 New Test Case
               </Button>
@@ -464,6 +466,10 @@ export default function TestCasesPage() {
                               }}>
                                 <History className="mr-2 h-4 w-4" />
                                 Version History
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/test-cases/${tc.id}/edit`)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem>
                                 <Copy className="mr-2 h-4 w-4" />

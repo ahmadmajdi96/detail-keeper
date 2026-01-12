@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Sparkles,
   LogOut,
+  Bug,
 } from "lucide-react";
 
 interface NavItem {
@@ -41,6 +42,7 @@ const mainNavItems: NavItem[] = [
   { title: "Test Plans", href: "/test-plans", icon: ClipboardList, isAI: true },
   { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true },
   { title: "Executions", href: "/executions", icon: Play },
+  { title: "Defects", href: "/defects", icon: Bug },
   { title: "AI Automation", href: "/automation", icon: Bot, isAI: true },
   { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true },
 ];
