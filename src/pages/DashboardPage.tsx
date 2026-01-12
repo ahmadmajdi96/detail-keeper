@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -9,7 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ExecutionTrendsChart } from "@/components/dashboard/ExecutionTrendsChart";
+import { DefectMetricsChart } from "@/components/dashboard/DefectMetricsChart";
+import { TeamPerformanceChart } from "@/components/dashboard/TeamPerformanceChart";
+import { TestCaseStatusChart } from "@/components/dashboard/TestCaseStatusChart";
 import {
   TestTube,
   CheckCircle,
@@ -22,6 +26,7 @@ import {
   FileText,
   Play,
 } from "lucide-react";
+import { format, subDays, startOfDay } from "date-fns";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -49,15 +54,15 @@ export default function DashboardPage() {
     },
   });
 
-  // Fetch executions
+  // Fetch executions with more data for charts
   const { data: executions = [] } = useQuery({
     queryKey: ["dashboard-executions"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("test_executions")
-        .select("id, status, created_at, test_case:test_cases(title)")
+        .select("id, status, created_at, completed_at, test_case:test_cases(title)")
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(100);
       if (error) throw error;
       return data;
     },
@@ -67,7 +72,7 @@ export default function DashboardPage() {
   const { data: defects = [] } = useQuery({
     queryKey: ["dashboard-defects"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("defects").select("id, severity, status");
+      const { data, error } = await supabase.from("defects").select("id, severity, status, priority, created_at");
       if (error) throw error;
       return data;
     },
@@ -77,7 +82,7 @@ export default function DashboardPage() {
   const { data: agents = [] } = useQuery({
     queryKey: ["dashboard-agents"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("ai_agents").select("id, status, learning_progress");
+      const { data, error } = await supabase.from("ai_agents").select("id, status, learning_progress, success_rate, total_executions");
       if (error) throw error;
       return data;
     },
@@ -112,6 +117,76 @@ export default function DashboardPage() {
       ? Math.round(agents.reduce((acc, a) => acc + a.learning_progress, 0) / agents.length)
       : 0,
   };
+
+  // Generate execution trends data for the last 7 days
+  const executionTrendsData = useMemo(() => {
+    const days = 7;
+    const data = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = startOfDay(subDays(new Date(), i));
+      const dateStr = format(date, "MMM dd");
+      
+      const dayExecutions = executions.filter((e) => {
+        const execDate = startOfDay(new Date(e.created_at));
+        return execDate.getTime() === date.getTime();
+      });
+      
+      data.push({
+        date: dateStr,
+        passed: dayExecutions.filter((e) => e.status === "passed").length,
+        failed: dayExecutions.filter((e) => e.status === "failed").length,
+        blocked: dayExecutions.filter((e) => e.status === "blocked").length,
+      });
+    }
+    
+    return data;
+  }, [executions]);
+
+  // Defect metrics by severity
+  const defectMetricsData = useMemo(() => {
+    return [
+      { name: "Critical", value: defects.filter((d) => d.severity === "critical").length, color: "hsl(var(--destructive))" },
+      { name: "Major", value: defects.filter((d) => d.severity === "major").length, color: "hsl(var(--warning))" },
+      { name: "Minor", value: defects.filter((d) => d.severity === "minor").length, color: "hsl(var(--info))" },
+      { name: "Trivial", value: defects.filter((d) => d.severity === "trivial").length, color: "hsl(var(--muted-foreground))" },
+    ];
+  }, [defects]);
+
+  // Test case status distribution
+  const testCaseStatusData = useMemo(() => {
+    return [
+      { name: "Active", value: testCases.filter((tc) => tc.status === "active").length, color: "hsl(var(--success))" },
+      { name: "Draft", value: testCases.filter((tc) => tc.status === "draft").length, color: "hsl(var(--warning))" },
+      { name: "Deprecated", value: testCases.filter((tc) => tc.status === "deprecated").length, color: "hsl(var(--muted-foreground))" },
+      { name: "Archived", value: testCases.filter((tc) => tc.status === "archived").length, color: "hsl(var(--border))" },
+    ].filter((item) => item.value > 0);
+  }, [testCases]);
+
+  // Team performance metrics
+  const teamPerformanceData = useMemo(() => {
+    const passRate = metrics.pass_rate;
+    const coverageRate = testCases.length > 0 
+      ? (testCases.filter((tc) => tc.coverage_tags?.length).length / testCases.length) * 100 
+      : 0;
+    const resolutionRate = defects.length > 0 
+      ? (defects.filter((d) => d.status === "resolved").length / defects.length) * 100 
+      : 0;
+    const automationRate = agents.length > 0
+      ? agents.reduce((acc, a) => acc + (a.success_rate || 0), 0) / agents.length
+      : 0;
+    const aiCoverage = testCases.length > 0
+      ? (testCases.filter((tc) => tc.ai_generated).length / testCases.length) * 100
+      : 0;
+    
+    return [
+      { metric: "Pass Rate", value: Math.round(passRate), fullMark: 100 },
+      { metric: "Coverage", value: Math.round(coverageRate), fullMark: 100 },
+      { metric: "Resolution", value: Math.round(resolutionRate), fullMark: 100 },
+      { metric: "Automation", value: Math.round(automationRate), fullMark: 100 },
+      { metric: "AI Tests", value: Math.round(aiCoverage), fullMark: 100 },
+    ];
+  }, [metrics.pass_rate, testCases, defects, agents]);
 
   const recentExecutions = executions.slice(0, 5).map((exec) => ({
     id: exec.id,
@@ -218,7 +293,19 @@ export default function DashboardPage() {
           />
         </motion.div>
 
-        {/* Recent Executions & AI Insights */}
+        {/* Charts Row */}
+        <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-2">
+          <ExecutionTrendsChart data={executionTrendsData} />
+          <DefectMetricsChart data={defectMetricsData} />
+        </motion.div>
+
+        {/* Charts Row 2 */}
+        <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-2">
+          <TestCaseStatusChart data={testCaseStatusData} />
+          <TeamPerformanceChart data={teamPerformanceData} />
+        </motion.div>
+
+        {/* Recent Executions & Quick Actions */}
         <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-2">
           {/* Recent Executions */}
           <Card>
@@ -274,7 +361,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-3">
-                <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/test-cases")}>
+                <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/test-cases/new")}>
                   <TestTube className="mr-2 h-4 w-4" />
                   Create New Test Case
                 </Button>
