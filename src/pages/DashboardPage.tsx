@@ -1,4 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -6,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   TestTube,
   CheckCircle,
@@ -18,32 +22,6 @@ import {
   FileText,
   Play,
 } from "lucide-react";
-
-// Mock data
-const metrics = {
-  test_coverage: 78,
-  pass_rate: 94.2,
-  active_executions: 12,
-  pending_assignments: 8,
-  total_test_cases: 1247,
-  total_defects: 23,
-  critical_defects: 3,
-  automation_coverage: 62,
-};
-
-const recentExecutions = [
-  { id: 1, name: "Login Flow Regression", status: "passed", time: "2 min ago", coverage: 100 },
-  { id: 2, name: "Payment Gateway Integration", status: "in_progress", time: "5 min ago", coverage: 67 },
-  { id: 3, name: "User Profile CRUD", status: "passed", time: "12 min ago", coverage: 100 },
-  { id: 4, name: "API Rate Limiting", status: "failed", time: "25 min ago", coverage: 45 },
-  { id: 5, name: "Dashboard Widgets", status: "passed", time: "1 hour ago", coverage: 100 },
-];
-
-const upcomingRuns = [
-  { id: 1, name: "E2E Checkout Flow", assignee: "Sarah M.", scheduledFor: "Today, 3:00 PM", priority: "high" },
-  { id: 2, name: "API Security Audit", assignee: "James L.", scheduledFor: "Tomorrow, 9:00 AM", priority: "critical" },
-  { id: 3, name: "Mobile Responsive Tests", assignee: "Anna K.", scheduledFor: "Tomorrow, 2:00 PM", priority: "medium" },
-];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -59,21 +37,107 @@ const itemVariants = {
 };
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+
+  // Fetch test cases count
+  const { data: testCases = [] } = useQuery({
+    queryKey: ["dashboard-test-cases"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("test_cases").select("id, status, ai_generated, coverage_tags");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch executions
+  const { data: executions = [] } = useQuery({
+    queryKey: ["dashboard-executions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("test_executions")
+        .select("id, status, created_at, test_case:test_cases(title)")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch defects
+  const { data: defects = [] } = useQuery({
+    queryKey: ["dashboard-defects"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("defects").select("id, severity, status");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch AI agents
+  const { data: agents = [] } = useQuery({
+    queryKey: ["dashboard-agents"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("ai_agents").select("id, status, learning_progress");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch pending test cases (pending executions)
+  const { data: pendingExecutions = [] } = useQuery({
+    queryKey: ["dashboard-pending"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("test_executions")
+        .select("id, test_case:test_cases(title)")
+        .eq("status", "pending")
+        .limit(5);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Calculate metrics
+  const metrics = {
+    total_test_cases: testCases.length,
+    active_test_cases: testCases.filter((tc) => tc.status === "active").length,
+    pass_rate: executions.length > 0
+      ? Math.round((executions.filter((e) => e.status === "passed").length / executions.length) * 100 * 10) / 10
+      : 0,
+    active_executions: executions.filter((e) => e.status === "in_progress").length,
+    pending_assignments: pendingExecutions.length,
+    total_defects: defects.filter((d) => d.status === "open" || d.status === "in_progress").length,
+    critical_defects: defects.filter((d) => d.severity === "critical" && d.status !== "resolved").length,
+    automation_coverage: agents.length > 0
+      ? Math.round(agents.reduce((acc, a) => acc + a.learning_progress, 0) / agents.length)
+      : 0,
+  };
+
+  const recentExecutions = executions.slice(0, 5).map((exec) => ({
+    id: exec.id,
+    name: exec.test_case?.title || "Unknown Test",
+    status: exec.status,
+    time: formatTimeAgo(new Date(exec.created_at)),
+  }));
+
+  function formatTimeAgo(date: Date) {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  }
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case "passed": return "success";
       case "failed": return "destructive";
       case "in_progress": return "info";
       case "blocked": return "warning";
-      default: return "default";
-    }
-  };
-
-  const getPriorityVariant = (priority: string) => {
-    switch (priority) {
-      case "critical": return "destructive";
-      case "high": return "warning";
-      case "medium": return "info";
       default: return "default";
     }
   };
@@ -95,11 +159,10 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             label="Test Coverage"
-            value={metrics.test_coverage}
-            suffix="%"
+            value={testCases.filter((tc) => tc.coverage_tags?.length).length}
+            suffix={` / ${testCases.length}`}
             icon={<TestTube className="h-5 w-5" />}
-            trend={5.2}
-            trendLabel="vs last week"
+            description="Cases with coverage tags"
             variant="accent"
           />
           <MetricCard
@@ -107,8 +170,7 @@ export default function DashboardPage() {
             value={metrics.pass_rate}
             suffix="%"
             icon={<CheckCircle className="h-5 w-5" />}
-            trend={2.1}
-            trendLabel="vs last week"
+            description="Recent executions"
             variant="success"
           />
           <MetricCard
@@ -121,8 +183,7 @@ export default function DashboardPage() {
             label="Critical Defects"
             value={metrics.critical_defects}
             icon={<Bug className="h-5 w-5" />}
-            trend={-25}
-            trendLabel="vs last week"
+            description="Open critical issues"
             variant={metrics.critical_defects > 0 ? "destructive" : "success"}
           />
         </motion.div>
@@ -131,25 +192,23 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             label="Total Test Cases"
-            value={metrics.total_test_cases.toLocaleString()}
+            value={metrics.total_test_cases}
             icon={<FileText className="h-5 w-5" />}
-            trend={12}
-            trendLabel="new this week"
+            description={`${metrics.active_test_cases} active`}
           />
           <MetricCard
-            label="Pending Assignments"
+            label="Pending Executions"
             value={metrics.pending_assignments}
             icon={<Clock className="h-5 w-5" />}
             description="Awaiting action"
             variant="warning"
           />
           <MetricCard
-            label="Automation Coverage"
+            label="AI Learning Progress"
             value={metrics.automation_coverage}
             suffix="%"
             icon={<Bot className="h-5 w-5" />}
-            trend={8}
-            trendLabel="vs last month"
+            description={`${agents.length} agents`}
           />
           <MetricCard
             label="Open Defects"
@@ -159,7 +218,7 @@ export default function DashboardPage() {
           />
         </motion.div>
 
-        {/* Recent Executions & Upcoming Runs */}
+        {/* Recent Executions & AI Insights */}
         <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-2">
           {/* Recent Executions */}
           <Card>
@@ -168,71 +227,69 @@ export default function DashboardPage() {
                 <CardTitle className="text-lg">Recent Executions</CardTitle>
                 <CardDescription>Latest test run results</CardDescription>
               </div>
-              <Button variant="ghost" size="sm" className="text-accent">
+              <Button variant="ghost" size="sm" className="text-accent" onClick={() => navigate("/executions")}>
                 View all <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentExecutions.map((execution) => (
-                  <div
-                    key={execution.id}
-                    className="flex items-center justify-between rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`h-2 w-2 rounded-full ${
-                        execution.status === "passed" ? "bg-success" :
-                        execution.status === "failed" ? "bg-destructive" :
-                        "bg-info animate-pulse"
-                      }`} />
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{execution.name}</p>
-                        <p className="text-xs text-muted-foreground">{execution.time}</p>
+                {recentExecutions.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No recent executions</p>
+                ) : (
+                  recentExecutions.map((execution) => (
+                    <div
+                      key={execution.id}
+                      className="flex items-center justify-between rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => navigate("/executions")}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`h-2 w-2 rounded-full ${
+                          execution.status === "passed" ? "bg-success" :
+                          execution.status === "failed" ? "bg-destructive" :
+                          execution.status === "in_progress" ? "bg-info animate-pulse" :
+                          "bg-muted-foreground"
+                        }`} />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{execution.name}</p>
+                          <p className="text-xs text-muted-foreground">{execution.time}</p>
+                        </div>
                       </div>
+                      <StatusBadge variant={getStatusVariant(execution.status)} size="sm">
+                        {execution.status.replace("_", " ")}
+                      </StatusBadge>
                     </div>
-                    <StatusBadge variant={getStatusVariant(execution.status)} size="sm">
-                      {execution.status.replace("_", " ")}
-                    </StatusBadge>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Upcoming Runs */}
+          {/* Quick Actions */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-4">
               <div>
-                <CardTitle className="text-lg">Upcoming Runs</CardTitle>
-                <CardDescription>Scheduled test executions</CardDescription>
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+                <CardDescription>Start testing quickly</CardDescription>
               </div>
-              <Button variant="ghost" size="sm" className="text-accent">
-                View all <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {upcomingRuns.map((run) => (
-                  <div
-                    key={run.id}
-                    className="flex items-center justify-between rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm truncate">{run.name}</p>
-                        <StatusBadge variant={getPriorityVariant(run.priority)} size="sm" showDot={false}>
-                          {run.priority}
-                        </StatusBadge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {run.assignee} • {run.scheduledFor}
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Start
-                    </Button>
-                  </div>
-                ))}
+              <div className="grid gap-3">
+                <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/test-cases")}>
+                  <TestTube className="mr-2 h-4 w-4" />
+                  Create New Test Case
+                </Button>
+                <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/executions")}>
+                  <Play className="mr-2 h-4 w-4" />
+                  Start Test Execution
+                </Button>
+                <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/automation")}>
+                  <Bot className="mr-2 h-4 w-4" />
+                  Configure AI Agent
+                </Button>
+                <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/documents")}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Upload Documents
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -255,25 +312,25 @@ export default function DashboardPage() {
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-lg border border-border/50 bg-card p-4">
-                  <h4 className="font-medium text-sm mb-1">Coverage Gap Detected</h4>
+                  <h4 className="font-medium text-sm mb-1">Test Case Coverage</h4>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Payment module has 23% lower coverage than average. Consider adding 15 more test cases.
+                    {testCases.filter((tc) => !tc.coverage_tags?.length).length} test cases lack coverage tags. Add tags for better tracking.
                   </p>
-                  <Progress value={45} className="h-1.5" />
+                  <Progress value={testCases.length > 0 ? (testCases.filter((tc) => tc.coverage_tags?.length).length / testCases.length) * 100 : 0} className="h-1.5" />
                 </div>
                 <div className="rounded-lg border border-border/50 bg-card p-4">
-                  <h4 className="font-medium text-sm mb-1">Flaky Test Identified</h4>
+                  <h4 className="font-medium text-sm mb-1">AI-Generated Tests</h4>
                   <p className="text-xs text-muted-foreground mb-3">
-                    "Login Timeout Test" failed 3 times in last 10 runs. Review test stability.
+                    {testCases.filter((tc) => tc.ai_generated).length} of {testCases.length} test cases were AI-generated.
                   </p>
-                  <Progress value={70} className="h-1.5" />
+                  <Progress value={testCases.length > 0 ? (testCases.filter((tc) => tc.ai_generated).length / testCases.length) * 100 : 0} className="h-1.5" />
                 </div>
                 <div className="rounded-lg border border-border/50 bg-card p-4">
-                  <h4 className="font-medium text-sm mb-1">Automation Opportunity</h4>
+                  <h4 className="font-medium text-sm mb-1">Defect Resolution</h4>
                   <p className="text-xs text-muted-foreground mb-3">
-                    12 manual test cases are good candidates for automation based on patterns.
+                    {defects.filter((d) => d.status === "resolved").length} of {defects.length} defects resolved.
                   </p>
-                  <Progress value={85} className="h-1.5" />
+                  <Progress value={defects.length > 0 ? (defects.filter((d) => d.status === "resolved").length / defects.length) * 100 : 0} className="h-1.5" />
                 </div>
               </div>
             </CardContent>
