@@ -24,27 +24,38 @@ import {
   Sparkles,
   LogOut,
   Bug,
+  Eye,
 } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
+
+type UserRole = Database['public']['Enums']['user_role'];
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles?: string[];
+  roles?: UserRole[];
   badge?: string;
   isAI?: boolean;
 }
 
+// Navigation items with role requirements
 const mainNavItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Workspaces", href: "/workspaces", icon: FolderKanban },
-  { title: "Documents", href: "/documents", icon: FileText, isAI: true },
-  { title: "Test Plans", href: "/test-plans", icon: ClipboardList, isAI: true },
-  { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true },
-  { title: "Executions", href: "/executions", icon: Play },
-  { title: "Defects", href: "/defects", icon: Bug },
-  { title: "AI Automation", href: "/automation", icon: Bot, isAI: true },
-  { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true },
+  { title: "Workspaces", href: "/workspaces", icon: FolderKanban, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Documents", href: "/documents", icon: FileText, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Test Plans", href: "/test-plans", icon: ClipboardList, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Executions", href: "/executions", icon: Play, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Defects", href: "/defects", icon: Bug, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "AI Automation", href: "/automation", icon: Bot, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+];
+
+// Viewer can only see dashboard and these items
+const viewerNavItems: NavItem[] = [
+  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "View Reports", href: "/reporting", icon: Eye },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -62,9 +73,20 @@ export function AppSidebar() {
   const { user, logout, hasPermission } = useAuth();
   const location = useLocation();
 
+  // Determine which nav items to show based on user role
+  const getNavItems = () => {
+    if (!user) return [];
+    if (user.role === "viewer") {
+      return viewerNavItems;
+    }
+    return mainNavItems;
+  };
+
   const renderNavItem = (item: NavItem, index: number) => {
-    if (item.roles && !hasPermission(item.roles as any)) {
-      return null;
+    // Check role-based access
+    if (item.roles && item.roles.length > 0) {
+      const hasAccess = hasPermission(item.roles);
+      if (!hasAccess) return null;
     }
 
     const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + "/");
@@ -121,6 +143,30 @@ export function AppSidebar() {
     return <div key={item.href}>{content}</div>;
   };
 
+  // Get role display label
+  const getRoleLabel = (role: UserRole) => {
+    const labels: Record<UserRole, string> = {
+      admin: "Administrator",
+      qa_manager: "QA Manager",
+      qa_engineer: "QA Engineer",
+      viewer: "Viewer",
+    };
+    return labels[role] || role;
+  };
+
+  // Get role badge color
+  const getRoleBadgeClass = (role: UserRole) => {
+    const classes: Record<UserRole, string> = {
+      admin: "bg-red-500/20 text-red-400",
+      qa_manager: "bg-purple-500/20 text-purple-400",
+      qa_engineer: "bg-cyan-500/20 text-cyan-400",
+      viewer: "bg-gray-500/20 text-gray-400",
+    };
+    return classes[role] || "";
+  };
+
+  const navItems = getNavItems();
+
   return (
     <motion.aside
       initial={false}
@@ -159,10 +205,10 @@ export function AppSidebar() {
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
-          {mainNavItems.map(renderNavItem)}
+          {navItems.map(renderNavItem)}
         </nav>
 
-        {adminNavItems.some(item => !item.roles || hasPermission(item.roles as any)) && (
+        {adminNavItems.some(item => !item.roles || hasPermission(item.roles)) && (
           <>
             <div className="my-4 h-px bg-sidebar-border" />
             <nav className="space-y-1">
@@ -195,7 +241,12 @@ export function AppSidebar() {
                 className="flex-1 min-w-0"
               >
                 <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.name}</p>
-                <p className="text-xs text-sidebar-muted capitalize">{user?.role?.replace("_", " ")}</p>
+                <span className={cn(
+                  "inline-block px-2 py-0.5 rounded text-[10px] font-medium mt-0.5",
+                  user?.role && getRoleBadgeClass(user.role)
+                )}>
+                  {user?.role && getRoleLabel(user.role)}
+                </span>
               </motion.div>
             )}
           </AnimatePresence>

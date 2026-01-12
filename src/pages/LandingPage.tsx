@@ -1,7 +1,8 @@
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   TestTube,
   Bot,
@@ -21,9 +22,17 @@ import {
   Rocket,
   Zap,
   Globe,
+  Check,
+  X,
 } from "lucide-react";
 
-// Simple card with CSS hover effects - no JS animations
+// Company logos for marquee
+const companyLogos = [
+  "TechCorp", "DataFlow", "CloudScale", "DevOps Pro", "QualityFirst",
+  "TestMaster", "AgileWorks", "CodeStream", "InnovateTech", "ScaleUp"
+];
+
+// Simple card with CSS hover effects
 const GlowCard = ({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
@@ -38,64 +47,94 @@ const GlowCard = ({ children, className, delay = 0 }: { children: React.ReactNod
         transition: `all 0.5s ease-out ${delay}s`,
       }}
     >
-      {/* CSS hover glow */}
       <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-[hsl(187,92%,50%)] via-[hsl(262,83%,58%)] to-[hsl(187,92%,50%)] opacity-0 group-hover:opacity-60 blur-sm transition-opacity duration-300" />
-      <div className="relative rounded-2xl bg-[hsl(222,47%,8%)] p-6 h-full border border-white/5 group-hover:border-transparent transition-colors duration-300 group-hover:-translate-y-2 transition-transform">
+      <div className="relative rounded-2xl bg-[hsl(222,47%,8%)] p-6 h-full border border-white/5 group-hover:border-transparent transition-all duration-300 group-hover:-translate-y-2">
         {children}
       </div>
     </div>
   );
 };
 
+// Pricing card component
+const PricingCard = ({ 
+  plan, 
+  price, 
+  yearlyPrice, 
+  isYearly, 
+  features, 
+  isPopular, 
+  ctaText,
+  onCta 
+}: { 
+  plan: string; 
+  price: number; 
+  yearlyPrice: number;
+  isYearly: boolean; 
+  features: { text: string; included: boolean }[];
+  isPopular?: boolean;
+  ctaText: string;
+  onCta: () => void;
+}) => {
+  const displayPrice = isYearly ? yearlyPrice : price;
+  
+  return (
+    <div className={`relative group ${isPopular ? 'scale-105 z-10' : ''}`}>
+      {isPopular && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-sm font-medium">
+          Most Popular
+        </div>
+      )}
+      <div className={`relative rounded-2xl p-8 h-full transition-all duration-300 ${
+        isPopular 
+          ? 'bg-gradient-to-b from-[hsl(222,47%,10%)] to-[hsl(222,47%,6%)] border-2 border-[hsl(187,92%,50%)/0.5] shadow-[0_0_40px_-10px_hsl(187,92%,50%/0.3)]' 
+          : 'bg-[hsl(222,47%,8%)] border border-white/10 hover:border-white/20'
+      }`}>
+        <h3 className="text-2xl font-bold mb-2">{plan}</h3>
+        <div className="mb-6">
+          <span className="text-5xl font-bold">${displayPrice}</span>
+          <span className="text-white/50">/{isYearly ? 'year' : 'month'}</span>
+          {isYearly && price > 0 && (
+            <p className="text-sm text-[hsl(187,92%,50%)] mt-1">Save ${(price * 12) - yearlyPrice}/year</p>
+          )}
+        </div>
+        
+        <ul className="space-y-3 mb-8">
+          {features.map((feature, i) => (
+            <li key={i} className="flex items-center gap-3">
+              {feature.included ? (
+                <Check className="h-5 w-5 text-[hsl(187,92%,50%)] shrink-0" />
+              ) : (
+                <X className="h-5 w-5 text-white/20 shrink-0" />
+              )}
+              <span className={feature.included ? 'text-white/80' : 'text-white/30'}>{feature.text}</span>
+            </li>
+          ))}
+        </ul>
+        
+        <button
+          onClick={onCta}
+          className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-300 ${
+            isPopular 
+              ? 'bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-white hover:shadow-lg hover:shadow-[hsl(187,92%,50%)/0.3] hover:-translate-y-1' 
+              : 'bg-white/10 text-white hover:bg-white/20'
+          }`}
+        >
+          {ctaText}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const features = [
-  {
-    icon: TestTube,
-    title: "Test Case Management",
-    description: "Create, organize, and track test cases with version control and requirements traceability.",
-    color: "from-cyan-400 to-blue-500",
-  },
-  {
-    icon: Play,
-    title: "Execution Tracking",
-    description: "Execute tests manually or automatically, track progress in real-time with detailed results.",
-    color: "from-green-400 to-emerald-500",
-  },
-  {
-    icon: Bot,
-    title: "AI-Powered Testing",
-    description: "Leverage intelligent agents that learn from your patterns and generate test cases automatically.",
-    color: "from-purple-400 to-pink-500",
-  },
-  {
-    icon: Bug,
-    title: "Defect Management",
-    description: "Track, assign, and resolve bugs with severity levels, priority, and linked test executions.",
-    color: "from-red-400 to-orange-500",
-  },
-  {
-    icon: FileText,
-    title: "Document Processing",
-    description: "Upload requirements documents and let AI extract test scenarios automatically.",
-    color: "from-blue-400 to-indigo-500",
-  },
-  {
-    icon: BarChart3,
-    title: "Advanced Analytics",
-    description: "Visualize trends, coverage heatmaps, team performance, and quality metrics in real-time.",
-    color: "from-yellow-400 to-orange-500",
-  },
-  {
-    icon: Bell,
-    title: "Real-Time Notifications",
-    description: "Get instant alerts when tests complete, defects are assigned, or quality issues arise.",
-    color: "from-pink-400 to-rose-500",
-  },
-  {
-    icon: GitBranch,
-    title: "Integrations",
-    description: "Connect with GitHub, Jira, Jenkins, Slack, and other tools in your development workflow.",
-    color: "from-teal-400 to-cyan-500",
-  },
+  { icon: TestTube, title: "Test Case Management", description: "Create, organize, and track test cases with version control and requirements traceability.", color: "from-cyan-400 to-blue-500" },
+  { icon: Play, title: "Execution Tracking", description: "Execute tests manually or automatically, track progress in real-time with detailed results.", color: "from-green-400 to-emerald-500" },
+  { icon: Bot, title: "AI-Powered Testing", description: "Leverage intelligent agents that learn from your patterns and generate test cases automatically.", color: "from-purple-400 to-pink-500" },
+  { icon: Bug, title: "Defect Management", description: "Track, assign, and resolve bugs with severity levels, priority, and linked test executions.", color: "from-red-400 to-orange-500" },
+  { icon: FileText, title: "Document Processing", description: "Upload requirements documents and let AI extract test scenarios automatically.", color: "from-blue-400 to-indigo-500" },
+  { icon: BarChart3, title: "Advanced Analytics", description: "Visualize trends, coverage heatmaps, team performance, and quality metrics in real-time.", color: "from-yellow-400 to-orange-500" },
+  { icon: Bell, title: "Real-Time Notifications", description: "Get instant alerts when tests complete, defects are assigned, or quality issues arise.", color: "from-pink-400 to-rose-500" },
+  { icon: GitBranch, title: "Integrations", description: "Connect with GitHub, Jira, Jenkins, Slack, and other tools in your development workflow.", color: "from-teal-400 to-cyan-500" },
 ];
 
 const stats = [
@@ -106,59 +145,74 @@ const stats = [
 ];
 
 const workflowSteps = [
-  {
-    step: "01",
-    title: "Import Requirements",
-    description: "Upload documents or connect to your project management tools.",
-    icon: FileText,
-  },
-  {
-    step: "02",
-    title: "Generate Test Cases",
-    description: "AI analyzes requirements and creates comprehensive test scenarios.",
-    icon: Sparkles,
-  },
-  {
-    step: "03",
-    title: "Execute & Monitor",
-    description: "Run tests with real-time tracking and automated defect detection.",
-    icon: Rocket,
-  },
-  {
-    step: "04",
-    title: "Analyze & Improve",
-    description: "Get insights, coverage reports, and AI-driven recommendations.",
-    icon: BarChart3,
-  },
+  { step: "01", title: "Import Requirements", description: "Upload documents or connect to your project management tools.", icon: FileText },
+  { step: "02", title: "Generate Test Cases", description: "AI analyzes requirements and creates comprehensive test scenarios.", icon: Sparkles },
+  { step: "03", title: "Execute & Monitor", description: "Run tests with real-time tracking and automated defect detection.", icon: Rocket },
+  { step: "04", title: "Analyze & Improve", description: "Get insights, coverage reports, and AI-driven recommendations.", icon: BarChart3 },
 ];
 
 const testimonials = [
+  { quote: "Qualixa transformed our QA process. We reduced testing time by 60% while improving coverage.", author: "Sarah Chen", role: "VP of Engineering", company: "TechScale Inc.", avatar: "SC" },
+  { quote: "The AI-powered test generation is incredible. It catches edge cases we never thought of.", author: "Marcus Williams", role: "QA Director", company: "FinFlow Systems", avatar: "MW" },
+  { quote: "Finally, a QA platform that understands enterprise needs. The analytics alone are worth it.", author: "Elena Rodriguez", role: "CTO", company: "CloudNative Labs", avatar: "ER" },
+];
+
+const pricingPlans = [
   {
-    quote: "Qualixa transformed our QA process. We reduced testing time by 60% while improving coverage.",
-    author: "Sarah Chen",
-    role: "VP of Engineering",
-    company: "TechScale Inc.",
-    avatar: "SC",
+    plan: "Free",
+    price: 0,
+    yearlyPrice: 0,
+    ctaText: "Get Started",
+    features: [
+      { text: "Up to 5 users", included: true },
+      { text: "100 test cases", included: true },
+      { text: "Basic reporting", included: true },
+      { text: "Email support", included: true },
+      { text: "AI test generation", included: false },
+      { text: "Custom integrations", included: false },
+      { text: "Advanced analytics", included: false },
+      { text: "Priority support", included: false },
+    ],
   },
   {
-    quote: "The AI-powered test generation is incredible. It catches edge cases we never thought of.",
-    author: "Marcus Williams",
-    role: "QA Director",
-    company: "FinFlow Systems",
-    avatar: "MW",
+    plan: "Pro",
+    price: 49,
+    yearlyPrice: 470,
+    ctaText: "Start Free Trial",
+    isPopular: true,
+    features: [
+      { text: "Up to 25 users", included: true },
+      { text: "Unlimited test cases", included: true },
+      { text: "Advanced reporting", included: true },
+      { text: "Priority email support", included: true },
+      { text: "AI test generation", included: true },
+      { text: "GitHub & Jira integration", included: true },
+      { text: "Advanced analytics", included: true },
+      { text: "Priority support", included: false },
+    ],
   },
   {
-    quote: "Finally, a QA platform that understands enterprise needs. The analytics alone are worth it.",
-    author: "Elena Rodriguez",
-    role: "CTO",
-    company: "CloudNative Labs",
-    avatar: "ER",
+    plan: "Enterprise",
+    price: 199,
+    yearlyPrice: 1990,
+    ctaText: "Contact Sales",
+    features: [
+      { text: "Unlimited users", included: true },
+      { text: "Unlimited test cases", included: true },
+      { text: "Custom reporting", included: true },
+      { text: "24/7 phone support", included: true },
+      { text: "AI test generation", included: true },
+      { text: "All integrations", included: true },
+      { text: "Advanced analytics", included: true },
+      { text: "Dedicated success manager", included: true },
+    ],
   },
 ];
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const heroRef = useRef<HTMLDivElement>(null);
+  const [isYearly, setIsYearly] = useState(false);
   
   const { scrollYProgress: heroScrollProgress } = useScroll({
     target: heroRef,
@@ -404,6 +458,26 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Company Logos Marquee */}
+      <section className="py-16 border-y border-white/5 overflow-hidden">
+        <div className="container max-w-7xl mx-auto px-6 mb-8">
+          <p className="text-center text-white/40 text-sm uppercase tracking-widest">Trusted by innovative teams worldwide</p>
+        </div>
+        <div className="relative">
+          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[hsl(222,47%,4%)] to-transparent z-10" />
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[hsl(222,47%,4%)] to-transparent z-10" />
+          <div className="flex animate-marquee">
+            {[...companyLogos, ...companyLogos].map((logo, i) => (
+              <div key={i} className="flex-shrink-0 mx-12 flex items-center justify-center">
+                <div className="px-8 py-4 rounded-xl bg-white/5 border border-white/10">
+                  <span className="text-xl font-bold text-white/40">{logo}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Stats Section */}
       <section className="py-24 relative">
         <div className="container max-w-7xl mx-auto px-6">
@@ -534,6 +608,47 @@ export default function LandingPage() {
                   </div>
                 </div>
               </GlowCard>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-32 relative">
+        <div className="container max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/60 mb-6">
+              Simple Pricing
+            </span>
+            <h2 className="text-5xl md:text-6xl font-bold mb-6">
+              Choose Your <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">Plan</span>
+            </h2>
+            <p className="text-white/40 text-xl max-w-2xl mx-auto mb-10">
+              Start free and scale as you grow. No hidden fees, cancel anytime.
+            </p>
+            
+            {/* Billing Toggle */}
+            <div className="flex items-center justify-center gap-4">
+              <span className={`text-sm ${!isYearly ? 'text-white' : 'text-white/40'}`}>Monthly</span>
+              <Switch
+                checked={isYearly}
+                onCheckedChange={setIsYearly}
+                className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-[hsl(187,92%,50%)] data-[state=checked]:to-[hsl(262,83%,58%)]"
+              />
+              <span className={`text-sm ${isYearly ? 'text-white' : 'text-white/40'}`}>
+                Yearly <span className="text-[hsl(187,92%,50%)]">(Save 20%)</span>
+              </span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {pricingPlans.map((plan) => (
+              <PricingCard
+                key={plan.plan}
+                {...plan}
+                isYearly={isYearly}
+                onCta={() => navigate("/register")}
+              />
             ))}
           </div>
         </div>
@@ -679,6 +794,10 @@ export default function LandingPage() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(8px); }
         }
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
         .animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
         .animate-fade-in-down { animation: fade-in-down 0.8s ease-out forwards; }
         .animate-fade-in { animation: fade-in 0.6s ease-out forwards; }
@@ -688,6 +807,7 @@ export default function LandingPage() {
         .animate-pulse-slow { animation: pulse-slow 8s ease-in-out infinite; }
         .animate-spin-slow { animation: spin-slow 4s linear infinite; }
         .animate-bounce-slow { animation: bounce-slow 2s ease-in-out infinite; }
+        .animate-marquee { animation: marquee 30s linear infinite; }
         .animation-delay-200 { animation-delay: 0.2s; opacity: 0; }
         .animation-delay-400 { animation-delay: 0.4s; opacity: 0; }
         .animation-delay-600 { animation-delay: 0.6s; opacity: 0; }

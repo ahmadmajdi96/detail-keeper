@@ -235,6 +235,50 @@ export default function UsersPage() {
     setIsTeamDialogOpen(true);
   };
 
+  // Add user dialog state
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState<UserRole>("qa_engineer");
+
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async () => {
+      // First, create the auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newUserEmail,
+        password: newUserPassword,
+        options: {
+          data: { name: newUserName },
+        },
+      });
+      
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Failed to create user");
+      
+      // Update the profile with the role
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ role: newUserRole, status: "active" })
+        .eq("id", authData.user.id);
+      
+      if (profileError) throw profileError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User created successfully");
+      setIsAddUserOpen(false);
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserRole("qa_engineer");
+    },
+    onError: (error) => {
+      toast.error("Failed to create user: " + error.message);
+    },
+  });
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -248,9 +292,9 @@ export default function UsersPage() {
                   <Building2 className="mr-2 h-4 w-4" />
                   New Team
                 </Button>
-                <Button className="ai-gradient text-white">
+                <Button className="ai-gradient text-white" onClick={() => setIsAddUserOpen(true)}>
                   <UserPlus className="mr-2 h-4 w-4" />
-                  Invite User
+                  Add User
                 </Button>
               </div>
             )
@@ -664,6 +708,100 @@ export default function UsersPage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
                 Create Team
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add User Dialog */}
+        <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add New User</DialogTitle>
+              <DialogDescription>
+                Create a new user account with their role and credentials.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="user-name">Full Name</Label>
+                <Input
+                  id="user-name"
+                  placeholder="John Doe"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="user-email">Email Address</Label>
+                <Input
+                  id="user-email"
+                  type="email"
+                  placeholder="john@company.com"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="user-password">Password</Label>
+                <Input
+                  id="user-password"
+                  type="password"
+                  placeholder="Minimum 6 characters"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>User Role</Label>
+                <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as UserRole)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">Admin</span>
+                        <span className="text-xs text-muted-foreground">Full system access</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="qa_manager">
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">QA Manager</span>
+                        <span className="text-xs text-muted-foreground">Team & test management</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="qa_engineer">
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">QA Engineer</span>
+                        <span className="text-xs text-muted-foreground">Test execution & defects</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="viewer">
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">Viewer</span>
+                        <span className="text-xs text-muted-foreground">Read-only access</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => createUserMutation.mutate()}
+                disabled={createUserMutation.isPending || !newUserName || !newUserEmail || newUserPassword.length < 6}
+                className="ai-gradient text-white"
+              >
+                {createUserMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <UserPlus className="mr-2 h-4 w-4" />
+                )}
+                Create User
               </Button>
             </DialogFooter>
           </DialogContent>
