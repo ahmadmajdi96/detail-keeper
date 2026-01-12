@@ -12,12 +12,14 @@ import DocumentsPage from "./pages/DocumentsPage";
 import TestPlansPage from "./pages/TestPlansPage";
 import UsersPage from "./pages/UsersPage";
 import TestCasesPage from "./pages/TestCasesPage";
+import TestCaseEditorPage from "./pages/TestCaseEditorPage";
 import ExecutionsPage from "./pages/ExecutionsPage";
 import AutomationPage from "./pages/AutomationPage";
 import ReportingPage from "./pages/ReportingPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import SettingsPage from "./pages/SettingsPage";
+import DefectsPage from "./pages/DefectsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,7 +43,10 @@ const App = () => (
             <Route path="/test-plans" element={<TestPlansPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/test-cases" element={<TestCasesPage />} />
+            <Route path="/test-cases/new" element={<TestCaseEditorPage />} />
+            <Route path="/test-cases/:id/edit" element={<TestCaseEditorPage />} />
             <Route path="/executions" element={<ExecutionsPage />} />
+            <Route path="/defects" element={<DefectsPage />} />
             <Route path="/automation" element={<AutomationPage />} />
             <Route path="/reporting" element={<ReportingPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
