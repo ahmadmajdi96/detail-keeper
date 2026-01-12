@@ -181,6 +181,30 @@ export default function UsersPage() {
     },
   });
 
+  // Update user status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ userId, status }: { userId: string; status: UserStatus }) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ status })
+        .eq("id", userId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User status updated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to update status: " + error.message);
+    },
+  });
+
+  const handleDeactivateUser = (user: Profile) => {
+    const newStatus = user.status === "active" ? "inactive" : "active";
+    updateStatusMutation.mutate({ userId: user.id, status: newStatus });
+  };
+
   // Filter users
   const filteredUsers = users.filter((user) => {
     const matchesSearch = 
@@ -415,9 +439,12 @@ export default function UsersPage() {
                                     Assign Team
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-destructive">
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={() => handleDeactivateUser(user)}
+                                  >
                                     <Trash2 className="mr-2 h-4 w-4" />
-                                    Deactivate
+                                    {user.status === "active" ? "Deactivate" : "Activate"}
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>

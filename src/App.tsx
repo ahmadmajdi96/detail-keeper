@@ -15,6 +15,9 @@ import TestCasesPage from "./pages/TestCasesPage";
 import ExecutionsPage from "./pages/ExecutionsPage";
 import AutomationPage from "./pages/AutomationPage";
 import ReportingPage from "./pages/ReportingPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import IntegrationsPage from "./pages/IntegrationsPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +44,9 @@ const App = () => (
             <Route path="/executions" element={<ExecutionsPage />} />
             <Route path="/automation" element={<AutomationPage />} />
             <Route path="/reporting" element={<ReportingPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/integrations" element={<IntegrationsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             
             {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
