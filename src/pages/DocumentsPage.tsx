@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -23,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 import {
   FileText,
   Upload,
@@ -38,75 +41,95 @@ import {
   Download,
   Trash2,
 } from "lucide-react";
-import { Document, DocumentStatus } from "@/types";
 
-// Mock data
-const mockDocuments: Document[] = [
-  {
-    doc_id: "1",
-    filename: "product_requirements_v2.pdf",
-    uploader_id: "1",
-    project_id: "1",
-    file_size: 2450000,
-    mime_type: "application/pdf",
-    status: "processed",
-    processed_date: "2024-01-15T10:30:00",
-    created_date: "2024-01-15T10:25:00",
-    requirements_count: 47,
-  },
-  {
-    doc_id: "2",
-    filename: "user_stories_sprint_23.docx",
-    uploader_id: "2",
-    project_id: "1",
-    file_size: 890000,
-    mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    status: "processing",
-    created_date: "2024-01-16T09:15:00",
-    requirements_count: 0,
-  },
-  {
-    doc_id: "3",
-    filename: "api_specification.pdf",
-    uploader_id: "1",
-    project_id: "2",
-    file_size: 5200000,
-    mime_type: "application/pdf",
-    status: "processed",
-    processed_date: "2024-01-14T14:45:00",
-    created_date: "2024-01-14T14:30:00",
-    requirements_count: 82,
-  },
-  {
-    doc_id: "4",
-    filename: "test_cases_legacy.xlsx",
-    uploader_id: "3",
-    project_id: "1",
-    file_size: 1200000,
-    mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    status: "failed",
-    created_date: "2024-01-16T11:00:00",
-    requirements_count: 0,
-  },
-  {
-    doc_id: "5",
-    filename: "security_requirements.pdf",
-    uploader_id: "1",
-    project_id: "3",
-    file_size: 980000,
-    mime_type: "application/pdf",
-    status: "processed",
-    processed_date: "2024-01-13T16:20:00",
-    created_date: "2024-01-13T16:10:00",
-    requirements_count: 23,
-  },
-];
+interface Document {
+  id: string;
+  filename: string;
+  file_size: number;
+  mime_type: string;
+  status: string;
+  uploader_id: string | null;
+  workspace_id: string | null;
+  requirements_count: number;
+  processed_at: string | null;
+  created_at: string;
+}
 
 export default function DocumentsPage() {
-  const [documents] = useState<Document[]>(mockDocuments);
+  const { user, hasPermission } = useAuth();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDragging, setIsDragging] = useState(false);
+
+  const { data: documents = [], isLoading } = useQuery({
+    queryKey: ["documents"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Document[];
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const { error } = await supabase.from("documents").insert({
+        filename: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+        status: "processing",
+        uploader_id: user?.id,
+      });
+      if (error) throw error;
+      
+      // Simulate AI processing
+      setTimeout(async () => {
+        const { data: docs } = await supabase
+          .from("documents")
+          .select("id")
+          .eq("filename", file.name)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        
+        if (docs && docs.length > 0) {
+          await supabase
+            .from("documents")
+            .update({
+              status: "processed",
+              requirements_count: Math.floor(Math.random() * 50) + 10,
+              processed_at: new Date().toISOString(),
+            })
+            .eq("id", docs[0].id);
+          queryClient.invalidateQueries({ queryKey: ["documents"] });
+        }
+      }, 3000);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      toast.success("Document uploaded and processing started");
+    },
+    onError: (error) => {
+      toast.error("Failed to upload: " + error.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("documents").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      toast.success("Document deleted");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete: " + error.message);
+    },
+  });
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesSearch = doc.filename.toLowerCase().includes(searchQuery.toLowerCase());
@@ -129,7 +152,7 @@ export default function DocumentsPage() {
     });
   };
 
-  const getStatusIcon = (status: DocumentStatus) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case "processed":
         return <CheckCircle className="h-4 w-4 text-success" />;
@@ -142,7 +165,7 @@ export default function DocumentsPage() {
     }
   };
 
-  const getStatusVariant = (status: DocumentStatus) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
       case "processed": return "success";
       case "processing": return "info";
@@ -163,7 +186,20 @@ export default function DocumentsPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    // Handle file drop
+    const files = Array.from(e.dataTransfer.files);
+    files.forEach((file) => uploadMutation.mutate(file));
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach((file) => uploadMutation.mutate(file));
+  };
+
+  const stats = {
+    total: documents.length,
+    processed: documents.filter((d) => d.status === "processed").length,
+    processing: documents.filter((d) => d.status === "processing").length,
+    requirements: documents.reduce((sum, d) => sum + (d.requirements_count || 0), 0),
   };
 
   return (
@@ -205,7 +241,20 @@ export default function DocumentsPage() {
               <Badge variant="secondary">DOCX</Badge>
               <Badge variant="secondary">XLSX</Badge>
             </div>
-            <Button className="ai-gradient text-white">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.docx,.xlsx,.doc,.xls"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <Button 
+              className="ai-gradient text-white"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMutation.isPending}
+            >
+              {uploadMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Upload className="mr-2 h-4 w-4" />
               Choose Files
             </Button>
@@ -227,7 +276,7 @@ export default function DocumentsPage() {
                 <FileText className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{documents.length}</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
                 <p className="text-xs text-muted-foreground">Total Documents</p>
               </div>
             </div>
@@ -240,7 +289,7 @@ export default function DocumentsPage() {
                 <CheckCircle className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{documents.filter(d => d.status === "processed").length}</p>
+                <p className="text-2xl font-bold">{stats.processed}</p>
                 <p className="text-xs text-muted-foreground">Processed</p>
               </div>
             </div>
@@ -250,10 +299,10 @@ export default function DocumentsPage() {
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
-                <Loader2 className="h-5 w-5 text-info animate-spin" />
+                <Loader2 className={`h-5 w-5 text-info ${stats.processing > 0 ? "animate-spin" : ""}`} />
               </div>
               <div>
-                <p className="text-2xl font-bold">{documents.filter(d => d.status === "processing").length}</p>
+                <p className="text-2xl font-bold">{stats.processing}</p>
                 <p className="text-xs text-muted-foreground">Processing</p>
               </div>
             </div>
@@ -266,9 +315,7 @@ export default function DocumentsPage() {
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
-                  {documents.reduce((sum, d) => sum + (d.requirements_count || 0), 0)}
-                </p>
+                <p className="text-2xl font-bold">{stats.requirements}</p>
                 <p className="text-xs text-muted-foreground">Requirements Extracted</p>
               </div>
             </div>
@@ -310,76 +357,94 @@ export default function DocumentsPage() {
       >
         <Card>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Document</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Requirements</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Uploaded</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredDocuments.map((doc) => (
-                  <TableRow key={doc.doc_id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
-                          <FileType className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{doc.filename}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {doc.mime_type.split("/").pop()?.toUpperCase()}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(doc.status)}
-                        <StatusBadge variant={getStatusVariant(doc.status)} size="sm">
-                          {doc.status}
-                        </StatusBadge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {doc.status === "processed" ? (
-                        <div className="flex items-center gap-1 text-sm">
-                          <Sparkles className="h-3 w-3 text-accent" />
-                          {doc.requirements_count} found
-                        </div>
-                      ) : doc.status === "processing" ? (
-                        <span className="text-sm text-muted-foreground">Analyzing...</span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatFileSize(doc.file_size)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(doc.created_date)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredDocuments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No documents found</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Requirements</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Uploaded</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredDocuments.map((doc) => (
+                    <TableRow key={doc.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
+                            <FileType className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{doc.filename}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {doc.mime_type.split("/").pop()?.toUpperCase()}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(doc.status)}
+                          <StatusBadge variant={getStatusVariant(doc.status)} size="sm">
+                            {doc.status}
+                          </StatusBadge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {doc.status === "processed" ? (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Sparkles className="h-3 w-3 text-accent" />
+                            {doc.requirements_count} found
+                          </div>
+                        ) : doc.status === "processing" ? (
+                          <span className="text-sm text-muted-foreground">Analyzing...</span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatFileSize(doc.file_size)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(doc.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          {hasPermission(["admin", "qa_manager"]) && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => deleteMutation.mutate(doc.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </motion.div>

@@ -1,9 +1,14 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Progress } from "@/components/ui/progress";
@@ -24,95 +29,107 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import {
   ClipboardList,
   Plus,
   Search,
   Filter,
   MoreHorizontal,
   Calendar,
-  Users,
   Target,
   Play,
   Sparkles,
   ChevronRight,
-  AlertCircle,
+  Loader2,
+  Trash2,
 } from "lucide-react";
-import { TestPlan, TestPlanStatus } from "@/types";
 
-// Mock data
-const mockTestPlans: TestPlan[] = [
-  {
-    plan_id: "1",
-    project_id: "1",
-    name: "Sprint 23 Regression Suite",
-    description: "Comprehensive regression testing for all core features updated in Sprint 23",
-    status: "active",
-    created_by: "1",
-    created_date: "2024-01-15",
-    ai_suggested: true,
-    runs_count: 12,
-    progress: 67,
-  },
-  {
-    plan_id: "2",
-    project_id: "1",
-    name: "Payment Gateway Integration",
-    description: "End-to-end testing of new payment gateway integration with Stripe",
-    status: "active",
-    created_by: "2",
-    created_date: "2024-01-14",
-    ai_suggested: true,
-    runs_count: 8,
-    progress: 45,
-  },
-  {
-    plan_id: "3",
-    project_id: "2",
-    name: "Mobile App Release 2.5",
-    description: "Release testing for mobile banking app version 2.5",
-    status: "draft",
-    created_by: "1",
-    created_date: "2024-01-16",
-    ai_suggested: false,
-    runs_count: 5,
-    progress: 0,
-  },
-  {
-    plan_id: "4",
-    project_id: "1",
-    name: "Security Audit Q1 2024",
-    description: "Quarterly security testing covering OWASP Top 10 vulnerabilities",
-    status: "completed",
-    created_by: "3",
-    created_date: "2024-01-01",
-    ai_suggested: true,
-    runs_count: 15,
-    progress: 100,
-  },
-  {
-    plan_id: "5",
-    project_id: "3",
-    name: "Performance Benchmark Suite",
-    description: "Load and stress testing for healthcare portal under various conditions",
-    status: "active",
-    created_by: "2",
-    created_date: "2024-01-12",
-    ai_suggested: true,
-    runs_count: 6,
-    progress: 83,
-  },
-];
-
-const teamMembers = [
-  { id: "1", name: "Alex Johnson", initials: "AJ" },
-  { id: "2", name: "Sarah Miller", initials: "SM" },
-  { id: "3", name: "James Lee", initials: "JL" },
-];
+interface TestPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  workspace_id: string | null;
+  created_by: string | null;
+  ai_suggested: boolean;
+  runs_count: number;
+  progress: number;
+  created_at: string;
+  creator?: { name: string } | null;
+}
 
 export default function TestPlansPage() {
-  const [testPlans] = useState<TestPlan[]>(mockTestPlans);
+  const { user, hasPermission } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+
+  const { data: testPlans = [], isLoading } = useQuery({
+    queryKey: ["test-plans"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("test_plans")
+        .select("*, creator:profiles!test_plans_created_by_fkey(name)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as TestPlan[];
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("test_plans").insert({
+        name: newName,
+        description: newDescription,
+        created_by: user?.id,
+        status: "draft",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["test-plans"] });
+      toast.success("Test plan created successfully");
+      setIsCreateDialogOpen(false);
+      setNewName("");
+      setNewDescription("");
+    },
+    onError: (error) => {
+      toast.error("Failed to create: " + error.message);
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("test_plans").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["test-plans"] });
+      toast.success("Status updated");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("test_plans").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["test-plans"] });
+      toast.success("Test plan deleted");
+    },
+  });
 
   const filteredPlans = testPlans.filter((plan) => {
     const matchesSearch =
@@ -122,7 +139,7 @@ export default function TestPlansPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusVariant = (status: TestPlanStatus) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
       case "active": return "success";
       case "draft": return "warning";
@@ -132,8 +149,6 @@ export default function TestPlansPage() {
     }
   };
 
-  const getCreator = (id: string) => teamMembers.find((m) => m.id === id);
-
   return (
     <AppLayout>
       <PageHeader
@@ -141,7 +156,7 @@ export default function TestPlansPage() {
         description="AI-assisted test plan creation and optimization"
         isAIPowered
         actions={
-          <Button className="ai-gradient text-white">
+          <Button className="ai-gradient text-white" onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             New Test Plan
           </Button>
@@ -163,7 +178,7 @@ export default function TestPlansPage() {
               <div>
                 <h3 className="font-medium">AI Test Plan Suggestions</h3>
                 <p className="text-sm text-muted-foreground">
-                  Based on recent document uploads, we recommend creating 3 new test plans
+                  Based on your test cases, we recommend creating optimized test plans
                 </p>
               </div>
             </div>
@@ -202,21 +217,24 @@ export default function TestPlansPage() {
       </div>
 
       {/* Test Plans Grid */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
-      >
-        {filteredPlans.map((plan, index) => {
-          const creator = getCreator(plan.created_by);
-          return (
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+        >
+          {filteredPlans.map((plan, index) => (
             <motion.div
-              key={plan.plan_id}
+              key={plan.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card className="group hover:shadow-soft transition-all duration-200 cursor-pointer h-full flex flex-col">
+              <Card className="group hover:shadow-soft transition-all duration-200 h-full flex flex-col">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -239,16 +257,27 @@ export default function TestPlansPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit Plan</DropdownMenuItem>
-                        <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "active" })}>
+                          Activate
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "completed" })}>
+                          Mark Complete
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">Archive</DropdownMenuItem>
+                        {hasPermission(["admin", "qa_manager"]) && (
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => deleteMutation.mutate(plan.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   <CardTitle className="text-base mt-2">{plan.name}</CardTitle>
-                  <CardDescription className="line-clamp-2">{plan.description}</CardDescription>
+                  <CardDescription className="line-clamp-2">{plan.description || "No description"}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-end">
                   {/* Progress */}
@@ -272,15 +301,19 @@ export default function TestPlansPage() {
                     <div className="rounded-lg bg-secondary/50 py-2">
                       <Calendar className="h-4 w-4 mx-auto text-muted-foreground mb-1" />
                       <p className="text-xs font-medium">
-                        {new Date(plan.created_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {new Date(plan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </p>
                       <p className="text-[10px] text-muted-foreground">Created</p>
                     </div>
                     <div className="rounded-lg bg-secondary/50 py-2">
                       <Avatar className="h-5 w-5 mx-auto mb-1">
-                        <AvatarFallback className="text-[10px]">{creator?.initials}</AvatarFallback>
+                        <AvatarFallback className="text-[10px]">
+                          {plan.creator?.name?.charAt(0) || "?"}
+                        </AvatarFallback>
                       </Avatar>
-                      <p className="text-xs font-medium truncate px-1">{creator?.name.split(" ")[0]}</p>
+                      <p className="text-xs font-medium truncate px-1">
+                        {plan.creator?.name?.split(" ")[0] || "Unknown"}
+                      </p>
                       <p className="text-[10px] text-muted-foreground">Owner</p>
                     </div>
                   </div>
@@ -293,29 +326,84 @@ export default function TestPlansPage() {
                     </Button>
                   )}
                   {plan.status === "draft" && (
-                    <Button className="w-full mt-4 ai-gradient text-white" size="sm">
+                    <Button 
+                      className="w-full mt-4 ai-gradient text-white" 
+                      size="sm"
+                      onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "active" })}
+                    >
                       <Sparkles className="mr-2 h-3 w-3" />
-                      Configure with AI
+                      Activate Plan
                     </Button>
                   )}
                 </CardContent>
               </Card>
             </motion.div>
-          );
-        })}
-      </motion.div>
+          ))}
+        </motion.div>
+      )}
 
-      {filteredPlans.length === 0 && (
+      {!isLoading && filteredPlans.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium mb-1">No test plans found</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            {searchQuery
-              ? "Try adjusting your search query"
-              : "Create your first test plan to get started"}
+            {searchQuery ? "Try adjusting your search query" : "Create your first test plan to get started"}
           </p>
+          {!searchQuery && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Test Plan
+            </Button>
+          )}
         </div>
       )}
+
+      {/* Create Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Create Test Plan
+            </DialogTitle>
+            <DialogDescription>
+              Create a new test plan to organize your testing activities
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Plan Name</Label>
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g., Sprint 24 Regression Suite"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Describe the scope and goals of this test plan..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="ai-gradient text-white"
+              onClick={() => createMutation.mutate()}
+              disabled={!newName || createMutation.isPending}
+            >
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

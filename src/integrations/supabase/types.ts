@@ -233,6 +233,60 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          created_at: string
+          file_size: number
+          filename: string
+          id: string
+          mime_type: string
+          processed_at: string | null
+          requirements_count: number | null
+          status: string
+          uploader_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_size?: number
+          filename: string
+          id?: string
+          mime_type: string
+          processed_at?: string | null
+          requirements_count?: number | null
+          status?: string
+          uploader_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_size?: number
+          filename?: string
+          id?: string
+          mime_type?: string
+          processed_at?: string | null
+          requirements_count?: number | null
+          status?: string
+          uploader_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_uploader_id_fkey"
+            columns: ["uploader_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evidence: {
         Row: {
           captured_at: string
@@ -619,6 +673,113 @@ export type Database = {
             columns: ["test_case_id"]
             isOneToOne: false
             referencedRelation: "test_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_plans: {
+        Row: {
+          ai_suggested: boolean | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          progress: number | null
+          runs_count: number | null
+          status: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          ai_suggested?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          progress?: number | null
+          runs_count?: number | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          ai_suggested?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          progress?: number | null
+          runs_count?: number | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_plans_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_plans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspaces: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          members_count: number | null
+          name: string
+          owner_id: string | null
+          projects_count: number | null
+          status: string
+          storage_quota: number | null
+          storage_used: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          members_count?: number | null
+          name: string
+          owner_id?: string | null
+          projects_count?: number | null
+          status?: string
+          storage_quota?: number | null
+          storage_used?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          members_count?: number | null
+          name?: string
+          owner_id?: string | null
+          projects_count?: number | null
+          status?: string
+          storage_quota?: number | null
+          storage_used?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspaces_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
