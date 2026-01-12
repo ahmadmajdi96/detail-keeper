@@ -14,6 +14,7 @@ import { ExecutionTrendsChart } from "@/components/dashboard/ExecutionTrendsChar
 import { DefectMetricsChart } from "@/components/dashboard/DefectMetricsChart";
 import { TeamPerformanceChart } from "@/components/dashboard/TeamPerformanceChart";
 import { TestCaseStatusChart } from "@/components/dashboard/TestCaseStatusChart";
+import { CoverageHeatmap } from "@/components/dashboard/CoverageHeatmap";
 import {
   TestTube,
   CheckCircle,
@@ -54,13 +55,13 @@ export default function DashboardPage() {
     },
   });
 
-  // Fetch executions with more data for charts
+  // Fetch executions with more data for charts including test case coverage tags
   const { data: executions = [] } = useQuery({
     queryKey: ["dashboard-executions"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("test_executions")
-        .select("id, status, created_at, completed_at, test_case:test_cases(title)")
+        .select("id, status, created_at, completed_at, test_case_id, test_case:test_cases(title, coverage_tags)")
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -188,6 +189,49 @@ export default function DashboardPage() {
     ];
   }, [metrics.pass_rate, testCases, defects, agents]);
 
+  // Coverage heatmap data - aggregate by coverage tag
+  const coverageHeatmapData = useMemo(() => {
+    const tagMap = new Map<string, { tests: number; passed: number; total: number }>();
+    
+    // First gather all coverage tags from test cases
+    testCases.forEach((tc) => {
+      const tags = tc.coverage_tags || [];
+      tags.forEach((tag: string) => {
+        if (!tagMap.has(tag)) {
+          tagMap.set(tag, { tests: 0, passed: 0, total: 0 });
+        }
+        const entry = tagMap.get(tag)!;
+        entry.tests += 1;
+      });
+    });
+
+    // Then calculate pass rates from executions
+    executions.forEach((exec) => {
+      const tags = exec.test_case?.coverage_tags || [];
+      tags.forEach((tag: string) => {
+        if (!tagMap.has(tag)) {
+          tagMap.set(tag, { tests: 0, passed: 0, total: 0 });
+        }
+        const entry = tagMap.get(tag)!;
+        entry.total += 1;
+        if (exec.status === "passed") {
+          entry.passed += 1;
+        }
+      });
+    });
+
+    // Convert to array format for treemap
+    return Array.from(tagMap.entries())
+      .map(([name, data]) => ({
+        name,
+        size: data.tests * 10 + 10, // Size based on test count
+        testCount: data.tests,
+        passRate: data.total > 0 ? Math.round((data.passed / data.total) * 100) : 100,
+      }))
+      .sort((a, b) => b.size - a.size)
+      .slice(0, 12); // Limit to top 12 for readability
+  }, [testCases, executions]);
+
   const recentExecutions = executions.slice(0, 5).map((exec) => ({
     id: exec.id,
     name: exec.test_case?.title || "Unknown Test",
@@ -303,6 +347,11 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-2">
           <TestCaseStatusChart data={testCaseStatusData} />
           <TeamPerformanceChart data={teamPerformanceData} />
+        </motion.div>
+
+        {/* Coverage Heatmap - Full Width */}
+        <motion.div variants={itemVariants}>
+          <CoverageHeatmap data={coverageHeatmapData} />
         </motion.div>
 
         {/* Recent Executions & Quick Actions */}
