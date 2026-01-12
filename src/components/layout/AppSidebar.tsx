@@ -42,7 +42,7 @@ const mainNavItems: NavItem[] = [
   { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true },
   { title: "Executions", href: "/executions", icon: Play },
   { title: "AI Automation", href: "/automation", icon: Bot, isAI: true },
-  { title: "Reports", href: "/reports", icon: BarChart3 },
+  { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true },
 ];
 
 const adminNavItems: NavItem[] = [
