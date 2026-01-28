@@ -159,6 +159,150 @@ export type Database = {
           },
         ]
       }
+      api_endpoints: {
+        Row: {
+          authentication: string | null
+          created_at: string
+          description: string | null
+          document_id: string
+          headers: Json | null
+          id: string
+          method: string
+          parameters: Json | null
+          path: string
+          request_body: Json | null
+          response_schema: Json | null
+          summary: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          authentication?: string | null
+          created_at?: string
+          description?: string | null
+          document_id: string
+          headers?: Json | null
+          id?: string
+          method: string
+          parameters?: Json | null
+          path: string
+          request_body?: Json | null
+          response_schema?: Json | null
+          summary?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          authentication?: string | null
+          created_at?: string
+          description?: string | null
+          document_id?: string
+          headers?: Json | null
+          id?: string
+          method?: string
+          parameters?: Json | null
+          path?: string
+          request_body?: Json | null
+          response_schema?: Json | null
+          summary?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_endpoints_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_test_executions: {
+        Row: {
+          assertion_results: Json | null
+          assertions: Json | null
+          created_at: string
+          endpoint_id: string
+          executed_at: string | null
+          executor_id: string | null
+          id: string
+          method: string
+          notes: string | null
+          request_body: string | null
+          request_headers: Json | null
+          response_body: string | null
+          response_headers: Json | null
+          response_status: number | null
+          response_time_ms: number | null
+          status: string
+          test_plan_id: string | null
+          url: string
+        }
+        Insert: {
+          assertion_results?: Json | null
+          assertions?: Json | null
+          created_at?: string
+          endpoint_id: string
+          executed_at?: string | null
+          executor_id?: string | null
+          id?: string
+          method: string
+          notes?: string | null
+          request_body?: string | null
+          request_headers?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          status?: string
+          test_plan_id?: string | null
+          url: string
+        }
+        Update: {
+          assertion_results?: Json | null
+          assertions?: Json | null
+          created_at?: string
+          endpoint_id?: string
+          executed_at?: string | null
+          executor_id?: string | null
+          id?: string
+          method?: string
+          notes?: string | null
+          request_body?: string | null
+          request_headers?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          status?: string
+          test_plan_id?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_test_executions_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "api_endpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_test_executions_executor_id_fkey"
+            columns: ["executor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_test_executions_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "endpoint_test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       defects: {
         Row: {
           assigned_to: string | null
@@ -283,6 +427,115 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      endpoint_prds: {
+        Row: {
+          acceptance_criteria: Json | null
+          created_at: string
+          dependencies: Json | null
+          endpoint_id: string
+          full_content: string | null
+          functional_requirements: Json | null
+          generated_at: string
+          id: string
+          non_functional_requirements: Json | null
+          objectives: Json | null
+          overview: string | null
+          risks: Json | null
+          title: string
+        }
+        Insert: {
+          acceptance_criteria?: Json | null
+          created_at?: string
+          dependencies?: Json | null
+          endpoint_id: string
+          full_content?: string | null
+          functional_requirements?: Json | null
+          generated_at?: string
+          id?: string
+          non_functional_requirements?: Json | null
+          objectives?: Json | null
+          overview?: string | null
+          risks?: Json | null
+          title: string
+        }
+        Update: {
+          acceptance_criteria?: Json | null
+          created_at?: string
+          dependencies?: Json | null
+          endpoint_id?: string
+          full_content?: string | null
+          functional_requirements?: Json | null
+          generated_at?: string
+          id?: string
+          non_functional_requirements?: Json | null
+          objectives?: Json | null
+          overview?: string | null
+          risks?: Json | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "endpoint_prds_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "api_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      endpoint_test_plans: {
+        Row: {
+          coverage_areas: Json | null
+          created_at: string
+          description: string | null
+          endpoint_id: string
+          generated_at: string
+          id: string
+          name: string
+          preconditions: string | null
+          status: string
+          test_cases: Json | null
+          test_data: Json | null
+          updated_at: string
+        }
+        Insert: {
+          coverage_areas?: Json | null
+          created_at?: string
+          description?: string | null
+          endpoint_id: string
+          generated_at?: string
+          id?: string
+          name: string
+          preconditions?: string | null
+          status?: string
+          test_cases?: Json | null
+          test_data?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          coverage_areas?: Json | null
+          created_at?: string
+          description?: string | null
+          endpoint_id?: string
+          generated_at?: string
+          id?: string
+          name?: string
+          preconditions?: string | null
+          status?: string
+          test_cases?: Json | null
+          test_data?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "endpoint_test_plans_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "api_endpoints"
             referencedColumns: ["id"]
           },
         ]
