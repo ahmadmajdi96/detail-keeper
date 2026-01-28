@@ -1,1 +1,13 @@
 project_id = "seqnkjuoilkrrazvgoae"
+
+[functions.process-document]
+verify_jwt = false
+
+[functions.generate-prd]
+verify_jwt = false
+
+[functions.generate-test-plan]
+verify_jwt = false
+
+[functions.execute-api-test]
+verify_jwt = false

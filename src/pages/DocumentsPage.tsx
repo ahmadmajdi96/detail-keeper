@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -25,6 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   FileText,
@@ -40,7 +49,9 @@ import {
   Eye,
   Download,
   Trash2,
+  Brain,
 } from "lucide-react";
+import { DocumentEndpoints } from "@/components/documents/DocumentEndpoints";
 
 interface Document {
   id: string;
@@ -62,6 +73,10 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDragging, setIsDragging] = useState(false);
+  const [showProcessDialog, setShowProcessDialog] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [documentContent, setDocumentContent] = useState("");
+  const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["documents"],
@@ -130,6 +145,54 @@ export default function DocumentsPage() {
       toast.error("Failed to delete: " + error.message);
     },
   });
+
+  const processDocumentMutation = useMutation({
+    mutationFn: async ({ documentId, content }: { documentId: string; content: string }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-document`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ documentId, documentContent: content }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to process document");
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["api-endpoints"] });
+      toast.success(`Extracted ${data.endpoints?.length || 0} API endpoints!`);
+      setShowProcessDialog(false);
+      setDocumentContent("");
+      if (selectedDocument) {
+        setViewingDocument(selectedDocument);
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to process document");
+    },
+  });
+
+  const handleProcessDocument = (doc: Document) => {
+    setSelectedDocument(doc);
+    setShowProcessDialog(true);
+  };
+
+  const handleViewDocument = (doc: Document) => {
+    setViewingDocument(doc);
+  };
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesSearch = doc.filename.toLowerCase().includes(searchQuery.toLowerCase());
@@ -422,12 +485,28 @@ export default function DocumentsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Download className="h-4 w-4" />
-                          </Button>
+                          {doc.status === "uploaded" && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => handleProcessDocument(doc)}
+                              title="Process with AI"
+                            >
+                              <Brain className="h-4 w-4 text-accent" />
+                            </Button>
+                          )}
+                          {doc.status === "processed" && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => handleViewDocument(doc)}
+                              title="View Endpoints"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
                           {hasPermission(["admin", "qa_manager"]) && (
                             <Button 
                               variant="ghost" 
@@ -448,6 +527,70 @@ export default function DocumentsPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Process Document Dialog */}
+      <Dialog open={showProcessDialog} onOpenChange={setShowProcessDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-accent" />
+              Process Document with AI
+            </DialogTitle>
+            <DialogDescription>
+              Paste the document content below to extract API endpoints, generate PRDs, and create test plans.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium mb-2">
+                Document: {selectedDocument?.filename}
+              </p>
+              <Textarea
+                value={documentContent}
+                onChange={(e) => setDocumentContent(e.target.value)}
+                placeholder="Paste API documentation content here... (e.g., OpenAPI spec, API reference documentation, etc.)"
+                className="min-h-[300px] font-mono text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowProcessDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedDocument && documentContent) {
+                  processDocumentMutation.mutate({
+                    documentId: selectedDocument.id,
+                    content: documentContent,
+                  });
+                }
+              }}
+              disabled={!documentContent || processDocumentMutation.isPending}
+              className="ai-gradient text-white"
+            >
+              {processDocumentMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Extract Endpoints
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Document Endpoints Dialog */}
+      <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+          {viewingDocument && (
+            <DocumentEndpoints
+              documentId={viewingDocument.id}
+              documentName={viewingDocument.filename}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
