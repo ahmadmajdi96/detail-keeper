@@ -52,6 +52,7 @@ import {
   Brain,
 } from "lucide-react";
 import { DocumentEndpoints } from "@/components/documents/DocumentEndpoints";
+import { useProjectScope } from "@/hooks/useProjectScope";
 
 interface Document {
   id: string;
@@ -70,6 +71,7 @@ export default function DocumentsPage() {
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { projectId, workspaceId, scopeKey } = useProjectScope();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDragging, setIsDragging] = useState(false);
@@ -79,12 +81,11 @@ export default function DocumentsPage() {
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
 
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: ["documents"],
+    queryKey: ["documents", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .order("created_at", { ascending: false });
+      let q = supabase.from("documents").select("*").order("created_at", { ascending: false });
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as Document[];
     },
@@ -98,6 +99,8 @@ export default function DocumentsPage() {
         mime_type: file.type,
         status: "processing",
         uploader_id: user?.id,
+        project_id: projectId,
+        workspace_id: workspaceId,
       });
       if (error) throw error;
       

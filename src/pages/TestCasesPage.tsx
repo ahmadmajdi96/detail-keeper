@@ -68,6 +68,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { TestCase, TestCaseStep, TestCaseVersion, TestCaseStatus } from "@/types";
+import { useProjectScope } from "@/hooks/useProjectScope";
 
 const statusColors: Record<TestCaseStatus, string> = {
   draft: "bg-muted text-muted-foreground border-border",
@@ -87,6 +88,7 @@ export default function TestCasesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { projectId, workspaceId, scopeKey } = useProjectScope();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
@@ -105,13 +107,14 @@ export default function TestCasesPage() {
 
   // Fetch test cases
   const { data: testCases = [], isLoading } = useQuery({
-    queryKey: ["test-cases"],
+    queryKey: ["test-cases", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("test_cases")
         .select("*")
         .order("created_at", { ascending: false });
-      
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as TestCase[];
     },
@@ -163,6 +166,8 @@ export default function TestCasesPage() {
           expected_result: newExpectedResult,
           created_by: user?.id,
           status: "draft" as TestCaseStatus,
+          project_id: projectId,
+          workspace_id: workspaceId,
         })
         .select()
         .single();
@@ -249,6 +254,8 @@ export default function TestCasesPage() {
         status: "draft" as TestCaseStatus,
         ai_generated: true,
         ai_confidence: 0.85,
+        project_id: projectId,
+        workspace_id: workspaceId,
       });
     }
     
