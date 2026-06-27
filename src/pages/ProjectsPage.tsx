@@ -123,10 +123,10 @@ export default function ProjectsPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <MetricCard label="Total" value={stats.total} icon={Layers} />
-        <MetricCard label="Ready" value={stats.ready} icon={CheckCircle2} variant="success" />
-        <MetricCard label="Processing" value={stats.processing} icon={Clock} variant="warning" />
-        <MetricCard label="Failed" value={stats.failed} icon={AlertCircle} variant="destructive" />
+        <MetricCard label="Total" value={stats.total} icon={<Layers className="h-4 w-4" />} />
+        <MetricCard label="Ready" value={stats.ready} icon={<CheckCircle2 className="h-4 w-4" />} variant="success" />
+        <MetricCard label="Processing" value={stats.processing} icon={<Clock className="h-4 w-4" />} variant="warning" />
+        <MetricCard label="Failed" value={stats.failed} icon={<AlertCircle className="h-4 w-4" />} variant="destructive" />
       </div>
 
       <div className="flex items-center gap-2 mb-4">
