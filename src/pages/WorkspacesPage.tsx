@@ -148,7 +148,7 @@ export default function WorkspacesPage() {
         description="Manage your testing workspaces and projects"
         actions={
           hasPermission(["admin", "qa_manager"]) && (
-            <Button className="ai-gradient text-white" onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="ai-gradient text-white" onClick={() => setWizardOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New Workspace
             </Button>
