@@ -58,6 +58,16 @@ const App = () => (
                   <WorkspacesPage />
                 </ProtectedRoute>
               } />
+              <Route path="/workspaces/:id" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <WorkspaceDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/projects" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <ProjectsPage />
+                </ProtectedRoute>
+              } />
               <Route path="/documents" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
                   <DocumentsPage />
