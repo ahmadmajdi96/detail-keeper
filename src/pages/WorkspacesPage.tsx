@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { WorkspaceWizard } from "@/components/workspaces/WorkspaceWizard";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -59,10 +62,21 @@ interface Workspace {
 export default function WorkspacesPage() {
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { setCurrentWorkspaceId, refresh } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(searchParams.get("new") === "1");
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setWizardOpen(true);
+      searchParams.delete("new"); setSearchParams(searchParams);
+    }
+  }, []);
 
   const { data: workspaces = [], isLoading } = useQuery({
     queryKey: ["workspaces"],
@@ -134,7 +148,7 @@ export default function WorkspacesPage() {
         description="Manage your testing workspaces and projects"
         actions={
           hasPermission(["admin", "qa_manager"]) && (
-            <Button className="ai-gradient text-white" onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="ai-gradient text-white" onClick={() => setWizardOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New Workspace
             </Button>
@@ -204,7 +218,7 @@ export default function WorkspacesPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setCurrentWorkspaceId(workspace.id); navigate(`/workspaces/${workspace.id}`); }}>
                           <ExternalLink className="mr-2 h-4 w-4" />
                           Open
                         </DropdownMenuItem>
@@ -278,7 +292,7 @@ export default function WorkspacesPage() {
             {searchQuery ? "Try adjusting your search query" : "Create your first workspace to get started"}
           </p>
           {!searchQuery && hasPermission(["admin", "qa_manager"]) && (
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button onClick={() => setWizardOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Workspace
             </Button>
@@ -331,6 +345,8 @@ export default function WorkspacesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <WorkspaceWizard open={wizardOpen} onOpenChange={(o) => { setWizardOpen(o); if (!o) refresh(); }} />
     </AppLayout>
   );
 }

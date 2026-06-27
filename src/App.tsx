@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
@@ -11,6 +12,8 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import WorkspacesPage from "./pages/WorkspacesPage";
+import WorkspaceDetailPage from "./pages/WorkspaceDetailPage";
+import ProjectsPage from "./pages/ProjectsPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import TestPlansPage from "./pages/TestPlansPage";
 import UsersPage from "./pages/UsersPage";
@@ -30,12 +33,13 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <NotificationProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
+      <WorkspaceProvider>
+        <NotificationProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
               {/* Landing Page - Main Route */}
               <Route path="/" element={<LandingPage />} />
               
@@ -52,6 +56,16 @@ const App = () => (
               <Route path="/workspaces" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
                   <WorkspacesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/workspaces/:id" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <WorkspaceDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/projects" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <ProjectsPage />
                 </ProtectedRoute>
               } />
               <Route path="/documents" element={
@@ -118,6 +132,7 @@ const App = () => (
           </BrowserRouter>
         </TooltipProvider>
       </NotificationProvider>
+      </WorkspaceProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
