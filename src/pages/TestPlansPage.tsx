@@ -51,6 +51,7 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
+import { useProjectScope } from "@/hooks/useProjectScope";
 
 interface TestPlan {
   id: string;
@@ -69,6 +70,7 @@ interface TestPlan {
 export default function TestPlansPage() {
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
+  const { projectId, workspaceId, scopeKey } = useProjectScope();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -76,12 +78,14 @@ export default function TestPlansPage() {
   const [newDescription, setNewDescription] = useState("");
 
   const { data: testPlans = [], isLoading } = useQuery({
-    queryKey: ["test-plans"],
+    queryKey: ["test-plans", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("test_plans")
         .select("*, creator:profiles!test_plans_created_by_fkey(name)")
         .order("created_at", { ascending: false });
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as TestPlan[];
     },
@@ -94,6 +98,8 @@ export default function TestPlansPage() {
         description: newDescription,
         created_by: user?.id,
         status: "draft",
+        project_id: projectId,
+        workspace_id: workspaceId,
       });
       if (error) throw error;
     },

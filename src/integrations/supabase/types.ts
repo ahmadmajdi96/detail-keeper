@@ -170,11 +170,13 @@ export type Database = {
           method: string
           parameters: Json | null
           path: string
+          project_id: string | null
           request_body: Json | null
           response_schema: Json | null
           summary: string | null
           tags: string[] | null
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
           authentication?: string | null
@@ -186,11 +188,13 @@ export type Database = {
           method: string
           parameters?: Json | null
           path: string
+          project_id?: string | null
           request_body?: Json | null
           response_schema?: Json | null
           summary?: string | null
           tags?: string[] | null
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
           authentication?: string | null
@@ -202,11 +206,13 @@ export type Database = {
           method?: string
           parameters?: Json | null
           path?: string
+          project_id?: string | null
           request_body?: Json | null
           response_schema?: Json | null
           summary?: string | null
           tags?: string[] | null
           updated_at?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -214,6 +220,20 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_endpoints_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_endpoints_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -229,6 +249,7 @@ export type Database = {
           id: string
           method: string
           notes: string | null
+          project_id: string | null
           request_body: string | null
           request_headers: Json | null
           response_body: string | null
@@ -238,6 +259,7 @@ export type Database = {
           status: string
           test_plan_id: string | null
           url: string
+          workspace_id: string | null
         }
         Insert: {
           assertion_results?: Json | null
@@ -249,6 +271,7 @@ export type Database = {
           id?: string
           method: string
           notes?: string | null
+          project_id?: string | null
           request_body?: string | null
           request_headers?: Json | null
           response_body?: string | null
@@ -258,6 +281,7 @@ export type Database = {
           status?: string
           test_plan_id?: string | null
           url: string
+          workspace_id?: string | null
         }
         Update: {
           assertion_results?: Json | null
@@ -269,6 +293,7 @@ export type Database = {
           id?: string
           method?: string
           notes?: string | null
+          project_id?: string | null
           request_body?: string | null
           request_headers?: Json | null
           response_body?: string | null
@@ -278,6 +303,7 @@ export type Database = {
           status?: string
           test_plan_id?: string | null
           url?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -295,10 +321,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "api_test_executions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "api_test_executions_test_plan_id_fkey"
             columns: ["test_plan_id"]
             isOneToOne: false
             referencedRelation: "endpoint_test_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_test_executions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -311,12 +351,14 @@ export type Database = {
           execution_id: string | null
           id: string
           priority: Database["public"]["Enums"]["defect_priority"]
+          project_id: string | null
           reported_by: string | null
           severity: Database["public"]["Enums"]["defect_severity"]
           status: string
           step_result_id: string | null
           title: string
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -325,12 +367,14 @@ export type Database = {
           execution_id?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["defect_priority"]
+          project_id?: string | null
           reported_by?: string | null
           severity?: Database["public"]["Enums"]["defect_severity"]
           status?: string
           step_result_id?: string | null
           title: string
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -339,12 +383,14 @@ export type Database = {
           execution_id?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["defect_priority"]
+          project_id?: string | null
           reported_by?: string | null
           severity?: Database["public"]["Enums"]["defect_severity"]
           status?: string
           step_result_id?: string | null
           title?: string
           updated_at?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -362,6 +408,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "defects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "defects_reported_by_fkey"
             columns: ["reported_by"]
             isOneToOne: false
@@ -373,6 +426,13 @@ export type Database = {
             columns: ["step_result_id"]
             isOneToOne: false
             referencedRelation: "execution_step_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "defects_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -454,8 +514,10 @@ export type Database = {
           non_functional_requirements: Json | null
           objectives: Json | null
           overview: string | null
+          project_id: string | null
           risks: Json | null
           title: string
+          workspace_id: string | null
         }
         Insert: {
           acceptance_criteria?: Json | null
@@ -469,8 +531,10 @@ export type Database = {
           non_functional_requirements?: Json | null
           objectives?: Json | null
           overview?: string | null
+          project_id?: string | null
           risks?: Json | null
           title: string
+          workspace_id?: string | null
         }
         Update: {
           acceptance_criteria?: Json | null
@@ -484,8 +548,10 @@ export type Database = {
           non_functional_requirements?: Json | null
           objectives?: Json | null
           overview?: string | null
+          project_id?: string | null
           risks?: Json | null
           title?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -493,6 +559,20 @@ export type Database = {
             columns: ["endpoint_id"]
             isOneToOne: false
             referencedRelation: "api_endpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "endpoint_prds_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "endpoint_prds_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -507,10 +587,12 @@ export type Database = {
           id: string
           name: string
           preconditions: string | null
+          project_id: string | null
           status: string
           test_cases: Json | null
           test_data: Json | null
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
           coverage_areas?: Json | null
@@ -521,10 +603,12 @@ export type Database = {
           id?: string
           name: string
           preconditions?: string | null
+          project_id?: string | null
           status?: string
           test_cases?: Json | null
           test_data?: Json | null
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
           coverage_areas?: Json | null
@@ -535,10 +619,12 @@ export type Database = {
           id?: string
           name?: string
           preconditions?: string | null
+          project_id?: string | null
           status?: string
           test_cases?: Json | null
           test_data?: Json | null
           updated_at?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -546,6 +632,20 @@ export type Database = {
             columns: ["endpoint_id"]
             isOneToOne: false
             referencedRelation: "api_endpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "endpoint_test_plans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "endpoint_test_plans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -560,7 +660,9 @@ export type Database = {
           file_type: string
           file_url: string
           id: string
+          project_id: string | null
           step_result_id: string | null
+          workspace_id: string | null
         }
         Insert: {
           captured_at?: string
@@ -571,7 +673,9 @@ export type Database = {
           file_type: string
           file_url: string
           id?: string
+          project_id?: string | null
           step_result_id?: string | null
+          workspace_id?: string | null
         }
         Update: {
           captured_at?: string
@@ -582,7 +686,9 @@ export type Database = {
           file_type?: string
           file_url?: string
           id?: string
+          project_id?: string | null
           step_result_id?: string | null
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -600,10 +706,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "evidence_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "evidence_step_result_id_fkey"
             columns: ["step_result_id"]
             isOneToOne: false
             referencedRelation: "execution_step_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -1016,11 +1136,13 @@ export type Database = {
           executor_id: string | null
           id: string
           notes: string | null
+          project_id: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["execution_status"]
           test_case_id: string
           test_run_id: string | null
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -1029,11 +1151,13 @@ export type Database = {
           executor_id?: string | null
           id?: string
           notes?: string | null
+          project_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["execution_status"]
           test_case_id: string
           test_run_id?: string | null
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -1042,11 +1166,13 @@ export type Database = {
           executor_id?: string | null
           id?: string
           notes?: string | null
+          project_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["execution_status"]
           test_case_id?: string
           test_run_id?: string | null
           updated_at?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -1057,10 +1183,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "test_executions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "test_executions_test_case_id_fkey"
             columns: ["test_case_id"]
             isOneToOne: false
             referencedRelation: "test_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_executions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]

@@ -63,6 +63,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { Defect, Profile, DefectSeverity, DefectPriority } from "@/types";
+import { useProjectScope } from "@/hooks/useProjectScope";
 
 type DefectWithRelations = Defect & {
   reporter?: Profile | null;
@@ -102,6 +103,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 export default function DefectsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { projectId, workspaceId, scopeKey } = useProjectScope();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
@@ -119,9 +121,9 @@ export default function DefectsPage() {
 
   // Fetch defects
   const { data: defects = [], isLoading } = useQuery({
-    queryKey: ["defects"],
+    queryKey: ["defects", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("defects")
         .select(`
           *,
@@ -129,6 +131,8 @@ export default function DefectsPage() {
           assignee:profiles!defects_assigned_to_fkey(id, name, email, avatar)
         `)
         .order("created_at", { ascending: false });
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
 
       if (error) throw error;
       return data as DefectWithRelations[];
@@ -160,6 +164,8 @@ export default function DefectsPage() {
         priority: newPriority,
         reported_by: user?.id,
         status: "open",
+        project_id: projectId,
+        workspace_id: workspaceId,
       });
 
       if (error) throw error;

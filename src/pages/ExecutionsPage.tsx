@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Play, CheckCircle2, XCircle, AlertTriangle, Clock, Bug, Camera, FileText, Loader2, ChevronRight, Upload } from "lucide-react";
 import type { TestExecution, TestCase, ExecutionStatus, DefectSeverity, DefectPriority } from "@/types";
+import { useProjectScope } from "@/hooks/useProjectScope";
 
 type ExecutionWithTestCase = TestExecution & { test_case: TestCase | null };
 
@@ -33,6 +34,7 @@ const statusConfig: Record<ExecutionStatus, { color: string; icon: React.ReactNo
 export default function ExecutionsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { projectId, workspaceId, scopeKey } = useProjectScope();
   const [selectedExecution, setSelectedExecution] = useState<ExecutionWithTestCase | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isDefectDialogOpen, setIsDefectDialogOpen] = useState(false);
@@ -42,21 +44,25 @@ export default function ExecutionsPage() {
   const [defectPriority, setDefectPriority] = useState<DefectPriority>("medium");
 
   const { data: executions = [], isLoading } = useQuery({
-    queryKey: ["executions"],
+    queryKey: ["executions", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("test_executions")
         .select("*, test_case:test_cases(*)")
         .order("created_at", { ascending: false });
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as (TestExecution & { test_case: TestCase })[];
     },
   });
 
   const { data: testCases = [] } = useQuery({
-    queryKey: ["test-cases-for-execution"],
+    queryKey: ["test-cases-for-execution", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase.from("test_cases").select("*").eq("status", "active");
+      let q = supabase.from("test_cases").select("*").eq("status", "active");
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as TestCase[];
     },
@@ -66,7 +72,7 @@ export default function ExecutionsPage() {
     mutationFn: async (testCaseId: string) => {
       const { data, error } = await supabase
         .from("test_executions")
-        .insert({ test_case_id: testCaseId, executor_id: user?.id, status: "in_progress" as ExecutionStatus, started_at: new Date().toISOString() })
+        .insert({ test_case_id: testCaseId, executor_id: user?.id, status: "in_progress" as ExecutionStatus, started_at: new Date().toISOString(), project_id: projectId, workspace_id: workspaceId })
         .select("*, test_case:test_cases(*)")
         .single();
       if (error) throw error;
@@ -102,6 +108,8 @@ export default function ExecutionsPage() {
         priority: defectPriority,
         execution_id: selectedExecution?.id,
         reported_by: user?.id,
+        project_id: projectId,
+        workspace_id: workspaceId,
       });
       if (error) throw error;
     },
