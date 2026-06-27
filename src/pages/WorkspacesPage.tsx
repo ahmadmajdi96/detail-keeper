@@ -345,6 +345,8 @@ export default function WorkspacesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <WorkspaceWizard open={wizardOpen} onOpenChange={(o) => { setWizardOpen(o); if (!o) refresh(); }} />
     </AppLayout>
   );
 }
