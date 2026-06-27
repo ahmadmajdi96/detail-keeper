@@ -218,7 +218,7 @@ export default function WorkspacesPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setCurrentWorkspaceId(workspace.id); navigate(`/workspaces/${workspace.id}`); }}>
                           <ExternalLink className="mr-2 h-4 w-4" />
                           Open
                         </DropdownMenuItem>
