@@ -28,6 +28,7 @@ import {
   Play,
 } from "lucide-react";
 import { format, subDays, startOfDay } from "date-fns";
+import { useProjectScope } from "@/hooks/useProjectScope";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -44,12 +45,15 @@ const itemVariants = {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { projectId, scopeKey } = useProjectScope();
 
   // Fetch test cases count
   const { data: testCases = [] } = useQuery({
-    queryKey: ["dashboard-test-cases"],
+    queryKey: ["dashboard-test-cases", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase.from("test_cases").select("id, status, ai_generated, coverage_tags");
+      let q = supabase.from("test_cases").select("id, status, ai_generated, coverage_tags");
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -57,13 +61,15 @@ export default function DashboardPage() {
 
   // Fetch executions with more data for charts including test case coverage tags
   const { data: executions = [] } = useQuery({
-    queryKey: ["dashboard-executions"],
+    queryKey: ["dashboard-executions", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("test_executions")
         .select("id, status, created_at, completed_at, test_case_id, test_case:test_cases(title, coverage_tags)")
         .order("created_at", { ascending: false })
         .limit(100);
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -71,9 +77,11 @@ export default function DashboardPage() {
 
   // Fetch defects
   const { data: defects = [] } = useQuery({
-    queryKey: ["dashboard-defects"],
+    queryKey: ["dashboard-defects", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase.from("defects").select("id, severity, status, priority, created_at");
+      let q = supabase.from("defects").select("id, severity, status, priority, created_at");
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -91,13 +99,15 @@ export default function DashboardPage() {
 
   // Fetch pending test cases (pending executions)
   const { data: pendingExecutions = [] } = useQuery({
-    queryKey: ["dashboard-pending"],
+    queryKey: ["dashboard-pending", ...scopeKey],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("test_executions")
         .select("id, test_case:test_cases(title)")
         .eq("status", "pending")
         .limit(5);
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
