@@ -292,7 +292,6 @@ export default function WorkspacesPage() {
             {searchQuery ? "Try adjusting your search query" : "Create your first workspace to get started"}
           </p>
           {!searchQuery && hasPermission(["admin", "qa_manager"]) && (
-          {!searchQuery && hasPermission(["admin", "qa_manager"]) && (
             <Button onClick={() => setWizardOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Workspace
