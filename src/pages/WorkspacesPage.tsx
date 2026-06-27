@@ -62,10 +62,21 @@ interface Workspace {
 export default function WorkspacesPage() {
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { setCurrentWorkspaceId, refresh } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(searchParams.get("new") === "1");
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setWizardOpen(true);
+      searchParams.delete("new"); setSearchParams(searchParams);
+    }
+  }, []);
 
   const { data: workspaces = [], isLoading } = useQuery({
     queryKey: ["workspaces"],
