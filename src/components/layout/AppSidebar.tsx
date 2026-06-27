@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Users,
   FolderKanban,
+  FolderOpen,
   FileText,
   ClipboardList,
   TestTube,
@@ -43,6 +44,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Workspaces", href: "/workspaces", icon: FolderKanban, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Projects", href: "/projects", icon: FolderOpen, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Documents", href: "/documents", icon: FileText, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Test Plans", href: "/test-plans", icon: ClipboardList, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
