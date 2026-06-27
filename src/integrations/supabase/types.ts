@@ -385,6 +385,7 @@ export type Database = {
           id: string
           mime_type: string
           processed_at: string | null
+          project_id: string | null
           requirements_count: number | null
           status: string
           uploader_id: string | null
@@ -397,6 +398,7 @@ export type Database = {
           id?: string
           mime_type: string
           processed_at?: string | null
+          project_id?: string | null
           requirements_count?: number | null
           status?: string
           uploader_id?: string | null
@@ -409,12 +411,20 @@ export type Database = {
           id?: string
           mime_type?: string
           processed_at?: string | null
+          project_id?: string | null
           requirements_count?: number | null
           status?: string
           uploader_id?: string | null
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documents_uploader_id_fkey"
             columns: ["uploader_id"]
@@ -731,6 +741,80 @@ export type Database = {
           },
         ]
       }
+      projects: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          endpoints_count: number | null
+          files_count: number | null
+          github_branch: string | null
+          github_is_private: boolean | null
+          github_token_secret_name: string | null
+          github_url: string | null
+          id: string
+          last_processed_at: string | null
+          name: string
+          process_error: string | null
+          source_type: Database["public"]["Enums"]["project_source"]
+          status: Database["public"]["Enums"]["project_status"]
+          test_cases_count: number | null
+          updated_at: string
+          workspace_id: string
+          zip_storage_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          endpoints_count?: number | null
+          files_count?: number | null
+          github_branch?: string | null
+          github_is_private?: boolean | null
+          github_token_secret_name?: string | null
+          github_url?: string | null
+          id?: string
+          last_processed_at?: string | null
+          name: string
+          process_error?: string | null
+          source_type?: Database["public"]["Enums"]["project_source"]
+          status?: Database["public"]["Enums"]["project_status"]
+          test_cases_count?: number | null
+          updated_at?: string
+          workspace_id: string
+          zip_storage_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          endpoints_count?: number | null
+          files_count?: number | null
+          github_branch?: string | null
+          github_is_private?: boolean | null
+          github_token_secret_name?: string | null
+          github_url?: string | null
+          id?: string
+          last_processed_at?: string | null
+          name?: string
+          process_error?: string | null
+          source_type?: Database["public"]["Enums"]["project_source"]
+          status?: Database["public"]["Enums"]["project_status"]
+          test_cases_count?: number | null
+          updated_at?: string
+          workspace_id?: string
+          zip_storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           created_at: string
@@ -861,6 +945,7 @@ export type Database = {
           id: string
           preconditions: string | null
           priority: number
+          project_id: string | null
           requirement_ids: string[] | null
           status: Database["public"]["Enums"]["test_case_status"]
           title: string
@@ -879,6 +964,7 @@ export type Database = {
           id?: string
           preconditions?: string | null
           priority?: number
+          project_id?: string | null
           requirement_ids?: string[] | null
           status?: Database["public"]["Enums"]["test_case_status"]
           title: string
@@ -897,6 +983,7 @@ export type Database = {
           id?: string
           preconditions?: string | null
           priority?: number
+          project_id?: string | null
           requirement_ids?: string[] | null
           status?: Database["public"]["Enums"]["test_case_status"]
           title?: string
@@ -910,6 +997,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -980,6 +1074,7 @@ export type Database = {
           id: string
           name: string
           progress: number | null
+          project_id: string | null
           runs_count: number | null
           status: string
           updated_at: string
@@ -993,6 +1088,7 @@ export type Database = {
           id?: string
           name: string
           progress?: number | null
+          project_id?: string | null
           runs_count?: number | null
           status?: string
           updated_at?: string
@@ -1006,6 +1102,7 @@ export type Database = {
           id?: string
           name?: string
           progress?: number | null
+          project_id?: string | null
           runs_count?: number | null
           status?: string
           updated_at?: string
@@ -1020,7 +1117,96 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "test_plans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "test_plans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_invitations: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          role: Database["public"]["Enums"]["workspace_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
+          token: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["workspace_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["workspace_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_invitations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_members: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -1083,7 +1269,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_workspace_member: {
+        Args: { _user: string; _workspace: string }
+        Returns: boolean
+      }
+      workspace_role_of: {
+        Args: { _user: string; _workspace: string }
+        Returns: Database["public"]["Enums"]["workspace_role"]
+      }
     }
     Enums: {
       agent_status: "idle" | "learning" | "executing" | "paused" | "error"
@@ -1096,9 +1289,13 @@ export type Database = {
         | "failed"
         | "blocked"
         | "skipped"
+      invitation_status: "pending" | "accepted" | "expired" | "revoked"
+      project_source: "documentation" | "zip" | "github"
+      project_status: "pending" | "processing" | "ready" | "failed" | "archived"
       test_case_status: "draft" | "active" | "deprecated" | "archived"
       user_role: "admin" | "qa_manager" | "qa_engineer" | "viewer"
       user_status: "active" | "pending" | "inactive" | "suspended"
+      workspace_role: "owner" | "admin" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1237,9 +1434,13 @@ export const Constants = {
         "blocked",
         "skipped",
       ],
+      invitation_status: ["pending", "accepted", "expired", "revoked"],
+      project_source: ["documentation", "zip", "github"],
+      project_status: ["pending", "processing", "ready", "failed", "archived"],
       test_case_status: ["draft", "active", "deprecated", "archived"],
       user_role: ["admin", "qa_manager", "qa_engineer", "viewer"],
       user_status: ["active", "pending", "inactive", "suspended"],
+      workspace_role: ["owner", "admin", "editor", "viewer"],
     },
   },
 } as const
