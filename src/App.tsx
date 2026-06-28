@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ActiveTestPlanProvider } from "@/contexts/ActiveTestPlanContext";
+import DefectDetailPage from "./pages/DefectDetailPage";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -36,6 +38,7 @@ const App = () => (
     <AuthProvider>
       <WorkspaceProvider>
         <NotificationProvider>
+          <ActiveTestPlanProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -107,6 +110,11 @@ const App = () => (
               <Route path="/defects" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
                   <DefectsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/defects/:id" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <DefectDetailPage />
                 </ProtectedRoute>
               } />
               <Route path="/automation" element={
