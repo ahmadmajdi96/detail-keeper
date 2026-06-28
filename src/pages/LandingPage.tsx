@@ -3,6 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   TestTube,
   Bot,
@@ -15,7 +22,7 @@ import {
   Sparkles,
   GitBranch,
   Bell,
-  ChevronDown,
+  ChevronRight,
   Star,
   Shield,
   Lock,
@@ -24,99 +31,74 @@ import {
   Globe,
   Check,
   X,
+  Compass,
+  Target,
+  Layers,
+  Workflow,
+  Database,
+  Eye,
+  Wand2,
+  Building2,
+  Users,
+  Code2,
+  LineChart,
+  Briefcase,
+  ServerCog,
+  Microscope,
+  Clock,
 } from "lucide-react";
 
 // Company logos for marquee
 const companyLogos = [
   "TechCorp", "DataFlow", "CloudScale", "DevOps Pro", "QualityFirst",
-  "TestMaster", "AgileWorks", "CodeStream", "InnovateTech", "ScaleUp"
+  "TestMaster", "AgileWorks", "CodeStream", "InnovateTech", "ScaleUp",
 ];
 
-// Simple card with CSS hover effects
-const GlowCard = ({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-
-  return (
-    <div
-      ref={ref}
-      className={`relative group will-change-transform ${className}`}
-      style={{
-        opacity: isInView ? 1 : 0,
-        transform: isInView ? 'translateY(0)' : 'translateY(30px)',
-        transition: `all 0.5s ease-out ${delay}s`,
-      }}
-    >
-      <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-[hsl(187,92%,50%)] via-[hsl(262,83%,58%)] to-[hsl(187,92%,50%)] opacity-0 group-hover:opacity-60 blur-sm transition-opacity duration-300" />
-      <div className="relative rounded-2xl bg-[hsl(222,47%,8%)] p-6 h-full border border-white/5 group-hover:border-transparent transition-all duration-300 group-hover:-translate-y-2">
-        {children}
-      </div>
-    </div>
-  );
-};
-
-// Pricing card component
-const PricingCard = ({ 
-  plan, 
-  price, 
-  yearlyPrice, 
-  isYearly, 
-  features, 
-  isPopular, 
-  ctaText,
-  onCta 
-}: { 
-  plan: string; 
-  price: number; 
-  yearlyPrice: number;
-  isYearly: boolean; 
+// ===== Pricing Card =====
+const PricingCard = ({
+  plan, price, yearlyPrice, isYearly, features, isPopular, ctaText, onCta,
+}: {
+  plan: string; price: number; yearlyPrice: number; isYearly: boolean;
   features: { text: string; included: boolean }[];
-  isPopular?: boolean;
-  ctaText: string;
-  onCta: () => void;
+  isPopular?: boolean; ctaText: string; onCta: () => void;
 }) => {
   const displayPrice = isYearly ? yearlyPrice : price;
-  
   return (
-    <div className={`relative group ${isPopular ? 'scale-105 z-10' : ''}`}>
+    <div className={`relative group ${isPopular ? "lg:scale-105 z-10" : ""}`}>
       {isPopular && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-sm font-medium">
           Most Popular
         </div>
       )}
       <div className={`relative rounded-2xl p-8 h-full transition-all duration-300 ${
-        isPopular 
-          ? 'bg-gradient-to-b from-[hsl(222,47%,10%)] to-[hsl(222,47%,6%)] border-2 border-[hsl(187,92%,50%)/0.5] shadow-[0_0_40px_-10px_hsl(187,92%,50%/0.3)]' 
-          : 'bg-[hsl(222,47%,8%)] border border-white/10 hover:border-white/20'
+        isPopular
+          ? "bg-gradient-to-b from-[hsl(222,47%,10%)] to-[hsl(222,47%,6%)] border-2 border-[hsl(187,92%,50%)/0.5] shadow-[0_0_40px_-10px_hsl(187,92%,50%/0.3)]"
+          : "bg-[hsl(222,47%,8%)] border border-white/10 hover:border-white/20"
       }`}>
         <h3 className="text-2xl font-bold mb-2">{plan}</h3>
         <div className="mb-6">
           <span className="text-5xl font-bold">${displayPrice}</span>
-          <span className="text-white/50">/{isYearly ? 'year' : 'month'}</span>
+          <span className="text-white/50">/{isYearly ? "year" : "month"}</span>
           {isYearly && price > 0 && (
             <p className="text-sm text-[hsl(187,92%,50%)] mt-1">Save ${(price * 12) - yearlyPrice}/year</p>
           )}
         </div>
-        
         <ul className="space-y-3 mb-8">
           {features.map((feature, i) => (
             <li key={i} className="flex items-center gap-3">
-              {feature.included ? (
-                <Check className="h-5 w-5 text-[hsl(187,92%,50%)] shrink-0" />
-              ) : (
-                <X className="h-5 w-5 text-white/20 shrink-0" />
-              )}
-              <span className={feature.included ? 'text-white/80' : 'text-white/30'}>{feature.text}</span>
+              {feature.included
+                ? <Check className="h-5 w-5 text-[hsl(187,92%,50%)] shrink-0" />
+                : <X className="h-5 w-5 text-white/20 shrink-0" />}
+              <span className={feature.included ? "text-white/80" : "text-white/30"}>{feature.text}</span>
             </li>
           ))}
         </ul>
-        
         <button
           onClick={onCta}
           className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-300 ${
-            isPopular 
-              ? 'bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-white hover:shadow-lg hover:shadow-[hsl(187,92%,50%)/0.3] hover:-translate-y-1' 
-              : 'bg-white/10 text-white hover:bg-white/20'
+            isPopular
+              ? "bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-white hover:shadow-lg hover:shadow-[hsl(187,92%,50%)/0.3] hover:-translate-y-1"
+              : "bg-white/10 text-white hover:bg-white/20"
           }`}
         >
           {ctaText}
@@ -126,15 +108,165 @@ const PricingCard = ({
   );
 };
 
-const features = [
-  { icon: TestTube, title: "Test Case Management", description: "Create, organize, and track test cases with version control and requirements traceability.", color: "from-cyan-400 to-blue-500" },
-  { icon: Play, title: "Execution Tracking", description: "Execute tests manually or automatically, track progress in real-time with detailed results.", color: "from-green-400 to-emerald-500" },
-  { icon: Bot, title: "AI-Powered Testing", description: "Leverage intelligent agents that learn from your patterns and generate test cases automatically.", color: "from-purple-400 to-pink-500" },
-  { icon: Bug, title: "Defect Management", description: "Track, assign, and resolve bugs with severity levels, priority, and linked test executions.", color: "from-red-400 to-orange-500" },
-  { icon: FileText, title: "Document Processing", description: "Upload requirements documents and let AI extract test scenarios automatically.", color: "from-blue-400 to-indigo-500" },
-  { icon: BarChart3, title: "Advanced Analytics", description: "Visualize trends, coverage heatmaps, team performance, and quality metrics in real-time.", color: "from-yellow-400 to-orange-500" },
-  { icon: Bell, title: "Real-Time Notifications", description: "Get instant alerts when tests complete, defects are assigned, or quality issues arise.", color: "from-pink-400 to-rose-500" },
-  { icon: GitBranch, title: "Integrations", description: "Connect with GitHub, Jira, Jenkins, Slack, and other tools in your development workflow.", color: "from-teal-400 to-cyan-500" },
+// ===== Reveal wrapper =====
+const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) => {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-80px" });
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: inView ? 1 : 0,
+        transform: inView ? "translateY(0)" : "translateY(24px)",
+        transition: `all 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}s`,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+// ===== Data =====
+const osLayers = [
+  {
+    eyebrow: "The Interaction Layer",
+    title: "Qualixa Spaces",
+    headline: "Unify test plans, executions, defects, and docs into one connected workspace.",
+    body: "Spaces gives every team a shared place to plan, execute, and ship quality work — so QA stops switching tools and starts shipping faster.",
+    bullets: ["One workspace for daily QA operations", "Built to scale across squads and releases"],
+    icon: Layers,
+  },
+  {
+    eyebrow: "From Consumption to Creation",
+    title: "Qualixa Studio",
+    headline: "Author rich test cases without juggling spreadsheets and wikis.",
+    body: "Studio composes steps, fixtures, data, and assertions in one seamless editor so engineers spend their time testing — not formatting.",
+    bullets: ["Richer cases with less effort", "No-code authoring for every tester"],
+    icon: Wand2,
+  },
+  {
+    eyebrow: "The Big Idea",
+    title: "Qualixa Quests",
+    headline: "Turn regressions into goal-driven runs your team actually finishes.",
+    body: "Quests transforms coverage targets into focused, AI-prioritized runs that keep velocity high and confidence higher.",
+    bullets: ["AI-prioritized paths aligned to risk and coverage", "Streaks, ownership, and progression that keep teams shipping"],
+    icon: Target,
+  },
+  {
+    eyebrow: "Procurement, Simplified",
+    title: "The Qualixa Integrations Hub",
+    headline: "One secure hub for every tool your QA org depends on.",
+    body: "Discover, approve, and govern integrations from GitHub to Jira to Slack — so engineers move fast while you stay in full control.",
+    bullets: ["Centralized approvals, billing, and vendor governance", "Native connectors across CI/CD, ticketing, and chat"],
+    icon: Workflow,
+  },
+  {
+    eyebrow: "The Cognition Engine",
+    title: "Qualixa DNA",
+    headline: "Go beyond pass/fail. Understand how your product actually behaves.",
+    body: "DNA surfaces each release's risk patterns, flake signatures, and quality fingerprints — so intervention becomes precise and timely.",
+    bullets: ["Living risk profiles built from runs, defects, and code signals", "Actionable insights that route work to the right owner"],
+    icon: Database,
+  },
+  {
+    eyebrow: "Integrated Utilities",
+    title: "Invisible Tools for Zero-Touch QA.",
+    headline: "",
+    body: "",
+    bullets: [],
+    icon: ServerCog,
+    utilities: [
+      { icon: Bot, title: "Auto-Triage", desc: "Classify and route incoming defects in under a second. Flags regression risk before it ships." },
+      { icon: Bell, title: "Quality Signal", desc: "Realtime alerts deeply integrated with the OS — execution context travels with every notification." },
+      { icon: GitBranch, title: "Pipeline Sync", desc: "A secure protocol connecting runs, commits, and the 'Aware' AI agent in a unified stream." },
+    ],
+  },
+];
+
+const personas = [
+  { key: "engineers", label: "QA Engineers", icon: Microscope,
+    headline: "From firefighter, to architect.",
+    body: "Stop chasing flaky runs; start designing coverage. Qualixa gives engineers a comprehensive view of every assertion and trend.",
+    agents: [
+      { emoji: "🔮", name: "Coverage Planner", desc: "Turns requirements into actionable test paths" },
+      { emoji: "♟️", name: "Strategy Agent", desc: "Analyzes runs to recommend the next high-value test" },
+      { emoji: "🕵️", name: "Insight Detective", desc: "Surfaces hidden flake and regression patterns" },
+      { emoji: "🔭", name: "Forecast Engine", desc: "Predicts release risk before the freeze" },
+    ],
+  },
+  { key: "managers", label: "QA Managers", icon: Briefcase,
+    headline: "Lead the release, not the spreadsheet.",
+    body: "Replace status meetings with live signal. Qualixa rolls up squads, sprints, and suites into a single decision surface.",
+    agents: [
+      { emoji: "📊", name: "Release Lens", desc: "Live readiness across every squad" },
+      { emoji: "🧭", name: "Risk Compass", desc: "Where to spend the next testing hour" },
+      { emoji: "🪄", name: "Auto-Reporter", desc: "Stakeholder-ready summaries on demand" },
+      { emoji: "⏱️", name: "Velocity Tracker", desc: "Cycle time, MTTR, and escape rate" },
+    ],
+  },
+  { key: "developers", label: "Developers", icon: Code2,
+    headline: "Catch the bug before the PR closes.",
+    body: "Qualixa meets developers in their IDE and CI — generating tests from diffs and flagging regressions inline.",
+    agents: [
+      { emoji: "🧪", name: "Diff Tester", desc: "Generates cases from each pull request" },
+      { emoji: "🔁", name: "Replay Agent", desc: "Reproduces failures with one click" },
+      { emoji: "🧠", name: "Context Engine", desc: "Links failing tests to the exact change" },
+      { emoji: "🚦", name: "Gate Agent", desc: "Blocks risky merges with evidence" },
+    ],
+  },
+  { key: "product", label: "Product", icon: Compass,
+    headline: "Know what's truly ready to ship.",
+    body: "Connect requirements to evidence. Every feature has a living quality story — from spec to staging to production.",
+    agents: [
+      { emoji: "🗺️", name: "Spec Mapper", desc: "Traces every requirement to its tests" },
+      { emoji: "✅", name: "Readiness Agent", desc: "Confidence score per feature" },
+      { emoji: "📣", name: "Launch Sentinel", desc: "Watches the post-release metrics" },
+      { emoji: "🎯", name: "Outcome Tracker", desc: "Quality KPIs tied to OKRs" },
+    ],
+  },
+  { key: "leadership", label: "Leadership", icon: LineChart,
+    headline: "Quality as a board-level metric.",
+    body: "Move from anecdotes to evidence. Qualixa quantifies quality investment and the risk it removes.",
+    agents: [
+      { emoji: "📈", name: "Trend Engine", desc: "Quarterly quality trajectory" },
+      { emoji: "💼", name: "Investment Lens", desc: "ROI on QA spend" },
+      { emoji: "🛡️", name: "Risk Officer", desc: "Top exposure surfaces ranked" },
+      { emoji: "🌐", name: "Org Heatmap", desc: "Quality health across every team" },
+    ],
+  },
+];
+
+const bento = [
+  { icon: Layers, title: "Unified Platform", desc: "Stop searching ten tools for one answer. Qualixa unifies your data and turns it into instant decisions." },
+  { icon: Eye, title: "Cognitive Profiles", desc: "A living quality profile for every feature — patterns, strengths, and hidden risks." },
+  { icon: Zap, title: "Instant Automation", desc: "Triage, routing, and reporting handled the moment a run completes." },
+  { icon: Clock, title: "Your Time Back", desc: "Twelve-plus hours saved weekly. Reports, triage, and follow-ups — automated." },
+];
+
+const days = [
+  { day: "Day 1", title: "Give your team their time back.",
+    body: "Automate triage, reporting, and everyday QA admin in one place — so engineers focus on testing, not data entry.",
+    magic: "Engineers stop managing systems and start improving quality." },
+  { day: "Day 2", title: "Turn coverage into momentum.",
+    body: "Transform regression suites into focused Quests that keep teams executing, learning, and progressing release after release.",
+    magic: "Teams stay engaged because the work feels purposeful, not repetitive." },
+  { day: "Day 3 and beyond", title: "See the risk behind every release.",
+    body: "Go beyond dashboards with Qualixa DNA. Understand how your product behaves, spot risk earlier, and intervene before it ships.",
+    magic: "You catch regressions and risk early — before they affect customers." },
+];
+
+const faqs = [
+  { q: "What is Qualixa and who is it for?", a: "Qualixa is an AI-powered quality intelligence platform for engineering organizations that want one connected system for test management, execution, defects, and analytics." },
+  { q: "Can Qualixa replace our existing test management tool?", a: "Yes. Qualixa consolidates planning, authoring, execution, defects, and reporting. Most teams migrate existing assets via our importers in days, not weeks." },
+  { q: "Does Qualixa fit small teams as well as enterprises?", a: "Yes. The platform scales from a single squad to multi-org deployments with workspaces, projects, RBAC, and SSO." },
+  { q: "Will Qualixa increase or reduce QA workload?", a: "It reduces it. AI handles triage, generation, and reporting so your team spends time on the work only humans can do." },
+  { q: "How fast can we get started?", a: "Most teams are running their first AI-assisted suite within a day. Ingest documentation or a repository and Qualixa generates an initial coverage plan automatically." },
+  { q: "How does Qualixa improve the release experience?", a: "By giving every release a live quality signal — readiness, risk, and evidence — that product, engineering, and leadership all trust." },
+  { q: "Is Qualixa secure for sensitive product data?", a: "Yes. Enterprise-grade isolation, encryption at rest and in transit, RBAC, audit logs, and strict third-party AI controls." },
+  { q: "Can Qualixa adapt to our existing workflow?", a: "Yes. Custom fields, workflows, and integrations let Qualixa wrap around your process — not the other way around." },
+  { q: "Does Qualixa create vendor lock-in?", a: "No. Your data is yours. Export plans, cases, runs, and reports at any time in open formats." },
+  { q: "Can we evaluate Qualixa before a full rollout?", a: "Yes. Pilot programs are available with priority support, custom onboarding, and data migration assistance." },
 ];
 
 const stats = [
@@ -144,103 +276,121 @@ const stats = [
   { value: "24/7", label: "Expert Support" },
 ];
 
-const workflowSteps = [
-  { step: "01", title: "Import Requirements", description: "Upload documents or connect to your project management tools.", icon: FileText },
-  { step: "02", title: "Generate Test Cases", description: "AI analyzes requirements and creates comprehensive test scenarios.", icon: Sparkles },
-  { step: "03", title: "Execute & Monitor", description: "Run tests with real-time tracking and automated defect detection.", icon: Rocket },
-  { step: "04", title: "Analyze & Improve", description: "Get insights, coverage reports, and AI-driven recommendations.", icon: BarChart3 },
-];
-
-const testimonials = [
-  { quote: "Qualixa transformed our QA process. We reduced testing time by 60% while improving coverage.", author: "Sarah Chen", role: "VP of Engineering", company: "TechScale Inc.", avatar: "SC" },
-  { quote: "The AI-powered test generation is incredible. It catches edge cases we never thought of.", author: "Marcus Williams", role: "QA Director", company: "FinFlow Systems", avatar: "MW" },
-  { quote: "Finally, a QA platform that understands enterprise needs. The analytics alone are worth it.", author: "Elena Rodriguez", role: "CTO", company: "CloudNative Labs", avatar: "ER" },
-];
-
 const pricingPlans = [
-  {
-    plan: "Free",
-    price: 0,
-    yearlyPrice: 0,
-    ctaText: "Get Started",
-    features: [
-      { text: "Up to 5 users", included: true },
-      { text: "100 test cases", included: true },
-      { text: "Basic reporting", included: true },
-      { text: "Email support", included: true },
-      { text: "AI test generation", included: false },
-      { text: "Custom integrations", included: false },
-      { text: "Advanced analytics", included: false },
-      { text: "Priority support", included: false },
-    ],
-  },
-  {
-    plan: "Pro",
-    price: 49,
-    yearlyPrice: 470,
-    ctaText: "Start Free Trial",
-    isPopular: true,
-    features: [
-      { text: "Up to 25 users", included: true },
-      { text: "Unlimited test cases", included: true },
-      { text: "Advanced reporting", included: true },
-      { text: "Priority email support", included: true },
-      { text: "AI test generation", included: true },
-      { text: "GitHub & Jira integration", included: true },
-      { text: "Advanced analytics", included: true },
-      { text: "Priority support", included: false },
-    ],
-  },
-  {
-    plan: "Enterprise",
-    price: 199,
-    yearlyPrice: 1990,
-    ctaText: "Contact Sales",
-    features: [
-      { text: "Unlimited users", included: true },
-      { text: "Unlimited test cases", included: true },
-      { text: "Custom reporting", included: true },
-      { text: "24/7 phone support", included: true },
-      { text: "AI test generation", included: true },
-      { text: "All integrations", included: true },
-      { text: "Advanced analytics", included: true },
-      { text: "Dedicated success manager", included: true },
-    ],
-  },
+  { plan: "Free", price: 0, yearlyPrice: 0, ctaText: "Get Started", features: [
+    { text: "Up to 5 users", included: true },
+    { text: "100 test cases", included: true },
+    { text: "Basic reporting", included: true },
+    { text: "Email support", included: true },
+    { text: "AI test generation", included: false },
+    { text: "Custom integrations", included: false },
+    { text: "Advanced analytics", included: false },
+    { text: "Priority support", included: false },
+  ]},
+  { plan: "Pro", price: 49, yearlyPrice: 470, ctaText: "Start Free Trial", isPopular: true, features: [
+    { text: "Up to 25 users", included: true },
+    { text: "Unlimited test cases", included: true },
+    { text: "Advanced reporting", included: true },
+    { text: "Priority email support", included: true },
+    { text: "AI test generation", included: true },
+    { text: "GitHub & Jira integration", included: true },
+    { text: "Advanced analytics", included: true },
+    { text: "Priority support", included: false },
+  ]},
+  { plan: "Enterprise", price: 199, yearlyPrice: 1990, ctaText: "Contact Sales", features: [
+    { text: "Unlimited users", included: true },
+    { text: "Unlimited test cases", included: true },
+    { text: "Custom reporting", included: true },
+    { text: "24/7 phone support", included: true },
+    { text: "AI test generation", included: true },
+    { text: "All integrations", included: true },
+    { text: "Advanced analytics", included: true },
+    { text: "Dedicated success manager", included: true },
+  ]},
 ];
+
+// ===== Hero integrations constellation (decorative) =====
+const HeroVisual = () => {
+  const tiles = [
+    { icon: TestTube, color: "from-cyan-400 to-blue-500", x: 20, y: 10 },
+    { icon: Bot, color: "from-purple-400 to-pink-500", x: 70, y: 8 },
+    { icon: FileText, color: "from-blue-400 to-indigo-500", x: 8, y: 45 },
+    { icon: Bug, color: "from-red-400 to-orange-500", x: 82, y: 38 },
+    { icon: BarChart3, color: "from-yellow-400 to-orange-500", x: 18, y: 78 },
+    { icon: GitBranch, color: "from-teal-400 to-cyan-500", x: 76, y: 78 },
+    { icon: Shield, color: "from-emerald-400 to-green-500", x: 45, y: 5 },
+    { icon: Zap, color: "from-fuchsia-400 to-purple-500", x: 45, y: 88 },
+  ];
+  return (
+    <div className="relative w-full aspect-square max-w-[560px] mx-auto">
+      {/* center hub */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] blur-3xl opacity-50 scale-150" />
+        <div className="relative h-32 w-32 rounded-3xl bg-gradient-to-br from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center shadow-2xl">
+          <TestTube className="h-14 w-14 text-white" />
+        </div>
+      </div>
+
+      {/* radial lines */}
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {tiles.map((t, i) => (
+          <line key={i} x1="50" y1="50" x2={t.x + 6} y2={t.y + 6}
+            stroke="url(#g)" strokeWidth="0.2" strokeDasharray="0.6 0.6" opacity="0.5" />
+        ))}
+        <defs>
+          <linearGradient id="g" x1="0" x2="1">
+            <stop offset="0" stopColor="hsl(187,92%,50%)" />
+            <stop offset="1" stopColor="hsl(262,83%,58%)" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      {/* tiles */}
+      {tiles.map((t, i) => (
+        <div key={i}
+          className="absolute h-14 w-14 md:h-16 md:w-16 rounded-2xl border border-white/10 bg-[hsl(222,47%,8%)] flex items-center justify-center shadow-xl will-change-transform"
+          style={{
+            left: `${t.x}%`, top: `${t.y}%`,
+            animation: `float 6s ease-in-out ${i * 0.4}s infinite`,
+          }}
+        >
+          <div className={`h-full w-full rounded-2xl bg-gradient-to-br ${t.color} opacity-20 absolute inset-0`} />
+          <t.icon className="relative h-6 w-6 md:h-7 md:w-7 text-white" />
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const heroRef = useRef<HTMLDivElement>(null);
   const [isYearly, setIsYearly] = useState(false);
-  
+
   const { scrollYProgress: heroScrollProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
   });
-
-  // Parallax transforms - GPU accelerated
-  const heroY = useTransform(heroScrollProgress, [0, 1], [0, 150]);
-  const heroOpacity = useTransform(heroScrollProgress, [0, 0.5], [1, 0]);
+  const heroY = useTransform(heroScrollProgress, [0, 1], [0, 100]);
+  const heroOpacity = useTransform(heroScrollProgress, [0, 0.7], [1, 0.3]);
 
   return (
     <div className="min-h-screen bg-[hsl(222,47%,4%)] text-white overflow-x-hidden">
-      {/* Static CSS background effects - no JS */}
+      {/* Ambient background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-[hsl(187,92%,50%)] opacity-[0.08] blur-[120px] animate-pulse-slow" />
         <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] rounded-full bg-[hsl(262,83%,58%)] opacity-[0.08] blur-[120px] animate-pulse-slow animation-delay-2000" />
       </div>
-
-      {/* Grid overlay - static CSS */}
-      <div 
+      <div
         className="fixed inset-0 pointer-events-none opacity-[0.015]"
         style={{
-          backgroundImage: `linear-gradient(hsl(187 92% 50%) 1px, transparent 1px), linear-gradient(90deg, hsl(187 92% 50%) 1px, transparent 1px)`,
+          backgroundImage:
+            "linear-gradient(hsl(187 92% 50%) 1px, transparent 1px), linear-gradient(90deg, hsl(187 92% 50%) 1px, transparent 1px)",
           backgroundSize: "80px 80px",
         }}
       />
 
-      {/* Navigation */}
+      {/* ===== Navigation ===== */}
       <nav className="fixed top-0 left-0 right-0 z-50 animate-fade-in-down">
         <div className="mx-4 mt-4">
           <div className="container max-w-7xl mx-auto px-6 py-4 rounded-2xl bg-[hsl(222,47%,6%)/0.7] backdrop-blur-xl border border-white/5">
@@ -254,26 +404,24 @@ export default function LandingPage() {
                 </div>
                 <span className="text-xl font-bold tracking-tight">Qualixa</span>
               </div>
-              
+
               <div className="hidden md:flex items-center gap-8">
-                {["Features", "Workflow", "Testimonials", "Pricing"].map((item) => (
-                  <a
-                    key={item}
-                    href={`#${item.toLowerCase()}`}
-                    className="relative text-sm text-white/60 hover:text-white transition-colors py-2 group"
-                  >
-                    {item}
+                {[
+                  { label: "Product", href: "#product" },
+                  { label: "DNA", href: "#dna" },
+                  { label: "Pricing", href: "#pricing" },
+                  { label: "Resources", href: "#faq" },
+                ].map((item) => (
+                  <a key={item.label} href={item.href}
+                    className="relative text-sm text-white/60 hover:text-white transition-colors py-2 group">
+                    {item.label}
                     <span className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                   </a>
                 ))}
               </div>
-              
+
               <div className="flex items-center gap-3">
-                <Button 
-                  variant="ghost" 
-                  className="text-white/70 hover:text-white hover:bg-white/5" 
-                  onClick={() => navigate("/login")}
-                >
+                <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/5" onClick={() => navigate("/login")}>
                   Sign In
                 </Button>
                 <button
@@ -289,415 +437,551 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section with Parallax */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center pt-32 pb-20">
-        <motion.div 
+      {/* ===== Hero (split: copy + visual) ===== */}
+      <section ref={heroRef} className="relative pt-36 md:pt-40 pb-20">
+        <motion.div
           style={{ y: heroY, opacity: heroOpacity }}
-          className="container max-w-7xl mx-auto px-6 relative z-10 will-change-transform"
+          className="container max-w-7xl mx-auto px-6 relative z-10"
         >
-          <div className="text-center max-w-5xl mx-auto">
-            {/* Animated badge */}
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-xl animate-fade-in-up">
-              <Sparkles className="h-4 w-4 text-[hsl(187,92%,50%)] animate-spin-slow" />
-              <span className="text-sm bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent font-medium">
-                AI-Powered Quality Intelligence Platform
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-[10px] font-bold uppercase">
-                New
-              </span>
-            </div>
-            
-            {/* Hero heading */}
-            <h1 className="text-6xl md:text-8xl font-bold mb-8 leading-[1.1] tracking-tight animate-fade-in-up animation-delay-200">
-              <span className="block">Quality Assurance</span>
-              <span className="relative inline-block mt-2">
+          <div className="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-8 items-center">
+            <div>
+              <a href="#product" className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[hsl(187,92%,50%)/0.4] bg-[hsl(187,92%,50%)/0.05] backdrop-blur-xl mb-8 animate-fade-in-up group">
+                <Sparkles className="h-4 w-4 text-[hsl(187,92%,50%)]" />
+                <span className="text-sm bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent font-medium">
+                  AI Test Agents — Now Available
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 text-[hsl(187,92%,50%)] group-hover:translate-x-1 transition-transform" />
+              </a>
+
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight animate-fade-in-up animation-delay-200">
+                The world's first{" "}
+                <span>AI Quality Operating System</span>{" "}
                 <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] via-[hsl(220,90%,60%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
-                  Reimagined
+                  for engineering teams.
                 </span>
-                <span className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] rounded-full animate-scale-x animation-delay-1000" />
-              </span>
-              <span className="block mt-2 bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-                with AI
-              </span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-white/50 mb-12 max-w-3xl mx-auto leading-relaxed font-light animate-fade-in-up animation-delay-400">
-              Transform your testing workflow with intelligent automation, real-time analytics, 
-              and AI-powered insights that help you ship{" "}
-              <span className="text-white font-medium">better software</span>, faster.
-            </p>
-            
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animation-delay-600">
-              <button
-                onClick={() => navigate("/register")}
-                className="group relative h-16 px-10 rounded-2xl bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-white font-semibold text-lg overflow-hidden hover:shadow-xl hover:shadow-[hsl(187,92%,50%)/0.3] transition-all duration-300 hover:-translate-y-1"
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  Start Free Trial
-                  <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(187,92%,50%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </button>
-              
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="h-16 px-10 text-lg rounded-2xl border-white/10 bg-white/5 text-white hover:bg-white/10 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1"
-                onClick={() => navigate("/login")}
-              >
-                <Play className="mr-2 h-5 w-5 fill-current" />
-                Watch Demo
-              </Button>
+              </h1>
+
+              <ul className="mt-10 space-y-4 animate-fade-in-up animation-delay-400">
+                {[
+                  "Unify every test, run, and signal into one OS.",
+                  "Automate triage and reporting with Zero-Touch AI workflows.",
+                  "Govern your stack with a curated Integrations Hub.",
+                  "Know your product: Use Qualixa DNA to see exactly where it breaks.",
+                ].map((line) => (
+                  <li key={line} className="flex items-start gap-3 text-white/70">
+                    <span className="mt-1 h-5 w-5 rounded-full bg-[hsl(187,92%,50%)/0.15] border border-[hsl(187,92%,50%)/0.4] flex items-center justify-center shrink-0">
+                      <Check className="h-3 w-3 text-[hsl(187,92%,50%)]" />
+                    </span>
+                    <span className="text-base md:text-lg">{line}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-10 flex flex-wrap items-center gap-6 animate-fade-in-up animation-delay-600">
+                <button
+                  onClick={() => navigate("/register")}
+                  className="group relative h-14 px-8 rounded-2xl bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-white font-semibold text-base overflow-hidden hover:shadow-xl hover:shadow-[hsl(187,92%,50%)/0.3] transition-all duration-300 hover:-translate-y-0.5"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    Get a Demo
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </button>
+                <div className="text-xs">
+                  <div className="uppercase tracking-widest text-white/40">Talk to our quality experts</div>
+                  <div className="text-white/60 mt-1">No credit card required</div>
+                </div>
+              </div>
+
+              <div className="mt-10 flex items-center gap-8 text-white/40 text-xs uppercase tracking-widest animate-fade-in animation-delay-1000">
+                <span>Trusted by 500+ teams</span>
+                <span className="h-1 w-1 rounded-full bg-white/20" />
+                <span>50,000+ runs daily</span>
+              </div>
             </div>
 
-            {/* Trust badges */}
-            <div className="mt-16 flex items-center justify-center gap-8 text-white/30 text-sm animate-fade-in animation-delay-1000">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                <span>SOC 2 Certified</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                <span>Enterprise Security</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Star className="h-4 w-4" />
-                <span>4.9/5 Rating</span>
-              </div>
+            <div className="animate-fade-in-up animation-delay-400">
+              <HeroVisual />
             </div>
           </div>
         </motion.div>
-
-        {/* Scroll indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-fade-in animation-delay-1500">
-          <div className="flex flex-col items-center gap-2 text-white/30 animate-bounce-slow">
-            <span className="text-xs uppercase tracking-widest">Scroll</span>
-            <ChevronDown className="h-5 w-5" />
-          </div>
-        </div>
       </section>
 
-      {/* Dashboard Preview */}
-      <section className="relative py-20 -mt-20">
-        <div className="container max-w-7xl mx-auto px-6">
-          <div className="relative group">
-            {/* Glow effect */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-[hsl(187,92%,50%)] via-[hsl(262,83%,58%)] to-[hsl(187,92%,50%)] opacity-15 blur-3xl rounded-3xl group-hover:opacity-25 transition-opacity duration-500" />
-            
-            {/* Dashboard mockup */}
-            <div className="relative rounded-3xl border border-white/10 bg-[hsl(222,47%,6%)] p-3 shadow-2xl">
-              {/* Browser chrome */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5">
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                </div>
-                <div className="flex-1 mx-4">
-                  <div className="w-full max-w-md mx-auto h-7 rounded-lg bg-white/5 flex items-center justify-center">
-                    <span className="text-xs text-white/30">app.qualixa.io/dashboard</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Dashboard content */}
-              <div className="rounded-2xl bg-[hsl(222,47%,5%)] p-8">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {[
-                    { icon: CheckCircle, value: "94.2%", label: "Pass Rate", color: "cyan" },
-                    { icon: TestTube, value: "1,247", label: "Test Cases", color: "purple" },
-                    { icon: Bot, value: "87%", label: "AI Coverage", color: "green" },
-                    { icon: Zap, value: "12ms", label: "Avg. Response", color: "yellow" },
-                  ].map((stat, i) => (
-                    <div
-                      key={stat.label}
-                      className="relative group/stat"
-                      style={{ animationDelay: `${i * 100}ms` }}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] opacity-0 group-hover/stat:opacity-15 rounded-xl blur-xl transition-opacity duration-300" />
-                      <div className="relative rounded-xl bg-white/5 border border-white/5 p-5 hover:border-white/10 transition-colors duration-300">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className={`h-10 w-10 rounded-lg bg-gradient-to-r ${
-                            stat.color === "cyan" ? "from-cyan-500/20 to-blue-500/20" :
-                            stat.color === "purple" ? "from-purple-500/20 to-pink-500/20" :
-                            stat.color === "green" ? "from-green-500/20 to-emerald-500/20" :
-                            "from-yellow-500/20 to-orange-500/20"
-                          } flex items-center justify-center`}>
-                            <stat.icon className={`h-5 w-5 ${
-                              stat.color === "cyan" ? "text-cyan-400" :
-                              stat.color === "purple" ? "text-purple-400" :
-                              stat.color === "green" ? "text-green-400" :
-                              "text-yellow-400"
-                            }`} />
-                          </div>
-                        </div>
-                        <p className="text-3xl font-bold mb-1">{stat.value}</p>
-                        <p className="text-white/40 text-sm">{stat.label}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Chart placeholder */}
-                <div className="mt-6 h-48 rounded-xl bg-white/5 border border-white/5 flex items-end justify-center gap-2 p-6">
-                  {[40, 65, 45, 80, 55, 90, 70, 85, 60, 95, 75, 88].map((height, i) => (
-                    <div
-                      key={i}
-                      className="w-full max-w-[40px] rounded-t-lg bg-gradient-to-t from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] animate-grow-up"
-                      style={{ 
-                        height: `${height}%`,
-                        animationDelay: `${0.5 + i * 0.05}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Company Logos Marquee */}
-      <section className="py-16 border-y border-white/5 overflow-hidden">
+      {/* ===== Trust logos marquee ===== */}
+      <section className="py-12 border-y border-white/5 overflow-hidden">
         <div className="container max-w-7xl mx-auto px-6 mb-8">
-          <p className="text-center text-white/40 text-sm uppercase tracking-widest">Trusted by innovative teams worldwide</p>
+          <p className="text-center text-white/40 text-xs uppercase tracking-[0.25em]">Trusted by the best</p>
         </div>
         <div className="relative">
           <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[hsl(222,47%,4%)] to-transparent z-10" />
           <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[hsl(222,47%,4%)] to-transparent z-10" />
           <div className="flex animate-marquee">
             {[...companyLogos, ...companyLogos].map((logo, i) => (
-              <div key={i} className="flex-shrink-0 mx-12 flex items-center justify-center">
-                <div className="px-8 py-4 rounded-xl bg-white/5 border border-white/10">
-                  <span className="text-xl font-bold text-white/40">{logo}</span>
-                </div>
+              <div key={i} className="flex-shrink-0 mx-10 flex items-center justify-center">
+                <span className="text-2xl font-semibold tracking-tight text-white/30 hover:text-white/60 transition-colors">
+                  {logo}
+                </span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-24 relative">
-        <div className="container max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div
-                key={stat.label}
-                className="text-center"
-              >
-                <div className="mb-4">
-                  <span className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-[hsl(187,92%,50%)] via-white to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
-                    {stat.value}
-                  </span>
-                </div>
-                <p className="text-white/40 text-sm uppercase tracking-widest">{stat.label}</p>
+      {/* ===== Problem / Solution ===== */}
+      <section className="py-32 relative">
+        <div className="container max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12">
+          <Reveal>
+            <div className="rounded-3xl p-10 border border-white/5 bg-[hsl(222,47%,6%)] h-full">
+              <div className="text-xs uppercase tracking-widest text-white/40 mb-4">The status quo</div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">QA is broken.</h2>
+              <p className="text-white/50 text-lg leading-relaxed mb-8">
+                Disconnected tools. Flaky pipelines. Reports nobody reads. Engineering teams are forced to glue together a dozen apps just to know if a release is safe.
+              </p>
+              <div className="grid grid-cols-3 gap-3 opacity-70">
+                {[Bug, FileText, GitBranch, BarChart3, Bell, TestTube].map((Icon, i) => (
+                  <div key={i} className="aspect-square rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-center">
+                    <Icon className="h-5 w-5 text-white/30" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-32 relative">
-        <div className="container max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/60 mb-6">
-              Powerful Features
-            </span>
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
-              <span className="block">Everything You Need for</span>
-              <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
-                World-Class Testing
-              </span>
-            </h2>
-            <p className="text-white/40 text-xl max-w-2xl mx-auto">
-              A complete quality assurance platform with AI-powered features that adapt to your workflow.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
-              <GlowCard key={feature.title} delay={index * 0.05}>
-                <div className={`h-14 w-14 rounded-xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-5`}>
-                  <feature.icon className="h-7 w-7 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                <p className="text-white/40 leading-relaxed">{feature.description}</p>
-              </GlowCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Workflow Section */}
-      <section id="workflow" className="py-32 relative overflow-hidden">
-        <div className="container max-w-7xl mx-auto px-6 relative">
-          <div className="text-center mb-20">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/60 mb-6">
-              Simple Process
-            </span>
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
-              How <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">Qualixa</span> Works
-            </h2>
-            <p className="text-white/40 text-xl max-w-2xl mx-auto">
-              From requirements to release, streamline your entire quality process in four simple steps.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
-            {/* Connection line */}
-            <div className="hidden lg:block absolute top-24 left-[12.5%] right-[12.5%] h-[2px] bg-gradient-to-r from-[hsl(187,92%,50%)] via-[hsl(262,83%,58%)] to-[hsl(187,92%,50%)] opacity-30" />
-            
-            {workflowSteps.map((step, index) => (
-              <div
-                key={step.step}
-                className="relative text-center"
-              >
-                {/* Step number with glow */}
-                <div className="relative inline-block mb-6">
-                  <div className="absolute inset-0 bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] rounded-full blur-xl opacity-40" />
-                  <div className="relative h-20 w-20 mx-auto rounded-full bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center">
-                    <span className="text-2xl font-bold">{step.step}</span>
-                  </div>
-                </div>
-                
-                <div className="h-14 w-14 mx-auto rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-5">
-                  <step.icon className="h-7 w-7 text-[hsl(187,92%,50%)]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">{step.title}</h3>
-                <p className="text-white/40">{step.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-32 relative">
-        <div className="container max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/60 mb-6">
-              Testimonials
-            </span>
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
-              Trusted by <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">Industry Leaders</span>
-            </h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <GlowCard key={testimonial.author} delay={index * 0.1} className="h-full">
-                {/* Quote */}
-                <div className="mb-6">
-                  <svg className="h-8 w-8 text-[hsl(187,92%,50%)] opacity-50" fill="currentColor" viewBox="0 0 32 32">
-                    <path d="M10 8c-3.3 0-6 2.7-6 6v10h10V14H8c0-1.1.9-2 2-2V8zm14 0c-3.3 0-6 2.7-6 6v10h10V14h-6c0-1.1.9-2 2-2V8z" />
-                  </svg>
-                </div>
-                <p className="text-lg text-white/70 mb-8 leading-relaxed">"{testimonial.quote}"</p>
-                
-                {/* Author */}
-                <div className="flex items-center gap-4 mt-auto">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center font-bold">
-                    {testimonial.avatar}
-                  </div>
-                  <div>
-                    <p className="font-semibold">{testimonial.author}</p>
-                    <p className="text-sm text-white/40">{testimonial.role}, {testimonial.company}</p>
-                  </div>
-                </div>
-              </GlowCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-32 relative">
-        <div className="container max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/60 mb-6">
-              Simple Pricing
-            </span>
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
-              Choose Your <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">Plan</span>
-            </h2>
-            <p className="text-white/40 text-xl max-w-2xl mx-auto mb-10">
-              Start free and scale as you grow. No hidden fees, cancel anytime.
-            </p>
-            
-            {/* Billing Toggle */}
-            <div className="flex items-center justify-center gap-4">
-              <span className={`text-sm ${!isYearly ? 'text-white' : 'text-white/40'}`}>Monthly</span>
-              <Switch
-                checked={isYearly}
-                onCheckedChange={setIsYearly}
-                className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-[hsl(187,92%,50%)] data-[state=checked]:to-[hsl(262,83%,58%)]"
-              />
-              <span className={`text-sm ${isYearly ? 'text-white' : 'text-white/40'}`}>
-                Yearly <span className="text-[hsl(187,92%,50%)]">(Save 20%)</span>
-              </span>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {pricingPlans.map((plan) => (
-              <PricingCard
-                key={plan.plan}
-                {...plan}
-                isYearly={isYearly}
-                onCta={() => navigate("/register")}
-              />
-            ))}
-          </div>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="rounded-3xl p-10 border border-[hsl(187,92%,50%)/0.3] bg-gradient-to-br from-[hsl(222,47%,8%)] to-[hsl(222,47%,5%)] h-full relative overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-[hsl(187,92%,50%)/0.15] blur-3xl" />
+              <div className="relative">
+                <div className="text-xs uppercase tracking-widest text-[hsl(187,92%,50%)] mb-4">The Qualixa way</div>
+                <h2 className="text-4xl md:text-5xl font-bold mb-6">Qualixa fixes that.</h2>
+                <p className="text-white/60 text-lg leading-relaxed mb-8">
+                  Qualixa consolidates planning, authoring, execution, defects, and analytics into one environment — where AI agents do the heavy lifting and your team stays in control.
+                </p>
+                <button onClick={() => navigate("/register")}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+                  See Qualixa in action <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-32">
+      {/* ===== OS Architecture (6 layers, alternating) ===== */}
+      <section id="product" className="py-24 relative">
         <div className="container max-w-7xl mx-auto px-6">
-          <div className="relative rounded-[2.5rem] overflow-hidden">
-            {/* Animated background - CSS only */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(187,92%,50%)] via-[hsl(262,83%,58%)] to-[hsl(187,92%,50%)] opacity-20" />
-            <div className="absolute inset-0 animate-shimmer" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)', backgroundSize: '200% 100%' }} />
-            <div className="absolute inset-0 bg-[hsl(222,47%,6%)/0.9]" />
-            
-            <div className="relative p-16 md:p-24 text-center">
-              <h2 className="text-5xl md:text-7xl font-bold mb-8">
-                <span className="block">Ready to Transform</span>
+          <Reveal>
+            <div className="text-center max-w-3xl mx-auto mb-20">
+              <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">Qualixa OS Architecture</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-6">
+                The Operating System{" "}
                 <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
-                  Your Quality Process?
+                  for Modern QA
                 </span>
               </h2>
-              <p className="text-white/50 text-xl max-w-2xl mx-auto mb-12">
-                Join thousands of teams already using Qualixa to ship better software, faster.
-                Start your free trial today—no credit card required.
+              <p className="text-white/50 text-lg">
+                Six powerful layers working in harmony to replace fragmented testing tools with one unified environment for planning, execution, and quality intelligence.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="space-y-32">
+            {osLayers.map((layer, idx) => {
+              const reverse = idx % 2 === 1;
+              const isUtility = !!layer.utilities;
+              return (
+                <Reveal key={layer.title} delay={0.05}>
+                  <div className={`grid lg:grid-cols-2 gap-12 lg:gap-16 items-center ${reverse ? "lg:[direction:rtl]" : ""}`}>
+                    <div className="[direction:ltr]">
+                      <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">{layer.eyebrow}</div>
+                      <h3 className="text-3xl md:text-5xl font-bold mb-4">{layer.title}</h3>
+                      {layer.headline && <p className="text-xl md:text-2xl text-white/80 mb-4">{layer.headline}</p>}
+                      {layer.body && <p className="text-white/50 text-base leading-relaxed mb-6">{layer.body}</p>}
+                      {isUtility ? (
+                        <div className="space-y-4 mt-6">
+                          {layer.utilities!.map((u) => (
+                            <div key={u.title} className="flex gap-4 p-5 rounded-2xl bg-[hsl(222,47%,6%)] border border-white/5 hover:border-[hsl(187,92%,50%)/0.4] transition-colors">
+                              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center shrink-0">
+                                <u.icon className="h-5 w-5 text-white" />
+                              </div>
+                              <div>
+                                <div className="font-semibold mb-1">{u.title}</div>
+                                <p className="text-sm text-white/50">{u.desc}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <ul className="space-y-3">
+                          {layer.bullets.map((b) => (
+                            <li key={b} className="flex items-start gap-3 text-white/70">
+                              <Check className="h-5 w-5 text-[hsl(187,92%,50%)] mt-0.5 shrink-0" />
+                              <span>{b}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="[direction:ltr]">
+                      <div className="relative aspect-[4/3] rounded-3xl border border-white/5 bg-gradient-to-br from-[hsl(222,47%,8%)] to-[hsl(222,47%,4%)] overflow-hidden">
+                        <div className="absolute inset-0 opacity-30"
+                          style={{ backgroundImage: "radial-gradient(circle at 30% 30%, hsl(187,92%,50%/0.25), transparent 50%), radial-gradient(circle at 70% 70%, hsl(262,83%,58%/0.25), transparent 50%)" }} />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="relative">
+                            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] blur-2xl opacity-40" />
+                            <div className="relative h-28 w-28 rounded-3xl bg-[hsl(222,47%,8%)] border border-white/10 flex items-center justify-center">
+                              <layer.icon className="h-12 w-12 text-[hsl(187,92%,50%)]" />
+                            </div>
+                          </div>
+                        </div>
+                        {/* corner badge */}
+                        <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-black/40 backdrop-blur border border-white/10 text-[10px] uppercase tracking-widest text-white/60">
+                          Layer {String(idx + 1).padStart(2, "0")}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Personas ===== */}
+      <section className="py-32 relative">
+        <div className="container max-w-7xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <h2 className="text-4xl md:text-6xl font-bold mb-4">
+                An AI solution for{" "}
+                <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
+                  every person in engineering
+                </span>
+              </h2>
+              <p className="text-white/50 text-lg">Your core workflows, powered by Qualixa agents.</p>
+            </div>
+          </Reveal>
+
+          <Tabs defaultValue={personas[0].key} className="w-full">
+            <TabsList className="mx-auto flex flex-wrap justify-center gap-2 bg-transparent h-auto p-0 mb-12">
+              {personas.map((p) => (
+                <TabsTrigger
+                  key={p.key}
+                  value={p.key}
+                  className="px-5 py-2.5 rounded-full border border-white/10 bg-[hsl(222,47%,6%)] text-white/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(187,92%,50%)] data-[state=active]:to-[hsl(262,83%,58%)] data-[state=active]:text-white data-[state=active]:border-transparent transition-all"
+                >
+                  <p.icon className="h-4 w-4 mr-2" />
+                  {p.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {personas.map((p) => (
+              <TabsContent key={p.key} value={p.key} className="mt-0">
+                <div className="grid lg:grid-cols-2 gap-12 items-start">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.25em] text-white/40 mb-4">Powered by Qualixa</div>
+                    <h3 className="text-3xl md:text-5xl font-bold mb-6">{p.headline}</h3>
+                    <p className="text-white/60 text-lg leading-relaxed mb-8">{p.body}</p>
+                    <ul className="space-y-3 text-white/70">
+                      <li className="flex gap-3"><Check className="h-5 w-5 text-[hsl(187,92%,50%)] mt-0.5" /> Comprehensive view: every signal at your fingertips</li>
+                      <li className="flex gap-3"><Check className="h-5 w-5 text-[hsl(187,92%,50%)] mt-0.5" /> Strategic focus: AI handles the noise so you focus on vision</li>
+                      <li className="flex gap-3"><Check className="h-5 w-5 text-[hsl(187,92%,50%)] mt-0.5" /> Instant answers: ask "who, when, why?" and get precise reports</li>
+                    </ul>
+                    <button onClick={() => navigate("/register")}
+                      className="mt-8 inline-flex items-center gap-2 text-[hsl(187,92%,50%)] hover:text-white transition group">
+                      Explore {p.label} solutions
+                      <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {p.agents.map((a) => (
+                      <div key={a.name}
+                        className="rounded-2xl p-6 bg-[hsl(222,47%,6%)] border border-white/5 hover:border-[hsl(187,92%,50%)/0.4] hover:-translate-y-1 transition-all">
+                        <div className="text-3xl mb-3">{a.emoji}</div>
+                        <div className="font-semibold mb-1">{a.name}</div>
+                        <p className="text-sm text-white/50">{a.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </div>
+      </section>
+
+      {/* ===== Stop guessing — bento ===== */}
+      <section id="dna" className="py-32 relative">
+        <div className="container max-w-7xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">The Qualixa Difference</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-6">
+                Stop guessing.{" "}
+                <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
+                  Start knowing.
+                </span>
+              </h2>
+              <p className="text-white/50 text-lg">
+                Other platforms track what your team ran. Qualixa reveals <em>how</em> your product behaves, <em>why</em> it fails, and <em>what</em> unlocks its quality.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {bento.map((b, i) => (
+              <Reveal key={b.title} delay={i * 0.05}>
+                <div className="group relative h-full rounded-3xl p-8 bg-[hsl(222,47%,6%)] border border-white/5 hover:border-[hsl(187,92%,50%)/0.4] transition-all hover:-translate-y-1">
+                  <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-[hsl(187,92%,50%)/0.2] to-[hsl(262,83%,58%)/0.2] opacity-0 group-hover:opacity-100 transition-opacity blur-xl -z-10" />
+                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center mb-6">
+                    <b.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-3">{b.title}</h3>
+                  <p className="text-white/50 leading-relaxed">{b.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+
+          {/* spotlight rows */}
+          <div className="mt-12 grid lg:grid-cols-3 gap-6">
+            {[
+              { title: "Intervene before it's too late.", body: "Instead of learning a feature broke after release, Qualixa alerts you weeks ahead.", tag: "Early Prediction" },
+              { title: "Behind every release, a story.", body: "Qualixa builds a living quality profile per feature — patterns, strengths, and risks.", tag: "Deep Understanding" },
+              { title: "12+ hours saved weekly.", body: "Triage, reporting, and follow-ups — all automated. Focus on the work that matters.", tag: "Your Time Back" },
+            ].map((s, i) => (
+              <Reveal key={s.title} delay={i * 0.05}>
+                <div className="rounded-3xl p-8 bg-gradient-to-br from-[hsl(222,47%,8%)] to-[hsl(222,47%,4%)] border border-white/5 h-full">
+                  <div className="text-xs uppercase tracking-widest text-[hsl(187,92%,50%)] mb-3">{s.tag}</div>
+                  <h4 className="text-2xl font-bold mb-3">{s.title}</h4>
+                  <p className="text-white/50">{s.body}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Day 1 / Day 2 / Day 3 ===== */}
+      <section className="py-32 relative">
+        <div className="container max-w-7xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center max-w-3xl mx-auto mb-20">
+              <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">From Disconnected to Unified</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-6">
+                Replace tool chaos with{" "}
+                <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
+                  one quality OS.
+                </span>
+              </h2>
+              <p className="text-white/50 text-lg">
+                Give your engineers one connected system for testing, evidence, and AI — so they spend less time troubleshooting and more time shipping.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {days.map((d, i) => (
+              <Reveal key={d.day} delay={i * 0.1}>
+                <div className="rounded-3xl p-8 h-full bg-[hsl(222,47%,6%)] border border-white/5 hover:border-[hsl(187,92%,50%)/0.4] transition-all flex flex-col">
+                  <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">{d.day}</div>
+                  <h3 className="text-2xl md:text-3xl font-bold mb-4">{d.title}</h3>
+                  <p className="text-white/50 mb-8 leading-relaxed">{d.body}</p>
+                  <div className="mt-auto pt-6 border-t border-white/5">
+                    <div className="text-[10px] uppercase tracking-widest text-white/30 mb-2">The Magic</div>
+                    <p className="text-white/70 italic">"{d.magic}"</p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Demo / Co-founder CTA ===== */}
+      <section className="py-32">
+        <div className="container max-w-7xl mx-auto px-6">
+          <div className="relative rounded-[2.5rem] overflow-hidden border border-white/10">
+            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(187,92%,50%)] via-[hsl(262,83%,58%)] to-[hsl(187,92%,50%)] opacity-20" />
+            <div className="absolute inset-0 animate-shimmer" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)", backgroundSize: "200% 100%" }} />
+            <div className="absolute inset-0 bg-[hsl(222,47%,6%)/0.85]" />
+            <div className="relative p-12 md:p-20 text-center">
+              <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">Co-Founder Program</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-6">
+                See the OS{" "}
+                <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
+                  in action.
+                </span>
+              </h2>
+              <p className="text-white/60 text-lg max-w-2xl mx-auto mb-10">
+                We're accepting a limited number of "Co-Founder" engineering orgs this quarter. Priority support, custom implementation, and data migration included.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button
-                  onClick={() => navigate("/register")}
-                  className="group relative h-16 px-12 rounded-2xl bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-white font-semibold text-lg overflow-hidden hover:shadow-xl hover:shadow-[hsl(187,92%,50%)/0.3] transition-all duration-300 hover:-translate-y-1"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    Start Free Trial
-                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
-                  </span>
+                <button onClick={() => navigate("/register")}
+                  className="h-14 px-8 rounded-2xl bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-white font-semibold hover:shadow-xl hover:shadow-[hsl(187,92%,50%)/0.3] transition-all hover:-translate-y-0.5">
+                  Become a Co-Founder
                 </button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="h-16 px-12 text-lg rounded-2xl border-white/10 bg-white/5 text-white hover:bg-white/10 transition-all duration-300"
-                >
-                  Contact Sales
+                <Button size="lg" variant="outline"
+                  className="h-14 px-8 rounded-2xl border-white/10 bg-white/5 text-white hover:bg-white/10">
+                  <Play className="mr-2 h-4 w-4 fill-current" /> Watch Demo
                 </Button>
+              </div>
+              <div className="flex flex-wrap justify-center gap-6 mt-8 text-white/40 text-sm">
+                <span>Priority support</span>
+                <span className="h-1 w-1 rounded-full bg-white/20 self-center" />
+                <span>Custom implementation</span>
+                <span className="h-1 w-1 rounded-full bg-white/20 self-center" />
+                <span>Data migration</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* ===== Stats ===== */}
+      <section className="py-20 relative">
+        <div className="container max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
+          {stats.map((s) => (
+            <div key={s.label} className="text-center">
+              <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-[hsl(187,92%,50%)] via-white to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
+                {s.value}
+              </div>
+              <p className="mt-3 text-white/40 text-xs uppercase tracking-[0.25em]">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== FAQ ===== */}
+      <section id="faq" className="py-32 relative">
+        <div className="container max-w-4xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center mb-16">
+              <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">FAQ</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-4">
+                Everything you need{" "}
+                <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
+                  to know.
+                </span>
+              </h2>
+              <p className="text-white/50">Can't find what you're looking for? <a className="text-[hsl(187,92%,50%)] hover:underline" href="#">Contact our team.</a></p>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.05}>
+            <Accordion type="single" collapsible className="space-y-3">
+              {faqs.map((f, i) => (
+                <AccordionItem key={i} value={`item-${i}`}
+                  className="rounded-2xl border border-white/5 bg-[hsl(222,47%,6%)] px-6 data-[state=open]:border-[hsl(187,92%,50%)/0.4]">
+                  <AccordionTrigger className="text-left text-base md:text-lg hover:no-underline py-5">
+                    {f.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-white/60 text-base leading-relaxed pb-5">
+                    {f.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ===== Privacy & Compliance ===== */}
+      <section className="py-32 relative">
+        <div className="container max-w-7xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">Privacy & Compliance</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-6">
+                Enterprise-grade{" "}
+                <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
+                  peace of mind.
+                </span>
+              </h2>
+              <p className="text-white/50 text-lg">
+                Your data stays safe and private with Qualixa. Third-party AI providers never store or learn from your information.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { icon: Shield, title: "No third-party AI training", desc: "We prevent third-party AI providers from training on your data." },
+              { icon: Lock, title: "Zero third-party retention", desc: "We don't allow third-party AI providers to store any of your data." },
+              { icon: Building2, title: "Multi-model support", desc: "Latest models, with unified permissions, privacy, and security controls." },
+            ].map((c, i) => (
+              <Reveal key={c.title} delay={i * 0.05}>
+                <div className="rounded-3xl p-8 h-full bg-[hsl(222,47%,6%)] border border-white/5 hover:border-[hsl(187,92%,50%)/0.4] transition-all">
+                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center mb-6">
+                    <c.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-3">{c.title}</h3>
+                  <p className="text-white/50">{c.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Pricing ===== */}
+      <section id="pricing" className="py-32 relative">
+        <div className="container max-w-7xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center mb-16">
+              <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">Pricing</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-6">
+                Choose your{" "}
+                <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">plan</span>
+              </h2>
+              <p className="text-white/50 text-lg max-w-2xl mx-auto mb-10">
+                Start free and scale as you grow. No hidden fees, cancel anytime.
+              </p>
+              <div className="flex items-center justify-center gap-4">
+                <span className={`text-sm ${!isYearly ? "text-white" : "text-white/40"}`}>Monthly</span>
+                <Switch
+                  checked={isYearly}
+                  onCheckedChange={setIsYearly}
+                  className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-[hsl(187,92%,50%)] data-[state=checked]:to-[hsl(262,83%,58%)]"
+                />
+                <span className={`text-sm ${isYearly ? "text-white" : "text-white/40"}`}>
+                  Yearly <span className="text-[hsl(187,92%,50%)]">(Save 20%)</span>
+                </span>
+              </div>
+            </div>
+          </Reveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {pricingPlans.map((p) => (
+              <PricingCard key={p.plan} {...p} isYearly={isYearly} onCta={() => navigate("/register")} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Vision ===== */}
+      <section className="py-32 relative">
+        <div className="container max-w-4xl mx-auto px-6 text-center">
+          <Reveal>
+            <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">Our Vision</div>
+            <h2 className="text-4xl md:text-6xl font-bold mb-8">Our Vision</h2>
+            <div className="space-y-6 text-lg md:text-xl text-white/60 leading-relaxed">
+              <p>
+                For decades, engineering teams have relied on test management tools designed as digital filing cabinets.
+              </p>
+              <p>
+                Qualixa offers a new paradigm: a quality operating system.
+              </p>
+              <p className="text-white/80">
+                At the heart of this vision lies <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent font-semibold">Qualixa DNA</span> — a living understanding of how your product behaves, so every release ships with confidence.
+              </p>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ===== Footer ===== */}
       <footer className="py-20 border-t border-white/5">
         <div className="container max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
@@ -709,110 +993,61 @@ export default function LandingPage() {
                 <span className="text-xl font-bold">Qualixa</span>
               </div>
               <p className="text-white/40 max-w-xs mb-6">
-                AI-powered quality intelligence platform for modern development teams.
+                The AI quality operating system for modern engineering teams.
               </p>
               <div className="flex gap-4">
-                {["twitter", "linkedin", "github"].map((social) => (
-                  <a
-                    key={social}
-                    href="#"
-                    className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-colors duration-300"
-                  >
+                {["twitter", "linkedin", "github"].map((s) => (
+                  <a key={s} href="#" className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-colors">
                     <Globe className="h-4 w-4 text-white/60" />
                   </a>
                 ))}
               </div>
             </div>
-            
             {[
-              { title: "Product", links: ["Features", "Integrations", "Pricing", "Changelog"] },
+              { title: "Product", links: ["Spaces", "Studio", "Quests", "DNA", "Pricing"] },
               { title: "Company", links: ["About", "Blog", "Careers", "Contact"] },
               { title: "Legal", links: ["Privacy", "Terms", "Security", "GDPR"] },
-            ].map((column) => (
-              <div key={column.title}>
-                <h4 className="font-semibold mb-4">{column.title}</h4>
+            ].map((col) => (
+              <div key={col.title}>
+                <h4 className="font-semibold mb-4">{col.title}</h4>
                 <ul className="space-y-3">
-                  {column.links.map((link) => (
-                    <li key={link}>
-                      <a href="#" className="text-white/40 hover:text-white transition-colors duration-300 text-sm">
-                        {link}
-                      </a>
-                    </li>
+                  {col.links.map((l) => (
+                    <li key={l}><a href="#" className="text-white/40 hover:text-white transition-colors text-sm">{l}</a></li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
-          
           <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-white/30 text-sm">
-              © 2026 Qualixa. All rights reserved.
-            </p>
+            <p className="text-white/30 text-sm">© 2026 Qualixa. All rights reserved.</p>
             <div className="flex items-center gap-6 text-sm text-white/30">
-              <a href="#" className="hover:text-white transition-colors duration-300">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors duration-300">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors duration-300">Cookie Settings</a>
+              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+              <a href="#" className="hover:text-white transition-colors">Cookie Settings</a>
             </div>
           </div>
         </div>
       </footer>
 
-      {/* CSS Animations */}
+      {/* ===== Animations ===== */}
       <style>{`
-        @keyframes fade-in-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fade-in-down {
-          from { opacity: 0; transform: translateY(-20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes scale-x {
-          from { transform: scaleX(0); }
-          to { transform: scaleX(1); }
-        }
-        @keyframes grow-up {
-          from { height: 0; }
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.08; transform: scale(1); }
-          50% { opacity: 0.12; transform: scale(1.05); }
-        }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(8px); }
-        }
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in-down { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes pulse-slow { 0%,100% { opacity: 0.08; transform: scale(1); } 50% { opacity: 0.12; transform: scale(1.05); } }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         .animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
         .animate-fade-in-down { animation: fade-in-down 0.8s ease-out forwards; }
         .animate-fade-in { animation: fade-in 0.6s ease-out forwards; }
-        .animate-scale-x { animation: scale-x 0.8s ease-out forwards; transform-origin: left; }
-        .animate-grow-up { animation: grow-up 0.5s ease-out forwards; }
         .animate-shimmer { animation: shimmer 3s linear infinite; }
         .animate-pulse-slow { animation: pulse-slow 8s ease-in-out infinite; }
-        .animate-spin-slow { animation: spin-slow 4s linear infinite; }
-        .animate-bounce-slow { animation: bounce-slow 2s ease-in-out infinite; }
         .animate-marquee { animation: marquee 30s linear infinite; }
         .animation-delay-200 { animation-delay: 0.2s; opacity: 0; }
         .animation-delay-400 { animation-delay: 0.4s; opacity: 0; }
         .animation-delay-600 { animation-delay: 0.6s; opacity: 0; }
         .animation-delay-1000 { animation-delay: 1s; opacity: 0; }
-        .animation-delay-1500 { animation-delay: 1.5s; opacity: 0; }
         .animation-delay-2000 { animation-delay: 2s; }
       `}</style>
     </div>
