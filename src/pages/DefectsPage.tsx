@@ -127,7 +127,7 @@ export default function DefectsPage() {
   const [newPriority, setNewPriority] = useState<DefectPriority>("medium");
   const [selectedAssignee, setSelectedAssignee] = useState<string>("");
 
-  // Fetch defects
+  // Fetch defects (scoped to active project; include project + plan names)
   const { data: defects = [], isLoading } = useQuery({
     queryKey: ["defects", ...scopeKey],
     queryFn: async () => {
@@ -136,14 +136,27 @@ export default function DefectsPage() {
         .select(`
           *,
           reporter:profiles!defects_reported_by_fkey(id, name, email, avatar),
-          assignee:profiles!defects_assigned_to_fkey(id, name, email, avatar)
+          assignee:profiles!defects_assigned_to_fkey(id, name, email, avatar),
+          project:projects(id, name),
+          test_plan:test_plans(id, name)
         `)
         .order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
       const { data, error } = await q;
 
       if (error) throw error;
-      return data as DefectWithRelations[];
+      return data as any as DefectWithRelations[];
+    },
+  });
+
+  // Test plans within the active project (for filter + create dialog)
+  const { data: projectPlans = [] } = useQuery({
+    queryKey: ["test-plans-for-defects", projectId],
+    queryFn: async () => {
+      let q = supabase.from("test_plans").select("id,name").order("name");
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data } = await q;
+      return (data || []) as { id: string; name: string }[];
     },
   });
 
