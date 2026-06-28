@@ -279,7 +279,7 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
                   ))}
                 </div>
                 <div className="flex-1 mx-3 h-[22px] rounded px-3 flex items-center" style={{ background: "rgba(0,180,200,0.05)", border: "1px solid rgba(0,180,200,0.09)" }}>
-                  <span className="font-mono text-[10px] text-[#1e3548]">setup://test-plan/{done ? "complete" : ["identity", "assignees", "documents", "review"][step]}</span>
+                  <span className="font-mono text-[10px] text-[#1e3548]">setup://test-plan/{done ? "complete" : ["identity", "assignees", "documents", "variables", "review"][step]}</span>
                 </div>
                 {!done && <span className="font-mono text-[10px] text-[#1e3548]">{step + 1} / {STEPS.length}</span>}
               </div>
