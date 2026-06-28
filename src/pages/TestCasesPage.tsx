@@ -291,6 +291,21 @@ export default function TestCasesPage() {
           }
         />
 
+        {activePlanId && (
+          <div className="rounded-lg border border-success/30 bg-success/5 px-4 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="inline-flex items-center gap-1 text-success font-medium">
+                <CheckCircle2 className="h-4 w-4" /> Active Test Plan:
+              </span>
+              <span className="font-medium">{activePlan?.name ?? "—"}</span>
+              <span className="text-muted-foreground">· showing {activeCaseIds.length} linked test case{activeCaseIds.length === 1 ? "" : "s"}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/test-plans")}>Change</Button>
+          </div>
+        )}
+
+
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="border-border/50">
