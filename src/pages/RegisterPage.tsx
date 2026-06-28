@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthShowcase } from "@/components/auth/AuthShowcase";
 import {
-  Sparkles, Eye, EyeOff, Loader2, ArrowRight, Mail, Lock, User, Check,
+  Eye, EyeOff, Loader2, ArrowRight, Mail, Lock, User, Check,
 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -53,9 +53,7 @@ export default function RegisterPage() {
       <div className="relative flex flex-col px-6 sm:px-10 lg:px-16 py-8">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[rgba(0,207,224,0.3)] bg-[rgba(0,207,224,0.08)] group-hover:bg-[rgba(0,207,224,0.14)] transition-colors">
-              <Sparkles className="h-4 w-4 text-[#00cfe0]" />
-            </div>
+            <Logo size={36} />
             <span className="font-semibold text-[#dde8f0] tracking-tight">Qualixa</span>
           </Link>
           <Link
