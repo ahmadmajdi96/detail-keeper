@@ -6,9 +6,11 @@ import { useProjectScope } from "@/hooks/useProjectScope";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   ClipboardList, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Check,
-  Terminal, Users, FileText, Sparkles, Zap, Search,
+  Terminal, Users, FileText, Sparkles, Zap, Search, Variable, Plus, Trash2, Download,
 } from "lucide-react";
 import { toast } from "sonner";
+
+type PlanVar = { key: string; value: string };
 
 interface Props {
   open: boolean;
