@@ -54,7 +54,7 @@ export default function RegisterPage() {
       <div className="relative flex flex-col px-6 sm:px-10 lg:px-16 py-8">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <Logo size={36} />
+            <Logo size={48} />
             <span className="font-semibold text-[#dde8f0] tracking-tight">Qualixa</span>
           </Link>
           <Link

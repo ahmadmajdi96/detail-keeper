@@ -44,7 +44,7 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <Logo size={36} />
+            <Logo size={48} />
             <span className="font-semibold text-[#dde8f0] tracking-tight">Qualixa</span>
           </Link>
           <Link
