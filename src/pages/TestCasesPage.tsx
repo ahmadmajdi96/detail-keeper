@@ -456,7 +456,7 @@ export default function TestCasesPage() {
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(tc.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
