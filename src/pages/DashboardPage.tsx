@@ -460,7 +460,11 @@ export default function DashboardPage() {
             </Panel>
           </div>
 
+          {/* EXTENDED COVERAGE HEATMAP */}
+          <ExtendedHeatmap executions={executions as any} days={14} />
+
           {/* AI INSIGHTS */}
+
           <Panel
             title="AI Quality Insights"
             subtitle={<ML dim>INTELLIGENT RECOMMENDATIONS</ML>}
