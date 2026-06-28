@@ -260,6 +260,44 @@ export default function ExecutionsPage() {
     toast.message("Stopping auto execution…");
   };
 
+  const downloadAutoReport = () => {
+    const ts = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const stamp = `${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}`;
+    const passed = autoItems.filter((i) => i.status === "passed").length;
+    const failed = autoItems.filter((i) => i.status === "failed").length;
+    const lines: string[] = [];
+    lines.push(`# Auto Execution Report`);
+    lines.push(``);
+    lines.push(`- Generated: ${ts.toISOString()}`);
+    lines.push(`- Mode: ${autoMode}`);
+    lines.push(`- Total: ${autoItems.length}  ·  Passed: ${passed}  ·  Failed: ${failed}`);
+    lines.push(``);
+    autoItems.forEach((it, idx) => {
+      lines.push(`---`);
+      lines.push(`## ${idx + 1}. ${it.title}`);
+      lines.push(`Status: **${it.status.toUpperCase()}**  ·  Progress: ${it.progress}%`);
+      lines.push(``);
+      lines.push("```");
+      it.logs.forEach((l) => {
+        const t = new Date(l.t).toISOString().split("T")[1].replace("Z", "");
+        lines.push(`[${t}] ${(l.kind ?? "info").toUpperCase().padEnd(4)}  ${l.line}`);
+      });
+      lines.push("```");
+      lines.push("");
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `auto-execution-report-${stamp}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success("Report downloaded");
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -283,8 +321,28 @@ export default function ExecutionsPage() {
             onModeChange={setAutoMode}
             onStop={stopAuto}
             onClose={() => { autoAbort.current = true; setAutoRunning(false); setAutoOpen(false); }}
+            onDownload={downloadAutoReport}
           />
         )}
+
+        {/* Compact stat strip */}
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { label: "Total", value: stats.total, icon: Play, color: "primary" },
+            { label: "Passed", value: stats.passed, icon: CheckCircle2, color: "success" },
+            { label: "Failed", value: stats.failed, icon: XCircle, color: "destructive" },
+            { label: "In Progress", value: stats.inProgress, icon: Clock, color: "accent" },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="flex items-center gap-2 rounded-md border border-border/50 bg-card/60 px-3 py-1.5"
+            >
+              <s.icon className={`h-3.5 w-3.5 text-${s.color}`} />
+              <span className="text-sm font-semibold tabular-nums">{s.value}</span>
+              <span className="text-xs text-muted-foreground">{s.label}</span>
+            </div>
+          ))}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
