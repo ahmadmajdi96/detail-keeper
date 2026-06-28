@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import {
-  Activity, Globe, Maximize2, Minimize2, Pause, Play, Radio,
+  Activity, Download, Globe, Maximize2, Minimize2, Pause, Play, Radio,
   StopCircle, Terminal, X, CheckCircle2, XCircle, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,11 @@ export interface AutoExecItem {
   logs: { t: number; line: string; kind?: "info" | "ok" | "err" | "req" }[];
   url?: string;              // for browser mode iframe focus
 }
+  status: "queued" | "running" | "passed" | "failed";
+  progress: number;          // 0-100
+  logs: { t: number; line: string; kind?: "info" | "ok" | "err" | "req" }[];
+  url?: string;              // for browser mode iframe focus
+}
 
 interface AutoExecutePanelProps {
   running: boolean;
@@ -31,20 +36,27 @@ interface AutoExecutePanelProps {
   onModeChange: (m: AutoExecMode) => void;
   onStop: () => void;
   onClose: () => void;
+  onDownload?: () => void;
 }
 
 export function AutoExecutePanel({
-  running, mode, items, liveUrl, onModeChange, onStop, onClose,
+  running, mode, items, liveUrl, onModeChange, onStop, onClose, onDownload,
 }: AutoExecutePanelProps) {
   const [expanded, setExpanded] = useState(false);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [userPicked, setUserPicked] = useState(false);
   const logsRef = useRef<HTMLDivElement>(null);
 
-  const focused = items.find((i) => i.id === focusedId) ?? items[items.length - 1] ?? null;
+  // Auto-follow the currently running test unless the user explicitly picked one
+  const runningItem = [...items].reverse().find((i) => i.status === "running");
+  const autoFocus = runningItem ?? items[items.length - 1] ?? null;
+  const focused = (userPicked ? items.find((i) => i.id === focusedId) : null) ?? autoFocus;
 
   useEffect(() => {
     if (logsRef.current) logsRef.current.scrollTop = logsRef.current.scrollHeight;
-  }, [focused?.logs.length]);
+  }, [focused?.id, focused?.logs.length]);
+
+  const pickItem = (id: string) => { setFocusedId(id); setUserPicked(true); };
 
   const done = items.filter((i) => i.status === "passed" || i.status === "failed").length;
   const overall = items.length ? Math.round((done / items.length) * 100) : 0;
