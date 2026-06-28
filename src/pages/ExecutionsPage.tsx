@@ -52,6 +52,12 @@ export default function ExecutionsPage() {
   const [liveUrl, setLiveUrl] = useState<string | undefined>(undefined);
   const autoAbort = useRef(false);
 
+  // Manual execution log stream (newest first)
+  type ManualLog = { t: number; line: string; kind: "info" | "ok" | "err" | "warn" };
+  const [manualLogs, setManualLogs] = useState<ManualLog[]>([]);
+  const pushManualLog = (line: string, kind: ManualLog["kind"] = "info") =>
+    setManualLogs((p) => [{ t: Date.now(), line, kind }, ...p].slice(0, 200));
+
   const { data: executions = [], isLoading } = useQuery({
     queryKey: ["executions", ...scopeKey],
     queryFn: async () => {
@@ -90,6 +96,8 @@ export default function ExecutionsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["executions"] });
       setSelectedExecution(data);
+      setManualLogs([]);
+      pushManualLog(`▶ Started execution of "${data.test_case?.title ?? "test"}"`, "info");
       toast.success("Execution started");
     },
   });
@@ -101,9 +109,13 @@ export default function ExecutionsPage() {
         .update({ status, completed_at: ["passed", "failed", "blocked"].includes(status) ? new Date().toISOString() : null })
         .eq("id", id);
       if (error) throw error;
+      return status;
     },
-    onSuccess: () => {
+    onSuccess: (status) => {
       queryClient.invalidateQueries({ queryKey: ["executions"] });
+      const kind = status === "passed" ? "ok" : status === "failed" ? "err" : "warn";
+      const glyph = status === "passed" ? "✓" : status === "failed" ? "✗" : "⏸";
+      pushManualLog(`${glyph} Marked ${status}`, kind);
       toast.success("Status updated");
     },
   });
@@ -124,6 +136,7 @@ export default function ExecutionsPage() {
     },
     onSuccess: () => {
       toast.success("Defect logged");
+      pushManualLog(`🐞 Defect logged: "${defectTitle}" (${defectSeverity}/${defectPriority})`, "warn");
       setIsDefectDialogOpen(false);
       setDefectTitle("");
       setDefectDescription("");
@@ -247,6 +260,44 @@ export default function ExecutionsPage() {
     toast.message("Stopping auto execution…");
   };
 
+  const downloadAutoReport = () => {
+    const ts = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const stamp = `${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}`;
+    const passed = autoItems.filter((i) => i.status === "passed").length;
+    const failed = autoItems.filter((i) => i.status === "failed").length;
+    const lines: string[] = [];
+    lines.push(`# Auto Execution Report`);
+    lines.push(``);
+    lines.push(`- Generated: ${ts.toISOString()}`);
+    lines.push(`- Mode: ${autoMode}`);
+    lines.push(`- Total: ${autoItems.length}  ·  Passed: ${passed}  ·  Failed: ${failed}`);
+    lines.push(``);
+    autoItems.forEach((it, idx) => {
+      lines.push(`---`);
+      lines.push(`## ${idx + 1}. ${it.title}`);
+      lines.push(`Status: **${it.status.toUpperCase()}**  ·  Progress: ${it.progress}%`);
+      lines.push(``);
+      lines.push("```");
+      it.logs.forEach((l) => {
+        const t = new Date(l.t).toISOString().split("T")[1].replace("Z", "");
+        lines.push(`[${t}] ${(l.kind ?? "info").toUpperCase().padEnd(4)}  ${l.line}`);
+      });
+      lines.push("```");
+      lines.push("");
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `auto-execution-report-${stamp}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success("Report downloaded");
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -270,29 +321,29 @@ export default function ExecutionsPage() {
             onModeChange={setAutoMode}
             onStop={stopAuto}
             onClose={() => { autoAbort.current = true; setAutoRunning(false); setAutoOpen(false); }}
+            onDownload={downloadAutoReport}
           />
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Compact stat strip */}
+        <div className="flex flex-wrap items-center gap-2">
           {[
-            { label: "Total Executions", value: stats.total, icon: Play, color: "primary" },
+            { label: "Total", value: stats.total, icon: Play, color: "primary" },
             { label: "Passed", value: stats.passed, icon: CheckCircle2, color: "success" },
             { label: "Failed", value: stats.failed, icon: XCircle, color: "destructive" },
             { label: "In Progress", value: stats.inProgress, icon: Clock, color: "accent" },
-          ].map((stat) => (
-            <Card key={stat.label} className="border-border/50">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-${stat.color}/10`}>
-                  <stat.icon className={`h-5 w-5 text-${stat.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </div>
-              </CardContent>
-            </Card>
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="flex items-center gap-2 rounded-md border border-border/50 bg-card/60 px-3 py-1.5"
+            >
+              <s.icon className={`h-3.5 w-3.5 text-${s.color}`} />
+              <span className="text-sm font-semibold tabular-nums">{s.value}</span>
+              <span className="text-xs text-muted-foreground">{s.label}</span>
+            </div>
           ))}
         </div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-1 border-border/50">
@@ -324,10 +375,46 @@ export default function ExecutionsPage() {
             </CardHeader>
             <CardContent>
               {selectedExecution ? (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-2">
                     <Badge className={statusConfig[selectedExecution.status].color}>{statusConfig[selectedExecution.status].icon}<span className="ml-1">{selectedExecution.status}</span></Badge>
+                    {manualLogs.length > 0 && (
+                      <button
+                        onClick={() => setManualLogs([])}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >Clear log</button>
+                    )}
                   </div>
+
+                  {/* Live activity log — at the very top of the section */}
+                  <div className="rounded-lg border border-border/60 bg-[#0a0f1c] overflow-hidden">
+                    <div className="px-3 py-1.5 border-b border-border/60 flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Activity Log</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground font-mono">{manualLogs.length}</span>
+                    </div>
+                    <ScrollArea className="h-40">
+                      <div className="p-2 font-mono text-[11px] space-y-0.5">
+                        {manualLogs.length === 0 ? (
+                          <div className="text-muted-foreground px-1 py-1">Actions on this execution will appear here.</div>
+                        ) : (
+                          manualLogs.map((l, i) => {
+                            const t = new Date(l.t);
+                            const ts = `${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}:${String(t.getSeconds()).padStart(2,"0")}`;
+                            const cls = l.kind === "ok" ? "text-success" : l.kind === "err" ? "text-destructive" : l.kind === "warn" ? "text-warning" : "text-muted-foreground";
+                            return (
+                              <div key={i} className="flex gap-2">
+                                <span className="text-muted-foreground/60 shrink-0">{ts}</span>
+                                <span className={`shrink-0 w-10 ${cls}`}>{l.kind.toUpperCase()}</span>
+                                <span className="text-foreground/90 whitespace-pre-wrap break-words">{l.line}</span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+
                   <div className="space-y-4">
                     <div className="p-4 rounded-lg bg-muted/50">
                       <p className="font-medium mb-2">Step {currentStepIndex + 1}</p>
@@ -335,7 +422,7 @@ export default function ExecutionsPage() {
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" className="flex-1" onClick={() => setIsDefectDialogOpen(true)}><Bug className="mr-2 h-4 w-4" />Log Defect</Button>
-                      <Button variant="outline" className="flex-1"><Camera className="mr-2 h-4 w-4" />Capture Evidence</Button>
+                      <Button variant="outline" className="flex-1" onClick={() => pushManualLog("📸 Evidence capture requested", "info")}><Camera className="mr-2 h-4 w-4" />Capture Evidence</Button>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="destructive" className="flex-1" onClick={() => updateStatusMutation.mutate({ id: selectedExecution.id, status: "failed" })}>Fail</Button>

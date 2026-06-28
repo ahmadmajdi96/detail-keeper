@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import {
-  Activity, Globe, Maximize2, Minimize2, Pause, Play, Radio,
+  Activity, Download, Globe, Maximize2, Minimize2, Pause, Play, Radio,
   StopCircle, Terminal, X, CheckCircle2, XCircle, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,20 +31,27 @@ interface AutoExecutePanelProps {
   onModeChange: (m: AutoExecMode) => void;
   onStop: () => void;
   onClose: () => void;
+  onDownload?: () => void;
 }
 
 export function AutoExecutePanel({
-  running, mode, items, liveUrl, onModeChange, onStop, onClose,
+  running, mode, items, liveUrl, onModeChange, onStop, onClose, onDownload,
 }: AutoExecutePanelProps) {
   const [expanded, setExpanded] = useState(false);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [userPicked, setUserPicked] = useState(false);
   const logsRef = useRef<HTMLDivElement>(null);
 
-  const focused = items.find((i) => i.id === focusedId) ?? items[items.length - 1] ?? null;
+  // Auto-follow the currently running test unless the user explicitly picked one
+  const runningItem = [...items].reverse().find((i) => i.status === "running");
+  const autoFocus = runningItem ?? items[items.length - 1] ?? null;
+  const focused = (userPicked ? items.find((i) => i.id === focusedId) : null) ?? autoFocus;
 
   useEffect(() => {
     if (logsRef.current) logsRef.current.scrollTop = logsRef.current.scrollHeight;
-  }, [focused?.logs.length]);
+  }, [focused?.id, focused?.logs.length]);
+
+  const pickItem = (id: string) => { setFocusedId(id); setUserPicked(true); };
 
   const done = items.filter((i) => i.status === "passed" || i.status === "failed").length;
   const overall = items.length ? Math.round((done / items.length) * 100) : 0;
@@ -97,6 +104,11 @@ export function AutoExecutePanel({
                   <StopCircle className="h-4 w-4" /> Stop
                 </Button>
               )}
+              {!running && items.length > 0 && onDownload && (
+                <Button size="sm" variant="outline" onClick={onDownload} className="gap-1.5">
+                  <Download className="h-4 w-4" /> Download Report
+                </Button>
+              )}
               <Button size="icon" variant="ghost" onClick={() => setExpanded((v) => !v)} title={expanded ? "Collapse" : "Expand"}>
                 {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
@@ -127,7 +139,7 @@ export function AutoExecutePanel({
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        onClick={() => setFocusedId(it.id)}
+                        onClick={() => pickItem(it.id)}
                         className={cn(
                           "w-full text-left rounded-md border p-2 transition-colors",
                           (focused?.id === it.id)
