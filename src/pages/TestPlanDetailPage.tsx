@@ -63,6 +63,7 @@ export default function TestPlanDetailPage() {
   const { data: plan, isLoading } = useQuery({
     queryKey: ["test-plan", id],
     enabled: !!id,
+    refetchInterval: (q) => (q.state.data as any)?.ai_status === "running" ? 4000 : false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("test_plans")
@@ -73,6 +74,7 @@ export default function TestPlanDetailPage() {
       return data;
     },
   });
+
 
   const { data: assignees = [] } = useQuery({
     queryKey: ["test-plan-assignees", id],
