@@ -16,6 +16,7 @@ import WorkspaceDetailPage from "./pages/WorkspaceDetailPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import TestPlansPage from "./pages/TestPlansPage";
+import TestPlanDetailPage from "./pages/TestPlanDetailPage";
 import UsersPage from "./pages/UsersPage";
 import TestCasesPage from "./pages/TestCasesPage";
 import TestCaseEditorPage from "./pages/TestCaseEditorPage";
@@ -76,6 +77,11 @@ const App = () => (
               <Route path="/test-plans" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
                   <TestPlansPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/test-plans/:id" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <TestPlanDetailPage />
                 </ProtectedRoute>
               } />
               <Route path="/test-cases" element={
