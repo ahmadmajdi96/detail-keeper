@@ -63,6 +63,7 @@ interface TestPlan {
 
 export default function TestPlansPage() {
   const { user, hasPermission } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
   const [searchQuery, setSearchQuery] = useState("");
