@@ -136,6 +136,7 @@ export default function ExecutionsPage() {
         reported_by: user?.id,
         project_id: projectId,
         workspace_id: workspaceId,
+        test_plan_id: activePlanId,
       });
       if (error) throw error;
     },
