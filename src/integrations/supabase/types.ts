@@ -356,6 +356,7 @@ export type Database = {
           severity: Database["public"]["Enums"]["defect_severity"]
           status: string
           step_result_id: string | null
+          test_plan_id: string | null
           title: string
           updated_at: string
           workspace_id: string | null
@@ -372,6 +373,7 @@ export type Database = {
           severity?: Database["public"]["Enums"]["defect_severity"]
           status?: string
           step_result_id?: string | null
+          test_plan_id?: string | null
           title: string
           updated_at?: string
           workspace_id?: string | null
@@ -388,6 +390,7 @@ export type Database = {
           severity?: Database["public"]["Enums"]["defect_severity"]
           status?: string
           step_result_id?: string | null
+          test_plan_id?: string | null
           title?: string
           updated_at?: string
           workspace_id?: string | null
@@ -426,6 +429,13 @@ export type Database = {
             columns: ["step_result_id"]
             isOneToOne: false
             referencedRelation: "execution_step_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "defects_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
             referencedColumns: ["id"]
           },
           {

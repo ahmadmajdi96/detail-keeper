@@ -46,6 +46,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
+import { CheckCircle2 } from "lucide-react";
 
 interface TestPlan {
   id: string;
@@ -66,6 +68,7 @@ export default function TestPlansPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
+  const { activePlanId, setActivePlan } = useActiveTestPlan();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -235,13 +238,18 @@ export default function TestPlansPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card onClick={() => navigate(`/test-plans/${plan.id}`)} className="group hover:shadow-soft transition-all duration-200 h-full flex flex-col cursor-pointer">
+              <Card onClick={() => navigate(`/test-plans/${plan.id}`)} className={`group hover:shadow-soft transition-all duration-200 h-full flex flex-col cursor-pointer ${activePlanId === plan.id ? "border-success ring-1 ring-success/30" : ""}`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
                       <StatusBadge variant={getStatusVariant(plan.status)} size="sm">
                         {plan.status}
                       </StatusBadge>
+                      {activePlanId === plan.id && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
+                          <CheckCircle2 className="h-3 w-3" /> Active
+                        </span>
+                      )}
                       {plan.ai_suggested && (
                         <div className="flex items-center gap-1 text-xs text-accent">
                           <Sparkles className="h-3 w-3" />
@@ -259,9 +267,23 @@ export default function TestPlansPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "active" })}>
-                          Activate
+                        <DropdownMenuItem onClick={async () => { await setActivePlan(plan.id); toast.success(`Activated "${plan.name}"`); }}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> {activePlanId === plan.id ? "Active (re-set)" : "Set as Active"}
                         </DropdownMenuItem>
+                        {activePlanId === plan.id && (
+                          <DropdownMenuItem onClick={async () => { await setActivePlan(null); toast.message("Deactivated test plan"); }}>
+                            Deactivate
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={async () => { await setActivePlan(plan.id); toast.success(`Activated "${plan.name}"`); }}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> Set as Active
+                        </DropdownMenuItem>
+                        {activePlanId === plan.id && (
+                          <DropdownMenuItem onClick={async () => { await setActivePlan(null); toast.message("Deactivated test plan"); }}>
+                            Deactivate
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "completed" })}>
                           Mark Complete
                         </DropdownMenuItem>
@@ -322,20 +344,19 @@ export default function TestPlansPage() {
                   </div>
 
                   {/* Action */}
-                  {plan.status === "active" && (
-                    <Button className="w-full mt-4" variant="outline" size="sm">
-                      <Play className="mr-2 h-3 w-3" />
-                      Start Run
-                    </Button>
-                  )}
-                  {plan.status === "draft" && (
-                    <Button 
-                      className="w-full mt-4 ai-gradient text-white" 
+                  {activePlanId !== plan.id ? (
+                    <Button
+                      className="w-full mt-4 ai-gradient text-white"
                       size="sm"
-                      onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "active" })}
+                      onClick={async (e) => { e.stopPropagation(); await setActivePlan(plan.id); toast.success(`Activated "${plan.name}"`); }}
                     >
-                      <Sparkles className="mr-2 h-3 w-3" />
-                      Activate Plan
+                      <CheckCircle2 className="mr-2 h-3 w-3" />
+                      Set as Active Plan
+                    </Button>
+                  ) : (
+                    <Button className="w-full mt-4" variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                      <CheckCircle2 className="mr-2 h-3 w-3 text-success" />
+                      Active Plan
                     </Button>
                   )}
                 </CardContent>

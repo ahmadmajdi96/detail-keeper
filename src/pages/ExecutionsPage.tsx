@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Play, CheckCircle2, XCircle, AlertTriangle, Clock, Bug, Camera, FileText, Loader2, ChevronRight, Upload, Zap } from "lucide-react";
 import type { TestExecution, TestCase, ExecutionStatus, DefectSeverity, DefectPriority } from "@/types";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
 import { AutoExecutePanel, type AutoExecItem, type AutoExecMode } from "@/components/executions/AutoExecutePanel";
 
 type ExecutionWithTestCase = TestExecution & { test_case: TestCase | null };
@@ -36,6 +37,7 @@ export default function ExecutionsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
+  const { activePlanId, activePlan, activeCaseIds } = useActiveTestPlan();
   const [selectedExecution, setSelectedExecution] = useState<ExecutionWithTestCase | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isDefectDialogOpen, setIsDefectDialogOpen] = useState(false);
@@ -73,10 +75,13 @@ export default function ExecutionsPage() {
   });
 
   const { data: testCases = [] } = useQuery({
-    queryKey: ["test-cases-for-execution", ...scopeKey],
+    queryKey: ["test-cases-for-execution", ...scopeKey, activePlanId, activeCaseIds.join(",")],
     queryFn: async () => {
+      // When an active plan is set, only its linked test cases are runnable.
+      if (activePlanId && activeCaseIds.length === 0) return [] as TestCase[];
       let q = supabase.from("test_cases").select("*").eq("status", "active");
       if (projectId) q = q.eq("project_id", projectId);
+      if (activePlanId && activeCaseIds.length > 0) q = q.in("id", activeCaseIds);
       const { data, error } = await q;
       if (error) throw error;
       return data as TestCase[];
@@ -131,6 +136,7 @@ export default function ExecutionsPage() {
         reported_by: user?.id,
         project_id: projectId,
         workspace_id: workspaceId,
+        test_plan_id: activePlanId,
       });
       if (error) throw error;
     },
@@ -327,6 +333,19 @@ export default function ExecutionsPage() {
             </Button>
           }
         />
+
+        {activePlanId ? (
+          <div className="rounded-lg border border-success/30 bg-success/5 px-4 py-2.5 flex items-center gap-3 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            <span><span className="font-medium">Active Test Plan:</span> {activePlan?.name ?? "—"}</span>
+            <span className="text-muted-foreground">· {testCases.length} runnable test case{testCases.length === 1 ? "" : "s"}</span>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-sm text-warning-foreground/90">
+            No active test plan — activate a plan from the Test Plans page to scope executions.
+          </div>
+        )}
+
 
         {autoOpen && (
           <AutoExecutePanel

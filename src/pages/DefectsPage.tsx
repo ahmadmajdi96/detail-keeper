@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,6 +65,7 @@ import {
 } from "lucide-react";
 import type { Defect, Profile, DefectSeverity, DefectPriority } from "@/types";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
 
 type DefectWithRelations = Defect & {
   reporter?: Profile | null;
@@ -102,15 +104,21 @@ const statusIcons: Record<string, React.ReactNode> = {
 
 export default function DefectsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
+  const { activePlanId } = useActiveTestPlan();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [planFilter, setPlanFilter] = useState<string>("all");
+  const [reporterFilter, setReporterFilter] = useState<string>("all");
   const [selectedDefect, setSelectedDefect] = useState<DefectWithRelations | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [newTestPlanId, setNewTestPlanId] = useState<string>("none");
 
   // Form state
   const [newTitle, setNewTitle] = useState("");
@@ -119,7 +127,7 @@ export default function DefectsPage() {
   const [newPriority, setNewPriority] = useState<DefectPriority>("medium");
   const [selectedAssignee, setSelectedAssignee] = useState<string>("");
 
-  // Fetch defects
+  // Fetch defects (scoped to active project; include project + plan names)
   const { data: defects = [], isLoading } = useQuery({
     queryKey: ["defects", ...scopeKey],
     queryFn: async () => {
@@ -128,14 +136,27 @@ export default function DefectsPage() {
         .select(`
           *,
           reporter:profiles!defects_reported_by_fkey(id, name, email, avatar),
-          assignee:profiles!defects_assigned_to_fkey(id, name, email, avatar)
+          assignee:profiles!defects_assigned_to_fkey(id, name, email, avatar),
+          project:projects(id, name),
+          test_plan:test_plans(id, name)
         `)
         .order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
       const { data, error } = await q;
 
       if (error) throw error;
-      return data as DefectWithRelations[];
+      return data as any as DefectWithRelations[];
+    },
+  });
+
+  // Test plans within the active project (for filter + create dialog)
+  const { data: projectPlans = [] } = useQuery({
+    queryKey: ["test-plans-for-defects", projectId],
+    queryFn: async () => {
+      let q = supabase.from("test_plans").select("id,name").order("name");
+      if (projectId) q = q.eq("project_id", projectId);
+      const { data } = await q;
+      return (data || []) as { id: string; name: string }[];
     },
   });
 
@@ -166,6 +187,7 @@ export default function DefectsPage() {
         status: "open",
         project_id: projectId,
         workspace_id: workspaceId,
+        test_plan_id: newTestPlanId === "none" ? (activePlanId ?? null) : newTestPlanId,
       });
 
       if (error) throw error;
@@ -241,15 +263,28 @@ export default function DefectsPage() {
     setNewDescription("");
     setNewSeverity("minor");
     setNewPriority("medium");
+    setNewTestPlanId("none");
   };
 
   // Filter defects
-  const filteredDefects = defects.filter((defect) => {
+  const filteredDefects = defects.filter((defect: any) => {
     const matchesSearch = defect.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || defect.status === statusFilter;
     const matchesSeverity = severityFilter === "all" || defect.severity === severityFilter;
-    return matchesSearch && matchesStatus && matchesSeverity;
+    const matchesProject = projectFilter === "all" || defect.project_id === projectFilter;
+    const matchesPlan = planFilter === "all" || defect.test_plan_id === planFilter;
+    const matchesReporter = reporterFilter === "all" || defect.reported_by === reporterFilter;
+    return matchesSearch && matchesStatus && matchesSeverity && matchesProject && matchesPlan && matchesReporter;
   });
+
+  // Distinct projects + reporters from the loaded set
+  const projectOptions = Array.from(
+    new Map(defects.filter((d: any) => d.project).map((d: any) => [d.project.id, d.project])).values()
+  ) as { id: string; name: string }[];
+  const reporterOptions = Array.from(
+    new Map(defects.filter((d: any) => d.reporter).map((d: any) => [d.reporter.id, d.reporter])).values()
+  ) as { id: string; name: string }[];
+
 
   // Stats
   const stats = {
@@ -365,7 +400,29 @@ export default function DefectsPage() {
               <SelectItem value="trivial">Trivial</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Project" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projectOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={planFilter} onValueChange={setPlanFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Test Plan" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Test Plans</SelectItem>
+              {projectPlans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={reporterFilter} onValueChange={setReporterFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Reporter" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Reporters</SelectItem>
+              {reporterOptions.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
+
 
         {/* Defects Table */}
         <Card className="border-border/50">
@@ -379,9 +436,12 @@ export default function DefectsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Defect</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Test Plan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Severity</TableHead>
                     <TableHead>Priority</TableHead>
+                    <TableHead>Reporter</TableHead>
                     <TableHead>Assignee</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
@@ -395,7 +455,8 @@ export default function DefectsPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="border-b transition-colors hover:bg-muted/50"
+                        onClick={() => navigate(`/defects/${defect.id}`)}
+                        className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
                       >
                         <TableCell>
                           <div className="flex items-start gap-3">
@@ -410,6 +471,8 @@ export default function DefectsPage() {
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell className="text-sm">{(defect as any).project?.name ?? "—"}</TableCell>
+                        <TableCell className="text-sm">{(defect as any).test_plan?.name ?? "—"}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={statusColors[defect.status]}>
                             {statusIcons[defect.status]}
@@ -425,6 +488,18 @@ export default function DefectsPage() {
                           <Badge variant="outline" className={priorityColors[defect.priority]}>
                             {defect.priority}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {defect.reporter ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-xs">
+                                  {defect.reporter.name?.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{defect.reporter.name}</span>
+                            </div>
+                          ) : (<span className="text-sm text-muted-foreground">—</span>)}
                         </TableCell>
                         <TableCell>
                           {defect.assignee ? (
@@ -444,7 +519,7 @@ export default function DefectsPage() {
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(defect.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -507,7 +582,7 @@ export default function DefectsPage() {
                   </AnimatePresence>
                   {filteredDefects.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-32 text-center">
+                      <TableCell colSpan={10} className="h-32 text-center">
                         <p className="text-muted-foreground">No defects found</p>
                       </TableCell>
                     </TableRow>
@@ -580,6 +655,16 @@ export default function DefectsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Test Plan (optional)</Label>
+              <Select value={newTestPlanId} onValueChange={setNewTestPlanId}>
+                <SelectTrigger><SelectValue placeholder="Link to test plan" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{activePlanId ? "Use active plan" : "None"}</SelectItem>
+                  {projectPlans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

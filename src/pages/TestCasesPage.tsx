@@ -69,6 +69,7 @@ import {
 } from "lucide-react";
 import type { TestCase, TestCaseStep, TestCaseVersion, TestCaseStatus } from "@/types";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
 
 const statusColors: Record<TestCaseStatus, string> = {
   draft: "bg-muted text-muted-foreground border-border",
@@ -89,6 +90,7 @@ export default function TestCasesPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
+  const { activePlanId, activePlan, activeCaseIds } = useActiveTestPlan();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
@@ -105,15 +107,18 @@ export default function TestCasesPage() {
   const [aiPrompt, setAIPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Fetch test cases
+  // Fetch test cases (filtered to the active test plan when one is set)
   const { data: testCases = [], isLoading } = useQuery({
-    queryKey: ["test-cases", ...scopeKey],
+    queryKey: ["test-cases", ...scopeKey, activePlanId, activeCaseIds.join(",")],
     queryFn: async () => {
+      // If a plan is active but has no linked cases, return empty without hitting the DB.
+      if (activePlanId && activeCaseIds.length === 0) return [] as TestCase[];
       let q = supabase
         .from("test_cases")
         .select("*")
         .order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
+      if (activePlanId && activeCaseIds.length > 0) q = q.in("id", activeCaseIds);
       const { data, error } = await q;
       if (error) throw error;
       return data as TestCase[];
@@ -286,6 +291,21 @@ export default function TestCasesPage() {
           }
         />
 
+        {activePlanId && (
+          <div className="rounded-lg border border-success/30 bg-success/5 px-4 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="inline-flex items-center gap-1 text-success font-medium">
+                <CheckCircle2 className="h-4 w-4" /> Active Test Plan:
+              </span>
+              <span className="font-medium">{activePlan?.name ?? "—"}</span>
+              <span className="text-muted-foreground">· showing {activeCaseIds.length} linked test case{activeCaseIds.length === 1 ? "" : "s"}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/test-plans")}>Change</Button>
+          </div>
+        )}
+
+
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="border-border/50">
@@ -395,7 +415,8 @@ export default function TestCasesPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="border-b transition-colors hover:bg-muted/50"
+                        onClick={() => navigate(`/test-cases/${tc.id}/edit${activePlanId ? `?testPlan=${activePlanId}` : ""}`)}
+                        className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
                       >
                         <TableCell>
                           <div className="flex items-start gap-3">
@@ -450,7 +471,7 @@ export default function TestCasesPage() {
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(tc.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">

@@ -1,0 +1,2 @@
+ALTER TABLE public.defects ADD COLUMN IF NOT EXISTS test_plan_id uuid REFERENCES public.test_plans(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_defects_test_plan_id ON public.defects(test_plan_id);
