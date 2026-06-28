@@ -358,52 +358,11 @@ export default function TestPlansPage() {
         </div>
       )}
 
-      {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5" />
-              Create Test Plan
-            </DialogTitle>
-            <DialogDescription>
-              Create a new test plan to organize your testing activities
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Plan Name</Label>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="e.g., Sprint 24 Regression Suite"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Describe the scope and goals of this test plan..."
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              className="ai-gradient text-white"
-              onClick={() => createMutation.mutate()}
-              disabled={!newName || createMutation.isPending}
-            >
-              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Plan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TestPlanWizard
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onCreated={(planId) => navigate(`/test-plans/${planId}`)}
+      />
     </AppLayout>
   );
 }
