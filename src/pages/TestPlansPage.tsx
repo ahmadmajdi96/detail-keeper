@@ -28,15 +28,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { TestPlanWizard } from "@/components/testplans/TestPlanWizard";
 import {
   ClipboardList,
   Plus,
@@ -69,6 +63,7 @@ interface TestPlan {
 
 export default function TestPlansPage() {
   const { user, hasPermission } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
   const [searchQuery, setSearchQuery] = useState("");
@@ -240,7 +235,7 @@ export default function TestPlansPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card className="group hover:shadow-soft transition-all duration-200 h-full flex flex-col">
+              <Card onClick={() => navigate(`/test-plans/${plan.id}`)} className="group hover:shadow-soft transition-all duration-200 h-full flex flex-col cursor-pointer">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -255,6 +250,7 @@ export default function TestPlansPage() {
                       )}
                     </div>
                     <DropdownMenu>
+                      <div onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                           <MoreHorizontal className="h-4 w-4" />
@@ -280,6 +276,7 @@ export default function TestPlansPage() {
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
+                      </div>
                     </DropdownMenu>
                   </div>
                   <CardTitle className="text-base mt-2">{plan.name}</CardTitle>
@@ -364,52 +361,11 @@ export default function TestPlansPage() {
         </div>
       )}
 
-      {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5" />
-              Create Test Plan
-            </DialogTitle>
-            <DialogDescription>
-              Create a new test plan to organize your testing activities
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Plan Name</Label>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="e.g., Sprint 24 Regression Suite"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Describe the scope and goals of this test plan..."
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              className="ai-gradient text-white"
-              onClick={() => createMutation.mutate()}
-              disabled={!newName || createMutation.isPending}
-            >
-              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Plan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TestPlanWizard
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onCreated={(planId) => navigate(`/test-plans/${planId}`)}
+      />
     </AppLayout>
   );
 }

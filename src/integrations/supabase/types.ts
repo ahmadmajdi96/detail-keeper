@@ -1140,6 +1140,7 @@ export type Database = {
           started_at: string | null
           status: Database["public"]["Enums"]["execution_status"]
           test_case_id: string
+          test_plan_id: string | null
           test_run_id: string | null
           updated_at: string
           workspace_id: string | null
@@ -1155,6 +1156,7 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["execution_status"]
           test_case_id: string
+          test_plan_id?: string | null
           test_run_id?: string | null
           updated_at?: string
           workspace_id?: string | null
@@ -1170,6 +1172,7 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["execution_status"]
           test_case_id?: string
+          test_plan_id?: string | null
           test_run_id?: string | null
           updated_at?: string
           workspace_id?: string | null
@@ -1197,6 +1200,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "test_executions_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "test_executions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -1205,45 +1215,208 @@ export type Database = {
           },
         ]
       }
+      test_plan_assignees: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          role: string
+          test_plan_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          test_plan_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          test_plan_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_plan_assignees_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_plan_documents: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          test_plan_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          test_plan_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          test_plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_plan_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_plan_documents_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_plan_test_cases: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          id: string
+          test_case_id: string
+          test_plan_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          test_case_id: string
+          test_plan_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          test_case_id?: string
+          test_plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_plan_test_cases_test_case_id_fkey"
+            columns: ["test_case_id"]
+            isOneToOne: false
+            referencedRelation: "test_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_plan_test_cases_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_plan_versions: {
+        Row: {
+          change_summary: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          snapshot: Json
+          test_plan_id: string
+          version: number
+        }
+        Insert: {
+          change_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          snapshot?: Json
+          test_plan_id: string
+          version: number
+        }
+        Update: {
+          change_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          snapshot?: Json
+          test_plan_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_plan_versions_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_plans: {
         Row: {
+          ai_last_run_at: string | null
+          ai_status: string | null
           ai_suggested: boolean | null
           created_at: string
           created_by: string | null
+          current_version: number
           description: string | null
           id: string
           name: string
+          objective: string | null
           progress: number | null
           project_id: string | null
           runs_count: number | null
+          scope: string | null
           status: string
           updated_at: string
           workspace_id: string | null
         }
         Insert: {
+          ai_last_run_at?: string | null
+          ai_status?: string | null
           ai_suggested?: boolean | null
           created_at?: string
           created_by?: string | null
+          current_version?: number
           description?: string | null
           id?: string
           name: string
+          objective?: string | null
           progress?: number | null
           project_id?: string | null
           runs_count?: number | null
+          scope?: string | null
           status?: string
           updated_at?: string
           workspace_id?: string | null
         }
         Update: {
+          ai_last_run_at?: string | null
+          ai_status?: string | null
           ai_suggested?: boolean | null
           created_at?: string
           created_by?: string | null
+          current_version?: number
           description?: string | null
           id?: string
           name?: string
+          objective?: string | null
           progress?: number | null
           project_id?: string | null
           runs_count?: number | null
+          scope?: string | null
           status?: string
           updated_at?: string
           workspace_id?: string | null
