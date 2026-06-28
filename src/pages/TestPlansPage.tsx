@@ -238,13 +238,18 @@ export default function TestPlansPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card onClick={() => navigate(`/test-plans/${plan.id}`)} className="group hover:shadow-soft transition-all duration-200 h-full flex flex-col cursor-pointer">
+              <Card onClick={() => navigate(`/test-plans/${plan.id}`)} className={`group hover:shadow-soft transition-all duration-200 h-full flex flex-col cursor-pointer ${activePlanId === plan.id ? "border-success ring-1 ring-success/30" : ""}`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
                       <StatusBadge variant={getStatusVariant(plan.status)} size="sm">
                         {plan.status}
                       </StatusBadge>
+                      {activePlanId === plan.id && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
+                          <CheckCircle2 className="h-3 w-3" /> Active
+                        </span>
+                      )}
                       {plan.ai_suggested && (
                         <div className="flex items-center gap-1 text-xs text-accent">
                           <Sparkles className="h-3 w-3" />
