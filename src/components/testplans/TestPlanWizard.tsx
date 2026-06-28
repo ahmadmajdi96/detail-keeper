@@ -18,7 +18,7 @@ interface Props {
   onCreated?: (planId: string) => void;
 }
 
-const STEPS = ["Identity", "Assignees", "Source Documents", "Review"];
+const STEPS = ["Identity", "Assignees", "Source Documents", "Variables", "Review"];
 
 function MonoLabel({ children }: { children: React.ReactNode }) {
   return (
