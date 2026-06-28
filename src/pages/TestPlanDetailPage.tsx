@@ -51,6 +51,15 @@ export default function TestPlanDetailPage() {
     title: "", description: "", priority: "2", type: "functional", expected_result: "",
   });
 
+  // Variables editor state
+  type PlanVar = { key: string; value: string };
+  const [vars, setVars] = useState<PlanVar[]>([]);
+  const [varsLoaded, setVarsLoaded] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [impWs, setImpWs] = useState("");
+  const [impProj, setImpProj] = useState("");
+  const [impPlan, setImpPlan] = useState("");
+
   const { data: plan, isLoading } = useQuery({
     queryKey: ["test-plan", id],
     enabled: !!id,
