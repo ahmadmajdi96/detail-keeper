@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "./AppSidebar";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { WorkspaceSwitcher, ProjectSwitcher } from "./WorkspaceSwitcher";
+import { WorkflowNav } from "./WorkflowNav";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { Loader2 } from "lucide-react";
 
@@ -42,6 +43,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <span className="text-muted-foreground text-sm hidden sm:inline">/</span>
             <div className="hidden sm:block"><ProjectSwitcher /></div>
             <div className="flex-1" />
+            <WorkflowNav />
             <NotificationBell />
           </div>
         </header>
