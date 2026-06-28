@@ -400,7 +400,8 @@ export default function TestCasesPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="border-b transition-colors hover:bg-muted/50"
+                        onClick={() => navigate(`/test-cases/${tc.id}/edit${activePlanId ? `?testPlan=${activePlanId}` : ""}`)}
+                        className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
                       >
                         <TableCell>
                           <div className="flex items-start gap-3">
