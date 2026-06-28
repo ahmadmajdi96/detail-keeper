@@ -1381,6 +1381,7 @@ export type Database = {
           scope: string | null
           status: string
           updated_at: string
+          variables: Json
           workspace_id: string | null
         }
         Insert: {
@@ -1400,6 +1401,7 @@ export type Database = {
           scope?: string | null
           status?: string
           updated_at?: string
+          variables?: Json
           workspace_id?: string | null
         }
         Update: {
@@ -1419,6 +1421,7 @@ export type Database = {
           scope?: string | null
           status?: string
           updated_at?: string
+          variables?: Json
           workspace_id?: string | null
         }
         Relationships: [

@@ -6,9 +6,11 @@ import { useProjectScope } from "@/hooks/useProjectScope";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   ClipboardList, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Check,
-  Terminal, Users, FileText, Sparkles, Zap, Search,
+  Terminal, Users, FileText, Sparkles, Zap, Search, Variable, Plus, Trash2, Download,
 } from "lucide-react";
 import { toast } from "sonner";
+
+type PlanVar = { key: string; value: string };
 
 interface Props {
   open: boolean;
@@ -16,7 +18,7 @@ interface Props {
   onCreated?: (planId: string) => void;
 }
 
-const STEPS = ["Identity", "Assignees", "Source Documents", "Review"];
+const STEPS = ["Identity", "Assignees", "Source Documents", "Variables", "Review"];
 
 function MonoLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -55,6 +57,13 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
   const [userQ, setUserQ] = useState("");
   const [docQ, setDocQ] = useState("");
 
+  // Variables step
+  const [variables, setVariables] = useState<PlanVar[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
+  const [impWs, setImpWs] = useState<string>("");
+  const [impProj, setImpProj] = useState<string>("");
+  const [impPlan, setImpPlan] = useState<string>("");
+
   const { data: users = [] } = useQuery({
     queryKey: ["wizard-users", workspaceId],
     enabled: open,
@@ -78,20 +87,71 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
     },
   });
 
+  // ----- Import: workspaces -> projects -> plans -> variables -----
+  const { data: impWorkspaces = [] } = useQuery({
+    queryKey: ["wizard-import-workspaces"],
+    enabled: open && importOpen,
+    queryFn: async () => {
+      const { data } = await supabase.from("workspaces").select("id, name").order("name");
+      return data || [];
+    },
+  });
+  const { data: impProjects = [] } = useQuery({
+    queryKey: ["wizard-import-projects", impWs],
+    enabled: open && importOpen && !!impWs,
+    queryFn: async () => {
+      const { data } = await supabase.from("projects").select("id, name").eq("workspace_id", impWs).order("name");
+      return data || [];
+    },
+  });
+  const { data: impPlans = [] } = useQuery({
+    queryKey: ["wizard-import-plans", impProj],
+    enabled: open && importOpen && !!impProj,
+    queryFn: async () => {
+      const { data } = await supabase.from("test_plans").select("id, name, variables").eq("project_id", impProj).order("name");
+      return data || [];
+    },
+  });
+
   const reset = () => {
     setStep(0); setDone(false); setName(""); setDescription(""); setObjective("");
     setAssignees([]); setDocs([]); setAutoAI(true); setUserQ(""); setDocQ("");
+    setVariables([]); setImportOpen(false); setImpWs(""); setImpProj(""); setImpPlan("");
   };
 
   useEffect(() => { if (!open) reset(); }, [open]);
 
   const canNext = () => {
     if (step === 0) return name.trim().length > 1;
+    if (step === 3) return variables.every((v) => v.key.trim().length > 0 || !v.value);
     return true;
+  };
+
+  const addVariable = () => setVariables((p) => [...p, { key: "", value: "" }]);
+  const updateVariable = (i: number, patch: Partial<PlanVar>) =>
+    setVariables((p) => p.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
+  const removeVariable = (i: number) =>
+    setVariables((p) => p.filter((_, idx) => idx !== i));
+
+  const importVariables = () => {
+    const src: any = impPlans.find((p: any) => p.id === impPlan);
+    const arr: PlanVar[] = Array.isArray(src?.variables) ? src.variables : [];
+    if (!arr.length) {
+      toast.error("That plan has no variables to import");
+      return;
+    }
+    // Merge by key (incoming wins) and de-dupe
+    const map = new Map<string, PlanVar>();
+    [...variables, ...arr].forEach((v) => v?.key && map.set(v.key, { key: v.key, value: v.value ?? "" }));
+    setVariables(Array.from(map.values()));
+    toast.success(`Imported ${arr.length} variable${arr.length === 1 ? "" : "s"}`);
+    setImportOpen(false);
+    setImpWs(""); setImpProj(""); setImpPlan("");
   };
 
   const create = useMutation({
     mutationFn: async () => {
+      const cleanVars = variables.filter((v) => v.key.trim().length > 0).map((v) => ({ key: v.key.trim(), value: v.value ?? "" }));
       const { data: plan, error } = await supabase
         .from("test_plans")
         .insert({
@@ -101,10 +161,12 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
           created_by: user?.id,
           workspace_id: workspaceId,
           project_id: projectId,
+          variables: cleanVars as any,
         })
         .select("id")
         .single();
       if (error) throw error;
+
 
       if (assignees.length) {
         await supabase.from("test_plan_assignees").insert(
@@ -122,7 +184,7 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
       await supabase.from("test_plan_versions").insert({
         test_plan_id: plan.id,
         version: 1,
-        snapshot: { name, description, objective, assignees, documents: docs },
+        snapshot: { name, description, objective, assignees, documents: docs, variables: variables.filter((v) => v.key.trim().length > 0) },
         change_summary: "Initial plan created",
         created_by: user?.id,
       });
@@ -217,7 +279,7 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
                   ))}
                 </div>
                 <div className="flex-1 mx-3 h-[22px] rounded px-3 flex items-center" style={{ background: "rgba(0,180,200,0.05)", border: "1px solid rgba(0,180,200,0.09)" }}>
-                  <span className="font-mono text-[10px] text-[#1e3548]">setup://test-plan/{done ? "complete" : ["identity", "assignees", "documents", "review"][step]}</span>
+                  <span className="font-mono text-[10px] text-[#1e3548]">setup://test-plan/{done ? "complete" : ["identity", "assignees", "documents", "variables", "review"][step]}</span>
                 </div>
                 {!done && <span className="font-mono text-[10px] text-[#1e3548]">{step + 1} / {STEPS.length}</span>}
               </div>
@@ -349,6 +411,88 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
                     )}
 
                     {step === 3 && (
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-sans text-sm text-[#4a6a88]">
+                            Define dynamic variables for this plan. They will be available to every test case and execution.
+                          </p>
+                          <button
+                            onClick={() => setImportOpen((v) => !v)}
+                            className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-2 rounded border border-[rgba(120,60,200,0.35)] text-[#a060ff] hover:bg-[rgba(120,60,200,0.08)] shrink-0"
+                          >
+                            <Download size={12} /> IMPORT
+                          </button>
+                        </div>
+
+                        {importOpen && (
+                          <div className="rounded border border-[rgba(120,60,200,0.3)] bg-[rgba(120,60,200,0.05)] p-4 flex flex-col gap-3">
+                            <div className="flex items-center gap-2">
+                              <Variable size={12} className="text-[#a060ff]" />
+                              <span className="font-mono text-[10px] tracking-[0.2em] text-[#a060ff]">IMPORT FROM ANOTHER PLAN</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              <select value={impWs} onChange={(e) => { setImpWs(e.target.value); setImpProj(""); setImpPlan(""); }}
+                                className="bg-[#070e1c] border border-[rgba(0,200,220,0.14)] rounded text-[#dde8f0] font-mono text-xs px-3 py-2 outline-none focus:border-[#00cfe0]">
+                                <option value="">Workspace…</option>
+                                {impWorkspaces.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                              </select>
+                              <select value={impProj} onChange={(e) => { setImpProj(e.target.value); setImpPlan(""); }} disabled={!impWs}
+                                className="bg-[#070e1c] border border-[rgba(0,200,220,0.14)] rounded text-[#dde8f0] font-mono text-xs px-3 py-2 outline-none focus:border-[#00cfe0] disabled:opacity-40">
+                                <option value="">Project…</option>
+                                {impProjects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                              </select>
+                              <select value={impPlan} onChange={(e) => setImpPlan(e.target.value)} disabled={!impProj}
+                                className="bg-[#070e1c] border border-[rgba(0,200,220,0.14)] rounded text-[#dde8f0] font-mono text-xs px-3 py-2 outline-none focus:border-[#00cfe0] disabled:opacity-40">
+                                <option value="">Test Plan…</option>
+                                {impPlans.map((p: any) => <option key={p.id} value={p.id}>{p.name} ({Array.isArray(p.variables) ? p.variables.length : 0})</option>)}
+                              </select>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => setImportOpen(false)}
+                                className="font-mono text-[10px] tracking-widest px-3 py-2 rounded border border-[rgba(0,190,215,0.18)] text-[#4a6a88] hover:text-[#dde8f0]">
+                                CANCEL
+                              </button>
+                              <button onClick={importVariables} disabled={!impPlan}
+                                className="font-mono text-[10px] tracking-widest px-3 py-2 rounded bg-[#a060ff] text-[#04070f] disabled:opacity-30 disabled:cursor-not-allowed">
+                                IMPORT VARIABLES
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="rounded border border-[rgba(0,200,220,0.12)] overflow-hidden">
+                          <div className="grid grid-cols-[1fr_1fr_40px] gap-2 px-3 py-2 bg-[rgba(0,180,200,0.05)] border-b border-[rgba(0,180,200,0.09)]">
+                            <span className="font-mono text-[10px] tracking-[0.18em] text-[#4a6a88] uppercase">Key</span>
+                            <span className="font-mono text-[10px] tracking-[0.18em] text-[#4a6a88] uppercase">Value</span>
+                            <span />
+                          </div>
+                          <div className="flex flex-col max-h-[260px] overflow-y-auto">
+                            {variables.length === 0 ? (
+                              <div className="flex items-center gap-2 py-8 justify-center text-[#2a4860]">
+                                <Variable size={14} /><span className="font-mono text-xs">no variables yet</span>
+                              </div>
+                            ) : variables.map((v, i) => (
+                              <div key={i} className="grid grid-cols-[1fr_1fr_40px] gap-2 px-3 py-2 border-b border-[rgba(0,180,200,0.07)] last:border-0">
+                                <input value={v.key} onChange={(e) => updateVariable(i, { key: e.target.value })} placeholder="BASE_URL"
+                                  className="bg-[#070e1c] border border-[rgba(0,200,220,0.14)] rounded text-[#dde8f0] font-mono text-xs px-3 py-2 outline-none focus:border-[#00cfe0]" />
+                                <input value={v.value} onChange={(e) => updateVariable(i, { value: e.target.value })} placeholder="https://api.example.com"
+                                  className="bg-[#070e1c] border border-[rgba(0,200,220,0.14)] rounded text-[#dde8f0] font-mono text-xs px-3 py-2 outline-none focus:border-[#00cfe0]" />
+                                <button onClick={() => removeVariable(i)} className="flex items-center justify-center rounded text-[#ff3058] hover:bg-[rgba(255,48,88,0.1)]">
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button onClick={addVariable}
+                          className="flex items-center justify-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-2.5 rounded border border-dashed border-[rgba(0,207,224,0.3)] text-[#00cfe0] hover:bg-[rgba(0,207,224,0.05)]">
+                          <Plus size={12} /> ADD VARIABLE
+                        </button>
+                      </div>
+                    )}
+
+                    {step === 4 && (
                       <div className="flex flex-col gap-5">
                         <p className="font-sans text-sm text-[#4a6a88]">Confirm before initializing.</p>
                         <div className="rounded border border-[rgba(0,200,220,0.12)] overflow-hidden">
@@ -358,6 +502,7 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
                             ["Objective", objective || "—"],
                             ["Assignees", `${assignees.length} user(s)`],
                             ["Documents", `${docs.length} attached`],
+                            ["Variables", `${variables.filter((v) => v.key.trim()).length} defined`],
                             ["AI Generation", autoAI && docs.length > 0 ? "queued after create" : "manual"],
                           ] as [string, string][]).map(([k, v], i) => (
                             <div key={i} className="flex items-start gap-4 px-5 py-3 border-b border-[rgba(0,180,200,0.07)] last:border-0"
