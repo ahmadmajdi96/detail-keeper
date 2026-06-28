@@ -124,17 +124,13 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
       const t = await aiRes.text();
       console.error("AI gateway error", aiRes.status, t);
       await supabase.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
-      return new Response(JSON.stringify({ error: `AI gateway: ${aiRes.status}` }), {
-        status: aiRes.status === 429 || aiRes.status === 402 ? aiRes.status : 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return;
     }
 
     const aiJson = await aiRes.json();
     const raw = aiJson.choices?.[0]?.message?.content || "{}";
     const parsed = safeParseJson(raw);
 
-    // Update plan with objective/scope
     await supabase
       .from("test_plans")
       .update({
@@ -144,7 +140,6 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
       })
       .eq("id", test_plan_id);
 
-    // Create test cases and link them
     const cases = Array.isArray(parsed.test_cases) ? parsed.test_cases : [];
     let created = 0;
     for (const tc of cases) {
@@ -175,7 +170,6 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
           test_case_id: inserted.id,
           added_by: plan.created_by,
         });
-        // Insert steps
         if (Array.isArray(tc.steps)) {
           const stepRows = tc.steps.map((s: string, i: number) => ({
             test_case_id: inserted.id,
@@ -189,7 +183,6 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
       }
     }
 
-    // Snapshot a version
     const nextVersion = (plan.current_version || 1) + (created > 0 ? 1 : 0);
     if (created > 0) {
       await supabase.from("test_plan_versions").insert({
@@ -204,7 +197,6 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
         .update({ ai_status: "ready", current_version: nextVersion })
         .eq("id", test_plan_id);
 
-      // Flag source documents as having their requirements extracted
       const docIds = (planDocs || []).map((d: any) => d.document_id).filter(Boolean);
       if (docIds.length) {
         await supabase
@@ -218,10 +210,36 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
         .update({ ai_status: "ready" })
         .eq("id", test_plan_id);
     }
+  } catch (e) {
+    console.error("Generation error", e);
+    try {
+      await supabase
+        .from("test_plans")
+        .update({ ai_status: "failed" })
+        .eq("id", test_plan_id);
+    } catch (_) { /* ignore */ }
+  }
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { test_plan_id } = await req.json();
+    if (!test_plan_id) {
+      return new Response(JSON.stringify({ error: "test_plan_id required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fire-and-forget: run generation in background so the client can navigate away.
+    // @ts-ignore EdgeRuntime is available in Supabase Edge Runtime
+    EdgeRuntime.waitUntil(runGeneration(test_plan_id));
 
     return new Response(
-      JSON.stringify({ success: true, created, version: nextVersion }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: true, status: "queued" }),
+      { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error(e);
@@ -231,3 +249,4 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
     );
   }
 });
+
