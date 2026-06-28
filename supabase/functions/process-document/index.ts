@@ -194,15 +194,12 @@ Be thorough and extract every single endpoint mentioned in the document.`;
   } catch (error) {
     console.error("Error processing document:", error);
     try {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-      );
-      // Best-effort: mark the document as failed so it never sits at "processing"
-      const b = await req.clone().json().catch(() => ({}));
-      const docId = b.documentId ?? b.document_id;
-      if (docId) {
-        await supabase.from("documents").update({ status: "failed" }).eq("id", docId);
+      if (docIdForError) {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        await supabase.from("documents").update({ status: "failed" }).eq("id", docIdForError);
       }
     } catch (_) {}
     return new Response(
