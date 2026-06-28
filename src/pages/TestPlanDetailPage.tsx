@@ -94,7 +94,7 @@ export default function TestPlanDetailPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("test_plan_documents")
-        .select("id, document:documents!test_plan_documents_document_id_fkey(id, name, filename, mime_type, status, created_at)")
+        .select("id, document:documents!test_plan_documents_document_id_fkey(id, filename, mime_type, status, created_at)")
         .eq("test_plan_id", id!);
       return data || [];
     },
