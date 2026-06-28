@@ -47,6 +47,7 @@ import {
   Microscope,
   Clock,
 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 // Company logos for marquee
 const companyLogos = [
@@ -396,12 +397,7 @@ export default function LandingPage() {
           <div className="container max-w-7xl mx-auto px-6 py-4 rounded-2xl bg-[hsl(222,47%,6%)/0.7] backdrop-blur-xl border border-white/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 hover:scale-[1.02] transition-transform duration-200">
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] blur-lg opacity-40" />
-                  <div className="relative h-11 w-11 rounded-xl bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center">
-                    <TestTube className="h-5 w-5 text-white" />
-                  </div>
-                </div>
+                <Logo size={48} />
                 <span className="text-xl font-bold tracking-tight">Qualixa</span>
               </div>
 
@@ -987,9 +983,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
             <div className="col-span-2">
               <div className="flex items-center gap-3 mb-6">
-                <div className="h-11 w-11 rounded-xl bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center">
-                  <TestTube className="h-5 w-5 text-white" />
-                </div>
+                <Logo size={48} />
                 <span className="text-xl font-bold">Qualixa</span>
               </div>
               <p className="text-white/40 max-w-xs mb-6">

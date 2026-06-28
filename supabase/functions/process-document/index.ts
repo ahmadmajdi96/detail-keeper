@@ -11,17 +11,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let docIdForError: string | undefined;
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    // Auth header is optional (verify_jwt = false). We process by document_id.
     const body = await req.json();
-    const documentId = body.documentId ?? body.document_id;
+    docIdForError = body.documentId ?? body.document_id;
+    const documentId = docIdForError;
     const documentContent = body.documentContent ?? body.inline_content ?? body.content;
 
     if (!documentId || !documentContent) {
@@ -198,6 +193,15 @@ Be thorough and extract every single endpoint mentioned in the document.`;
     );
   } catch (error) {
     console.error("Error processing document:", error);
+    try {
+      if (docIdForError) {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        await supabase.from("documents").update({ status: "failed" }).eq("id", docIdForError);
+      }
+    } catch (_) {}
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
