@@ -435,52 +435,98 @@ export default function TestPlanDetailPage() {
 
         <TabsContent value="cases">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Test Cases in this Plan</CardTitle>
-              <CardDescription>{testCases.length} test cases linked</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-accent" /> Test Cases by Type
+                </CardTitle>
+                <CardDescription>
+                  {testCases.length} cases · {groupedTypes.length} type{groupedTypes.length === 1 ? "" : "s"}
+                </CardDescription>
+              </div>
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="mr-1.5 h-4 w-4" /> New Test Case
+              </Button>
             </CardHeader>
             <CardContent>
               {testCases.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
                   <ListChecks className="mx-auto h-10 w-10 mb-3 opacity-50" />
-                  <p className="text-sm">No test cases yet. Generate with AI or add manually.</p>
+                  <p className="text-sm mb-3">No test cases yet. Generate with AI or add manually.</p>
+                  <Button variant="outline" size="sm" onClick={openCreate}>
+                    <Plus className="mr-1.5 h-4 w-4" /> Add first case
+                  </Button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {testCases.map((row: any) => {
-                    const tc = row.test_case;
-                    if (!tc) return null;
-                    return (
-                      <Link key={row.id} to={`/test-cases/${tc.id}/edit`}
-                        className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-secondary/30 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="text-sm font-medium truncate">{tc.title}</p>
-                            {tc.ai_generated && <Sparkles className="h-3 w-3 text-accent shrink-0" />}
-                          </div>
-                          {tc.description && <p className="text-xs text-muted-foreground line-clamp-1">{tc.description}</p>}
-                          {tc.coverage_tags?.length > 0 && (
-                            <div className="flex gap-1 mt-1.5">
-                              {tc.coverage_tags.slice(0, 4).map((t: string, i: number) => (
-                                <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
-                              ))}
+                <div className="space-y-6">
+                  {groupedTypes.map((type) => (
+                    <div key={type}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="h-2 w-2 rounded-full bg-accent" />
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{type}</h3>
+                        <span className="text-xs text-muted-foreground">({groups[type].length})</span>
+                        <div className="flex-1 h-px bg-border ml-2" />
+                      </div>
+                      <div className="space-y-2">
+                        {groups[type].map(({ link, tc }) => (
+                          <div
+                            key={link.id}
+                            className="group flex items-start justify-between gap-3 p-3 rounded-lg border bg-card hover:border-accent/40 transition-colors"
+                          >
+                            <Link to={`/test-cases/${tc.id}/edit`} className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-sm font-medium truncate">{tc.title}</p>
+                                {tc.ai_generated && <Sparkles className="h-3 w-3 text-accent shrink-0" />}
+                              </div>
+                              {tc.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-2">{tc.description}</p>
+                              )}
+                              {tc.coverage_tags?.length > 1 && (
+                                <div className="flex gap-1 mt-1.5 flex-wrap">
+                                  {tc.coverage_tags.slice(1, 5).map((t: string, i: number) => (
+                                    <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </Link>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <StatusBadge
+                                variant={tc.status === "approved" ? "success" : tc.status === "draft" ? "warning" : "muted"}
+                                size="sm"
+                              >
+                                {tc.status}
+                              </StatusBadge>
+                              <Badge variant="outline" className="text-xs">P{tc.priority}</Badge>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => openEdit(tc)}
+                                aria-label="Edit"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                                onClick={() => setDeletingCase({ linkId: link.id, caseId: tc.id, title: tc.title })}
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-3 shrink-0">
-                          <StatusBadge variant={tc.status === "approved" ? "success" : tc.status === "draft" ? "warning" : "muted"} size="sm">
-                            {tc.status}
-                          </StatusBadge>
-                          <Badge variant="outline" className="text-xs">P{tc.priority}</Badge>
-                        </div>
-                      </Link>
-                    );
-                  })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
+
 
         <TabsContent value="ai">
           <div className="grid gap-4 md:grid-cols-3">
