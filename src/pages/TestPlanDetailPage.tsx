@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProjectScope } from "@/hooks/useProjectScope";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,18 +14,42 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
+  Plus, Edit3, Trash2, Layers,
 } from "lucide-react";
 import { format } from "date-fns";
+
+const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
+type TestType = typeof TEST_TYPES[number];
+
+function inferType(tc: any): TestType {
+  const tag = (tc?.coverage_tags?.[0] || "").toLowerCase();
+  return (TEST_TYPES as readonly string[]).includes(tag) ? (tag as TestType) : "other";
+}
+
 
 export default function TestPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const { workspaceId, projectId } = useProjectScope();
   const [tab, setTab] = useState("overview");
+  const [caseDialogOpen, setCaseDialogOpen] = useState(false);
+  const [editingCase, setEditingCase] = useState<any | null>(null);
+  const [deletingCase, setDeletingCase] = useState<{ linkId: string; caseId: string; title: string } | null>(null);
+  const [form, setForm] = useState<{ title: string; description: string; priority: string; type: TestType; expected_result: string }>({
+    title: "", description: "", priority: "2", type: "functional", expected_result: "",
+  });
 
   const { data: plan, isLoading } = useQuery({
     queryKey: ["test-plan", id],
