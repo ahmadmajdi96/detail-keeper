@@ -22,11 +22,6 @@ export interface AutoExecItem {
   logs: { t: number; line: string; kind?: "info" | "ok" | "err" | "req" }[];
   url?: string;              // for browser mode iframe focus
 }
-  status: "queued" | "running" | "passed" | "failed";
-  progress: number;          // 0-100
-  logs: { t: number; line: string; kind?: "info" | "ok" | "err" | "req" }[];
-  url?: string;              // for browser mode iframe focus
-}
 
 interface AutoExecutePanelProps {
   running: boolean;
