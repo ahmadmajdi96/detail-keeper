@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProjectScope } from "@/hooks/useProjectScope";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,18 +14,42 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
+  Plus, Edit3, Trash2, Layers,
 } from "lucide-react";
 import { format } from "date-fns";
+
+const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
+type TestType = typeof TEST_TYPES[number];
+
+function inferType(tc: any): TestType {
+  const tag = (tc?.coverage_tags?.[0] || "").toLowerCase();
+  return (TEST_TYPES as readonly string[]).includes(tag) ? (tag as TestType) : "other";
+}
+
 
 export default function TestPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const { workspaceId, projectId } = useProjectScope();
   const [tab, setTab] = useState("overview");
+  const [caseDialogOpen, setCaseDialogOpen] = useState(false);
+  const [editingCase, setEditingCase] = useState<any | null>(null);
+  const [deletingCase, setDeletingCase] = useState<{ linkId: string; caseId: string; title: string } | null>(null);
+  const [form, setForm] = useState<{ title: string; description: string; priority: string; type: TestType; expected_result: string }>({
+    title: "", description: "", priority: "2", type: "functional", expected_result: "",
+  });
 
   const { data: plan, isLoading } = useQuery({
     queryKey: ["test-plan", id],
@@ -120,6 +146,89 @@ export default function TestPlanDetailPage() {
     onError: (e: any) => toast.error(e.message || "Generation failed"),
   });
 
+  const saveCase = useMutation({
+    mutationFn: async () => {
+      if (!form.title.trim()) throw new Error("Title is required");
+      const priorityNum = parseInt(form.priority, 10) || 2;
+      const tags = [form.type];
+
+      if (editingCase) {
+        const { error } = await supabase
+          .from("test_cases")
+          .update({
+            title: form.title,
+            description: form.description || null,
+            expected_result: form.expected_result || null,
+            priority: priorityNum,
+            coverage_tags: tags,
+          })
+          .eq("id", editingCase.id);
+        if (error) throw error;
+      } else {
+        const { data: inserted, error } = await supabase
+          .from("test_cases")
+          .insert({
+            title: form.title,
+            description: form.description || null,
+            expected_result: form.expected_result || null,
+            priority: priorityNum,
+            status: "draft",
+            ai_generated: false,
+            coverage_tags: tags,
+            created_by: user?.id,
+            workspace_id: plan!.workspace_id || workspaceId,
+            project_id: plan!.project_id || projectId,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        await supabase.from("test_plan_test_cases").insert({
+          test_plan_id: id!,
+          test_case_id: inserted!.id,
+          added_by: user?.id,
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success(editingCase ? "Test case updated" : "Test case added");
+      setCaseDialogOpen(false);
+      setEditingCase(null);
+      setForm({ title: "", description: "", priority: "2", type: "functional", expected_result: "" });
+      qc.invalidateQueries({ queryKey: ["test-plan-cases", id] });
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to save"),
+  });
+
+  const removeCase = useMutation({
+    mutationFn: async ({ linkId, caseId }: { linkId: string; caseId: string }) => {
+      await supabase.from("test_plan_test_cases").delete().eq("id", linkId);
+      await supabase.from("test_cases").delete().eq("id", caseId);
+    },
+    onSuccess: () => {
+      toast.success("Test case removed");
+      setDeletingCase(null);
+      qc.invalidateQueries({ queryKey: ["test-plan-cases", id] });
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to delete"),
+  });
+
+  const openCreate = () => {
+    setEditingCase(null);
+    setForm({ title: "", description: "", priority: "2", type: "functional", expected_result: "" });
+    setCaseDialogOpen(true);
+  };
+  const openEdit = (tc: any) => {
+    setEditingCase(tc);
+    setForm({
+      title: tc.title || "",
+      description: tc.description || "",
+      priority: String(tc.priority || 2),
+      type: inferType(tc),
+      expected_result: tc.expected_result || "",
+    });
+    setCaseDialogOpen(true);
+  };
+
   if (isLoading || !plan) {
     return <AppLayout><div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></AppLayout>;
   }
@@ -129,6 +238,18 @@ export default function TestPlanDetailPage() {
   const passRate = executions.length ? Math.round((passed / executions.length) * 100) : 0;
 
   const aiStatusVariant = plan.ai_status === "ready" ? "success" : plan.ai_status === "running" ? "info" : plan.ai_status === "failed" ? "destructive" : "muted";
+
+  // Group cases by type
+  const groups: Record<string, any[]> = {};
+  testCases.forEach((row: any) => {
+    const tc = row.test_case;
+    if (!tc) return;
+    const t = inferType(tc);
+    if (!groups[t]) groups[t] = [];
+    groups[t].push({ link: row, tc });
+  });
+  const groupedTypes = Object.keys(groups).sort();
+
 
   return (
     <AppLayout>
@@ -314,52 +435,98 @@ export default function TestPlanDetailPage() {
 
         <TabsContent value="cases">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Test Cases in this Plan</CardTitle>
-              <CardDescription>{testCases.length} test cases linked</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-accent" /> Test Cases by Type
+                </CardTitle>
+                <CardDescription>
+                  {testCases.length} cases · {groupedTypes.length} type{groupedTypes.length === 1 ? "" : "s"}
+                </CardDescription>
+              </div>
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="mr-1.5 h-4 w-4" /> New Test Case
+              </Button>
             </CardHeader>
             <CardContent>
               {testCases.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
                   <ListChecks className="mx-auto h-10 w-10 mb-3 opacity-50" />
-                  <p className="text-sm">No test cases yet. Generate with AI or add manually.</p>
+                  <p className="text-sm mb-3">No test cases yet. Generate with AI or add manually.</p>
+                  <Button variant="outline" size="sm" onClick={openCreate}>
+                    <Plus className="mr-1.5 h-4 w-4" /> Add first case
+                  </Button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {testCases.map((row: any) => {
-                    const tc = row.test_case;
-                    if (!tc) return null;
-                    return (
-                      <Link key={row.id} to={`/test-cases/${tc.id}/edit`}
-                        className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-secondary/30 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="text-sm font-medium truncate">{tc.title}</p>
-                            {tc.ai_generated && <Sparkles className="h-3 w-3 text-accent shrink-0" />}
-                          </div>
-                          {tc.description && <p className="text-xs text-muted-foreground line-clamp-1">{tc.description}</p>}
-                          {tc.coverage_tags?.length > 0 && (
-                            <div className="flex gap-1 mt-1.5">
-                              {tc.coverage_tags.slice(0, 4).map((t: string, i: number) => (
-                                <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
-                              ))}
+                <div className="space-y-6">
+                  {groupedTypes.map((type) => (
+                    <div key={type}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="h-2 w-2 rounded-full bg-accent" />
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{type}</h3>
+                        <span className="text-xs text-muted-foreground">({groups[type].length})</span>
+                        <div className="flex-1 h-px bg-border ml-2" />
+                      </div>
+                      <div className="space-y-2">
+                        {groups[type].map(({ link, tc }) => (
+                          <div
+                            key={link.id}
+                            className="group flex items-start justify-between gap-3 p-3 rounded-lg border bg-card hover:border-accent/40 transition-colors"
+                          >
+                            <Link to={`/test-cases/${tc.id}/edit`} className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-sm font-medium truncate">{tc.title}</p>
+                                {tc.ai_generated && <Sparkles className="h-3 w-3 text-accent shrink-0" />}
+                              </div>
+                              {tc.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-2">{tc.description}</p>
+                              )}
+                              {tc.coverage_tags?.length > 1 && (
+                                <div className="flex gap-1 mt-1.5 flex-wrap">
+                                  {tc.coverage_tags.slice(1, 5).map((t: string, i: number) => (
+                                    <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </Link>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <StatusBadge
+                                variant={tc.status === "approved" ? "success" : tc.status === "draft" ? "warning" : "muted"}
+                                size="sm"
+                              >
+                                {tc.status}
+                              </StatusBadge>
+                              <Badge variant="outline" className="text-xs">P{tc.priority}</Badge>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => openEdit(tc)}
+                                aria-label="Edit"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                                onClick={() => setDeletingCase({ linkId: link.id, caseId: tc.id, title: tc.title })}
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-3 shrink-0">
-                          <StatusBadge variant={tc.status === "approved" ? "success" : tc.status === "draft" ? "warning" : "muted"} size="sm">
-                            {tc.status}
-                          </StatusBadge>
-                          <Badge variant="outline" className="text-xs">P{tc.priority}</Badge>
-                        </div>
-                      </Link>
-                    );
-                  })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
+
 
         <TabsContent value="ai">
           <div className="grid gap-4 md:grid-cols-3">
@@ -492,6 +659,83 @@ export default function TestPlanDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create / Edit case dialog */}
+      <Dialog open={caseDialogOpen} onOpenChange={(o) => { setCaseDialogOpen(o); if (!o) setEditingCase(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingCase ? "Edit Test Case" : "New Test Case"}</DialogTitle>
+            <DialogDescription>
+              {editingCase ? "Update the test case details." : "Add a new test case to this plan."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Title</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. User can reset password" />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="What does this case verify?" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Type</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as TestType })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TEST_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">P1 — High</SelectItem>
+                    <SelectItem value="2">P2 — Medium</SelectItem>
+                    <SelectItem value="3">P3 — Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Expected Result</Label>
+              <Textarea value={form.expected_result} onChange={(e) => setForm({ ...form, expected_result: e.target.value })} rows={2} placeholder="What should happen?" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCaseDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => saveCase.mutate()} disabled={saveCase.isPending}>
+              {saveCase.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {editingCase ? "Save Changes" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deletingCase} onOpenChange={(o) => !o && setDeletingCase(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete test case?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deletingCase?.title}" from the plan. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingCase && removeCase.mutate({ linkId: deletingCase.linkId, caseId: deletingCase.caseId })}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
+

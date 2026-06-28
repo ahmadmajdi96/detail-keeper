@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Logo } from "@/components/Logo";
 
 type UserRole = Database['public']['Enums']['user_role'];
 
@@ -200,9 +201,7 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
         <Link to="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg ai-gradient">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
+          <Logo size={36} />
           <AnimatePresence mode="wait">
             {!effectiveCollapsed && (
               <motion.div
