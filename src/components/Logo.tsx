@@ -6,15 +6,17 @@ interface LogoProps {
   size?: number;
 }
 
-export function Logo({ className, size = 32 }: LogoProps) {
+export function Logo({ className, size = 44 }: LogoProps) {
   return (
     <img
       src={logoAsset.url}
       alt="Qualixa"
       width={size}
       height={size}
-      className={cn("object-contain", className)}
-      style={{ width: size, height: size }}
+      className={cn("object-contain select-none", className)}
+      style={{ width: size, height: size, background: "transparent" }}
+      draggable={false}
     />
   );
 }
+
