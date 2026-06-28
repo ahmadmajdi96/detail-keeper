@@ -1,16 +1,22 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { ProjectWizard } from "@/components/projects/ProjectWizard";
-import {
-  SentinelStyles, Scanline, GridBackdrop, ML, Pill, RingProgress,
-} from "@/components/sentinel/primitives";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { MetricCard } from "@/components/ui/metric-card";
 import {
   ArrowRight, ChevronRight, Clock, FileArchive, FileText, FolderOpen,
   Github, LayoutGrid, List, Loader2, Plus, RefreshCw, Search, Trash2,
+  CheckCircle2, AlertCircle, Loader, Zap, Network, FlaskConical,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,12 +26,12 @@ const SOURCE_ICON: Record<string, any> = {
   github: Github,
 };
 
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  ready:      { label: "READY",      color: "#22c55e", bg: "rgba(34,197,94,0.1)"  },
-  processing: { label: "PROCESSING", color: "#eab308", bg: "rgba(234,179,8,0.1)"  },
-  pending:    { label: "PENDING",    color: "#4a6a88", bg: "rgba(74,106,136,0.12)"},
-  failed:     { label: "FAILED",     color: "#ff3058", bg: "rgba(255,48,88,0.1)"  },
-  archived:   { label: "ARCHIVED",   color: "#4a6a88", bg: "rgba(74,106,136,0.12)"},
+const STATUS_META: Record<string, { label: string; cls: string; icon: any; color: string }> = {
+  ready:      { label: "Ready",      cls: "bg-success/10 text-success border-success/20",          icon: CheckCircle2, color: "hsl(var(--success))" },
+  processing: { label: "Processing", cls: "bg-warning/10 text-warning border-warning/20",          icon: Loader,       color: "hsl(var(--warning))" },
+  pending:    { label: "Pending",    cls: "bg-muted text-muted-foreground border-border",          icon: Clock,        color: "hsl(var(--muted-foreground))" },
+  failed:     { label: "Failed",     cls: "bg-destructive/10 text-destructive border-destructive/20", icon: AlertCircle, color: "hsl(var(--destructive))" },
+  archived:   { label: "Archived",   cls: "bg-muted text-muted-foreground border-border",          icon: Clock,        color: "hsl(var(--muted-foreground))" },
 };
 
 export default function ProjectsPage() {
@@ -52,8 +58,7 @@ export default function ProjectsPage() {
     queryFn: async () => {
       if (!currentWorkspace) return [];
       const { data } = await supabase
-        .from("projects")
-        .select("*")
+        .from("projects").select("*")
         .eq("workspace_id", currentWorkspace.id)
         .order("created_at", { ascending: false });
       return data || [];
@@ -97,8 +102,7 @@ export default function ProjectsPage() {
     const failed = projects.filter((p: any) => p.status === "failed").length;
     const endpoints = projects.reduce((s: number, p: any) => s + (p.endpoints_count || 0), 0);
     const tests = projects.reduce((s: number, p: any) => s + (p.test_cases_count || 0), 0);
-    const files = projects.reduce((s: number, p: any) => s + (p.files_count || 0), 0);
-    return { t, ready, proc, failed, endpoints, tests, files };
+    return { t, ready, proc, failed, endpoints, tests };
   }, [projects]);
 
   const visible = projects.filter((p: any) => {
@@ -113,364 +117,285 @@ export default function ProjectsPage() {
   if (!currentWorkspace) {
     return (
       <AppLayout>
-        <SentinelStyles />
-        <div className="flex flex-col items-center justify-center py-24 gap-3">
-          <FolderOpen size={36} className="text-[#1e3548]" />
-          <p className="sn-mono text-xs text-[#4a6a88]">
-            Select a workspace from the top bar to view projects
-          </p>
-        </div>
+        <PageHeader title="Projects" description="Select a workspace to view its projects" />
+        <Card className="border-border/50 border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+            <FolderOpen className="h-10 w-10 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">
+              Choose a workspace from the top bar to view projects.
+            </p>
+            <Button variant="outline" onClick={() => navigate("/workspaces")}>
+              Browse workspaces
+            </Button>
+          </CardContent>
+        </Card>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout>
-      <SentinelStyles />
-      <Scanline />
-      <div className="-mx-4 md:-mx-6 -my-6">
-        {/* HERO */}
-        <div
-          className="relative overflow-hidden border-b border-[rgba(0,190,215,0.1)]"
-          style={{ background: "linear-gradient(180deg, rgba(0,30,60,0.5) 0%, rgba(4,7,15,0.95) 100%)" }}
-        >
-          <GridBackdrop opacity={0.04} />
-          <div className="relative px-6 md:px-8 py-6">
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#00cfe0] sn-glow" />
-              <ML>Workspace · {currentWorkspace.name}</ML>
-            </div>
-            <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
-              <div>
-                <h1 className="font-sans text-2xl font-semibold text-[#dde8f0] tracking-tight">
-                  Projects
-                </h1>
-                <p className="font-sans text-sm text-[#3a5870] mt-1">
-                  All projects in {currentWorkspace.name}.
-                </p>
-              </div>
-              <button
-                onClick={() => setWizardOpen(true)}
-                className="flex items-center gap-2 sn-mono text-[10px] tracking-widest px-4 py-2.5 rounded transition-all"
-                style={{ background: "#00cfe0", color: "#04070f", boxShadow: "0 0 20px rgba(0,207,224,0.3)" }}
-              >
-                <Plus size={12} /> NEW PROJECT
-              </button>
-            </div>
+      <PageHeader
+        title="Projects"
+        description={`All projects in ${currentWorkspace.name}`}
+        breadcrumbs={[
+          { label: "Workspaces", href: "/workspaces" },
+          { label: currentWorkspace.name },
+        ]}
+        actions={
+          <Button onClick={() => setWizardOpen(true)} className="ai-gradient text-white">
+            <Plus className="h-4 w-4 mr-2" /> New project
+          </Button>
+        }
+      />
 
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-              {[
-                { v: stats.t, l: "PROJECTS", c: "#00cfe0" },
-                { v: stats.ready, l: "READY", c: "#22c55e" },
-                { v: stats.proc, l: "PROCESSING", c: "#eab308" },
-                { v: stats.failed, l: "FAILED", c: "#ff3058" },
-                { v: stats.endpoints, l: "ENDPOINTS", c: "#a855f7" },
-                { v: stats.tests, l: "TEST CASES", c: "#dde8f0" },
-              ].map((s, i) => (
-                <div
-                  key={s.l}
-                  className="px-4 py-3 rounded border border-[rgba(0,190,215,0.1)] bg-[rgba(7,14,28,0.6)] sn-count-up"
-                  style={{ animationDelay: `${i * 0.05}s` }}
-                >
-                  <div className="sn-mono text-2xl font-semibold mb-0.5" style={{ color: s.c }}>
-                    {s.v}
-                  </div>
-                  <ML dim>{s.l}</ML>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* KPI row */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+        className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
+      >
+        <MetricCard variant="accent" label="Projects" value={stats.t} icon={<FolderOpen className="h-5 w-5" />} />
+        <MetricCard variant="success" label="Ready" value={stats.ready} icon={<CheckCircle2 className="h-5 w-5" />} />
+        <MetricCard variant="warning" label="Processing" value={stats.proc} icon={<Loader className="h-5 w-5" />} />
+        <MetricCard
+          variant={stats.failed > 0 ? "destructive" : "default"}
+          label="Failed" value={stats.failed} icon={<AlertCircle className="h-5 w-5" />}
+        />
+        <MetricCard label="Endpoints" value={stats.endpoints} icon={<Network className="h-5 w-5" />} />
+        <MetricCard label="Test cases" value={stats.tests} icon={<FlaskConical className="h-5 w-5" />} />
+      </motion.div>
 
-        {/* TOOLBAR */}
-        <div
-          className="flex items-center gap-3 px-6 md:px-8 py-3 border-b border-[rgba(0,190,215,0.08)] flex-wrap"
-          style={{ background: "rgba(4,8,18,0.6)" }}
-        >
-          <div className="relative flex-1 max-w-xs">
-            <Search size={11} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2a4060]" />
-            <input
+      {/* Toolbar */}
+      <Card className="mt-6 border-border/50">
+        <CardContent className="p-3 flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search projects…"
-              className="w-full bg-[#070e1c] border border-[rgba(0,200,220,0.12)] rounded pl-8 pr-3 py-2 sn-mono text-xs text-[#dde8f0] placeholder:text-[#1e3548] outline-none focus:border-[#00cfe0] transition-all"
+              className="pl-9"
             />
           </div>
           <div className="flex items-center gap-1 flex-wrap">
-            {(["all", "ready", "processing", "pending", "failed"] as const).map((f) => {
-              const active = filter === f;
-              const meta = f === "all" ? null : STATUS_META[f];
-              return (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className="sn-mono text-[9px] tracking-widest px-3 py-1.5 rounded transition-all"
-                  style={{
-                    background: active ? "rgba(0,207,224,0.12)" : "transparent",
-                    color: active ? "#00cfe0" : meta?.color ?? "#2a4060",
-                    border: active ? "1px solid rgba(0,207,224,0.25)" : "1px solid transparent",
-                  }}
-                >
-                  {f === "all" ? "ALL" : meta!.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-1 ml-auto border border-[rgba(0,190,215,0.12)] rounded p-0.5">
-            {([
-              ["grid", <LayoutGrid size={13} key="g" />],
-              ["list", <List size={13} key="l" />],
-            ] as const).map(([m, icon]) => (
-              <button
-                key={m}
-                onClick={() => setView(m as any)}
-                className="p-1.5 rounded transition-all"
-                style={{
-                  background: view === m ? "rgba(0,207,224,0.15)" : "transparent",
-                  color: view === m ? "#00cfe0" : "#2a4060",
-                }}
+            {(["all", "ready", "processing", "pending", "failed"] as const).map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8"
+                onClick={() => setFilter(f)}
               >
-                {icon}
-              </button>
+                {f === "all" ? "All" : STATUS_META[f].label}
+              </Button>
             ))}
           </div>
-        </div>
+          <div className="ml-auto flex items-center gap-1 border border-border rounded-md p-0.5">
+            {([["grid", LayoutGrid], ["list", List]] as const).map(([m, Icon]) => (
+              <Button
+                key={m} variant={view === m ? "secondary" : "ghost"} size="sm"
+                className="h-7 w-7 p-0" onClick={() => setView(m as any)}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* BODY */}
-        <div className="px-6 md:px-8 py-6" style={{ background: "rgba(5,9,18,0.98)", minHeight: "60vh" }}>
-          {isLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-[#00cfe0]" />
-            </div>
-          ) : visible.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <FolderOpen size={36} className="text-[#1e3548]" />
-              <p className="sn-mono text-xs text-[#1e3548]">
-                {search || filter !== "all" ? "No projects match" : "No projects yet"}
+      {/* Body */}
+      <div className="mt-6">
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-accent" />
+          </div>
+        ) : visible.length === 0 ? (
+          <Card className="border-border/50 border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+              <FolderOpen className="h-10 w-10 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">
+                {search || filter !== "all" ? "No projects match your filters" : "No projects yet"}
               </p>
               {!search && filter === "all" && (
-                <button
-                  onClick={() => setWizardOpen(true)}
-                  className="mt-2 flex items-center gap-2 sn-mono text-[10px] tracking-widest px-4 py-2 rounded border border-[rgba(0,207,224,0.3)] text-[#00cfe0] hover:bg-[rgba(0,207,224,0.08)] transition"
-                >
-                  <Plus size={11} /> CREATE FIRST
-                </button>
+                <Button variant="outline" size="sm" onClick={() => setWizardOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Create first project
+                </Button>
               )}
-            </div>
-          ) : view === "grid" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {visible.map((p: any, pi: number) => {
-                const sm = STATUS_META[p.status] ?? STATUS_META.pending;
-                const Icon = SOURCE_ICON[p.source_type] ?? FileText;
-                const totalTests = p.test_cases_count || 0;
-                const passed = p.passed_count || 0;
-                const failed = p.failed_count || 0;
-                const defects = p.defects_count || 0;
-                const progress = p.progress ?? (totalTests ? Math.round((passed / totalTests) * 100) : 0);
-                return (
-                  <div
-                    key={p.id}
-                    className="flex flex-col gap-4 p-5 rounded-lg border text-left group relative overflow-hidden transition-all duration-200 sn-slide-up"
-                    style={{
-                      animationDelay: `${pi * 0.05}s`,
-                      borderColor: "rgba(0,190,215,0.12)",
-                      background: "rgba(7,14,28,0.7)",
-                    }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget;
-                      el.style.borderColor = `${sm.color}40`;
-                      el.style.boxShadow = `0 0 30px ${sm.color}10`;
-                      el.style.background = "rgba(7,14,28,0.95)";
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget;
-                      el.style.borderColor = "rgba(0,190,215,0.12)";
-                      el.style.boxShadow = "none";
-                      el.style.background = "rgba(7,14,28,0.7)";
+            </CardContent>
+          </Card>
+        ) : view === "grid" ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {visible.map((p: any, pi: number) => {
+              const sm = STATUS_META[p.status] ?? STATUS_META.pending;
+              const StatusIcon = sm.icon;
+              const Icon = SOURCE_ICON[p.source_type] ?? FileText;
+              const totalTests = p.test_cases_count || 0;
+              const passed = p.passed_count || 0;
+              const defects = p.defects_count || 0;
+              const progress = p.progress ?? (totalTests ? Math.round((passed / totalTests) * 100) : 0);
+              return (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: pi * 0.04 }}
+                >
+                  <Card
+                    className="border-border/50 hover:border-accent/40 hover:shadow-elevated transition-all cursor-pointer group relative overflow-hidden"
+                    onClick={() => {
+                      setCurrentProjectId(p.id);
+                      navigate("/documents");
                     }}
                   >
                     <div
-                      className="absolute top-0 left-0 right-0 h-[2px]"
-                      style={{ background: sm.color, opacity: 0.5 }}
+                      className="absolute top-0 left-0 right-0 h-1"
+                      style={{ background: `linear-gradient(90deg, ${sm.color}, transparent)` }}
                     />
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ background: `${sm.color}12`, border: `1px solid ${sm.color}30` }}
-                      >
-                        <Icon size={17} style={{ color: sm.color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Pill label={(p.source_type || "doc").toUpperCase()} color="#4a6a88" bg="rgba(0,180,200,0.07)" />
-                          <Pill label={sm.label} color={sm.color} bg={sm.bg} dot />
-                        </div>
-                        <h3 className="font-sans text-sm font-semibold text-[#dde8f0] truncate">
-                          {p.name}
-                        </h3>
-                        {p.github_url && (
-                          <a
-                            href={p.github_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="sn-mono text-[9px] text-[#00cfe0]/70 hover:text-[#00cfe0] flex items-center gap-1 mt-0.5 truncate"
-                          >
-                            <Github size={9} />
-                            {p.github_url.replace("https://github.com/", "")}
-                          </a>
-                        )}
-                      </div>
-                      <ChevronRight
-                        size={14}
-                        className="text-[#2a4060] shrink-0 mt-1 group-hover:text-[#00cfe0] transition-colors"
-                      />
-                    </div>
-
-                    <p className="font-sans text-xs text-[#3a5870] leading-relaxed line-clamp-2 min-h-[2rem]">
-                      {p.description || "No description"}
-                    </p>
-
-                    {p.process_error && (
-                      <p className="sn-mono text-[9px] text-[#ff3058] line-clamp-2 px-2 py-1 rounded bg-[rgba(255,48,88,0.06)] border border-[rgba(255,48,88,0.15)]">
-                        ⚠ {p.process_error}
-                      </p>
-                    )}
-
-                    {/* progress */}
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between">
-                        <ML dim>PROGRESS</ML>
-                        <span
-                          className="sn-mono text-xs"
-                          style={{ color: progress === 100 ? "#22c55e" : sm.color }}
-                        >
-                          {progress}%
-                        </span>
-                      </div>
-                      <div className="w-full h-[3px] bg-[#0a1a2e] rounded overflow-hidden">
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-start gap-3">
                         <div
-                          className="h-full rounded"
+                          className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0"
                           style={{
-                            width: `${progress}%`,
-                            background: sm.color,
-                            boxShadow: `0 0 6px ${sm.color}`,
-                            animation: "sn-progress-bar 0.8s ease-out",
+                            background: `color-mix(in hsl, ${sm.color} 12%, transparent)`,
+                            color: sm.color,
                           }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* stat strip */}
-                    <div className="grid grid-cols-4 gap-2 pt-2 border-t border-[rgba(0,180,200,0.07)]">
-                      {[
-                        { v: p.files_count || 0, l: "FILES", c: "#4a6a88" },
-                        { v: p.endpoints_count || 0, l: "EP", c: "#a855f7" },
-                        { v: totalTests, l: "TESTS", c: "#dde8f0" },
-                        { v: defects, l: "DEF", c: defects > 0 ? "#f97316" : "#4a6a88" },
-                      ].map((s) => (
-                        <div key={s.l} className="flex flex-col items-center gap-0.5">
-                          <span className="sn-mono text-sm font-semibold" style={{ color: s.c }}>
-                            {s.v}
-                          </span>
-                          <ML dim>{s.l}</ML>
+                        >
+                          <Icon className="h-4 w-4" />
                         </div>
-                      ))}
-                    </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <Badge variant="outline" className="text-[10px] uppercase">
+                              {p.source_type || "doc"}
+                            </Badge>
+                            <Badge variant="outline" className={`gap-1 ${sm.cls}`}>
+                              <StatusIcon className={`h-3 w-3 ${p.status === "processing" ? "animate-spin" : ""}`} />
+                              {sm.label}
+                            </Badge>
+                          </div>
+                          <h3 className="font-semibold text-sm truncate">{p.name}</h3>
+                          {p.github_url && (
+                            <a
+                              href={p.github_url}
+                              target="_blank" rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[11px] text-accent hover:underline flex items-center gap-1 mt-0.5 truncate"
+                            >
+                              <Github className="h-2.5 w-2.5" />
+                              {p.github_url.replace("https://github.com/", "")}
+                            </a>
+                          )}
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1 group-hover:text-accent transition-colors" />
+                      </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-[rgba(0,180,200,0.07)] gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={10} className="text-[#2a4060]" />
-                        <span className="sn-mono text-[9px] text-[#2a4060]">
-                          {new Date(p.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
+                      <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
+                        {p.description || "No description"}
+                      </p>
+
+                      {p.process_error && (
+                        <p className="text-xs text-destructive line-clamp-2 px-2.5 py-1.5 rounded-md bg-destructive/10 border border-destructive/20">
+                          ⚠ {p.process_error}
+                        </p>
+                      )}
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Progress</span>
+                          <span className="text-xs font-medium tabular-nums" style={{ color: sm.color }}>{progress}%</span>
+                        </div>
+                        <Progress value={progress} className="h-1.5" />
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2 pt-3 border-t border-border/50">
+                        {[
+                          { v: p.files_count || 0, l: "Files" },
+                          { v: p.endpoints_count || 0, l: "Endp" },
+                          { v: totalTests, l: "Tests" },
+                          { v: defects, l: "Defects", color: defects > 0 ? "hsl(var(--warning))" : undefined },
+                        ].map((s) => (
+                          <div key={s.l} className="flex flex-col items-center">
+                            <span className="text-sm font-semibold tabular-nums" style={{ color: s.color }}>{s.v}</span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.l}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setCurrentProjectId(p.id);
-                            navigate("/documents");
-                          }}
-                          className="flex items-center gap-1 sn-mono text-[9px] tracking-widest px-2.5 py-1.5 rounded border transition-all"
-                          style={{ borderColor: `${sm.color}50`, color: sm.color, background: `${sm.color}08` }}
-                        >
-                          OPEN <ArrowRight size={9} />
-                        </button>
-                        {(p.source_type === "github" || p.source_type === "zip") && (
-                          <button
-                            onClick={() => reprocess.mutate(p)}
-                            title="Reprocess"
-                            className="p-1.5 rounded text-[#2a4060] hover:text-[#00cfe0] hover:bg-[rgba(0,207,224,0.08)] transition"
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm" variant="ghost" className="h-7"
+                            onClick={() => {
+                              setCurrentProjectId(p.id);
+                              navigate("/documents");
+                            }}
                           >
-                            <RefreshCw size={11} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete "${p.name}"?`)) del.mutate(p.id);
-                          }}
-                          className="p-1.5 rounded text-[#2a4060] hover:text-[#ff3058] hover:bg-[rgba(255,48,88,0.08)] transition"
-                        >
-                          <Trash2 size={11} />
-                        </button>
+                            Open <ArrowRight className="h-3 w-3 ml-1" />
+                          </Button>
+                          {(p.source_type === "github" || p.source_type === "zip") && (
+                            <Button
+                              size="sm" variant="ghost" className="h-7 w-7 p-0"
+                              onClick={() => reprocess.mutate(p)}
+                              title="Reprocess"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => { if (confirm(`Delete "${p.name}"?`)) del.mutate(p.id); }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            // LIST VIEW
-            <div className="rounded-lg border border-[rgba(0,190,215,0.12)] overflow-hidden">
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          <Card className="border-border/50">
+            <CardContent className="p-0">
               {visible.map((p: any, i: number) => {
                 const sm = STATUS_META[p.status] ?? STATUS_META.pending;
+                const StatusIcon = sm.icon;
+                const Icon = SOURCE_ICON[p.source_type] ?? FileText;
                 const totalTests = p.test_cases_count || 0;
                 const passed = p.passed_count || 0;
                 const progress = p.progress ?? (totalTests ? Math.round((passed / totalTests) * 100) : 0);
                 return (
                   <button
                     key={p.id}
-                    onClick={() => {
-                      setCurrentProjectId(p.id);
-                      navigate("/documents");
-                    }}
-                    className="w-full flex items-center gap-5 px-6 py-4 border-b border-[rgba(0,180,200,0.07)] last:border-0 text-left hover:bg-[rgba(0,207,224,0.03)] transition-all group sn-slide-up"
-                    style={{
-                      animationDelay: `${i * 0.04}s`,
-                      background: i % 2 === 0 ? "rgba(7,14,28,0.5)" : "rgba(5,10,20,0.4)",
-                    }}
+                    onClick={() => { setCurrentProjectId(p.id); navigate("/documents"); }}
+                    className="w-full flex items-center gap-4 px-5 py-4 border-b border-border/50 last:border-0 text-left hover:bg-accent/5 transition-all group"
                   >
-                    <div
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ background: sm.color, boxShadow: `0 0 6px ${sm.color}` }}
-                    />
+                    <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-sans text-sm text-[#c0d0e0] truncate group-hover:text-[#dde8f0]">
-                        {p.name}
-                      </p>
-                      <p className="sn-mono text-[9px] text-[#2a4060]">
+                      <p className="font-medium text-sm truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">
                         {p.source_type} · {p.endpoints_count || 0} endpoints · {totalTests} tests
                       </p>
                     </div>
-                    <div className="w-24">
-                      <div className="w-full h-[3px] bg-[#0a1a2e] rounded overflow-hidden">
-                        <div className="h-full rounded" style={{ width: `${progress}%`, background: sm.color }} />
-                      </div>
+                    <div className="hidden md:flex items-center gap-2 w-32">
+                      <Progress value={progress} className="h-1.5 flex-1" />
+                      <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">{progress}%</span>
                     </div>
-                    <span className="sn-mono text-xs w-10 text-right" style={{ color: sm.color }}>
-                      {progress}%
-                    </span>
-                    <Pill label={sm.label} color={sm.color} bg={sm.bg} dot />
-                    <ChevronRight size={13} className="text-[#2a4060] group-hover:text-[#00cfe0] transition" />
+                    <Badge variant="outline" className={`gap-1 ${sm.cls}`}>
+                      <StatusIcon className={`h-3 w-3 ${p.status === "processing" ? "animate-spin" : ""}`} />
+                      {sm.label}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors" />
                   </button>
                 );
               })}
-            </div>
-          )}
-        </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <ProjectWizard

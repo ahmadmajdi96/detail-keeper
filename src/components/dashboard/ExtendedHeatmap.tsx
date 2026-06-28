@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { format, startOfDay, subDays } from "date-fns";
-import { Panel, ML } from "@/components/sentinel/primitives";
-import { Layers, Calendar, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Layers, TrendingUp } from "lucide-react";
 
 interface Exec {
   id: string;
@@ -15,14 +15,13 @@ interface Props {
   days?: number;
 }
 
-// Heat color from pass-rate (0-100), falls back to dim cell for "no data".
 function heatColor(rate: number | null, total: number) {
-  if (total === 0 || rate === null) return "rgba(0,207,224,0.025)";
-  if (rate >= 90) return "rgba(34,197,94,0.85)";
-  if (rate >= 75) return "rgba(34,197,94,0.55)";
-  if (rate >= 60) return "rgba(234,179,8,0.65)";
-  if (rate >= 40) return "rgba(249,115,22,0.65)";
-  return "rgba(255,48,88,0.75)";
+  if (total === 0 || rate === null) return "hsl(var(--muted) / 0.4)";
+  if (rate >= 90) return "hsl(var(--success) / 0.9)";
+  if (rate >= 75) return "hsl(var(--success) / 0.6)";
+  if (rate >= 60) return "hsl(var(--warning) / 0.75)";
+  if (rate >= 40) return "hsl(38 92% 50% / 0.75)";
+  return "hsl(var(--destructive) / 0.8)";
 }
 
 export function ExtendedHeatmap({ executions, days = 14 }: Props) {
@@ -80,148 +79,129 @@ export function ExtendedHeatmap({ executions, days = 14 }: Props) {
   }, [executions, days]);
 
   return (
-    <Panel
-      title="Coverage Intelligence"
-      subtitle={
-        <div className="flex items-center gap-3 mt-0.5">
-          <div className="flex items-center gap-1.5">
-            <Calendar size={10} className="text-[#2a4060]" />
-            <ML dim>{days}D × {tags.length} TAGS · {total} RUNS</ML>
-          </div>
+    <Card className="border-border/50">
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <div>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Layers className="h-4 w-4 text-accent" />
+            Coverage Intelligence
+          </CardTitle>
+          <CardDescription>
+            {days}-day pass rate × coverage tag · {total} runs
+          </CardDescription>
         </div>
-      }
-      action={
         <div className="flex items-center gap-2">
-          <ML dim>HEAT</ML>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">low</span>
           <div className="flex items-center gap-0.5">
             {[
-              "rgba(0,207,224,0.05)",
-              "rgba(255,48,88,0.75)",
-              "rgba(249,115,22,0.65)",
-              "rgba(234,179,8,0.65)",
-              "rgba(34,197,94,0.55)",
-              "rgba(34,197,94,0.85)",
+              "hsl(var(--destructive) / 0.8)",
+              "hsl(38 92% 50% / 0.75)",
+              "hsl(var(--warning) / 0.75)",
+              "hsl(var(--success) / 0.6)",
+              "hsl(var(--success) / 0.9)",
             ].map((c) => (
               <div key={c} className="w-3 h-2 rounded-sm" style={{ background: c }} />
             ))}
           </div>
-          <ML dim>PASS%</ML>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">high</span>
         </div>
-      }
-    >
-      {total === 0 ? (
-        <div className="py-12 text-center">
-          <Layers className="h-8 w-8 mx-auto text-[#1e3548] mb-2" />
-          <p className="sn-mono text-[10px] text-[#2a4060]">No execution data in the last {days} days</p>
-        </div>
-      ) : (
-        <div className="grid gap-5 lg:grid-cols-[1fr_240px]">
-          {/* Heat grid */}
-          <div className="overflow-x-auto">
-            <div className="inline-block min-w-full">
-              {/* Day header */}
-              <div
-                className="grid gap-1 mb-2"
-                style={{ gridTemplateColumns: `140px repeat(${dayLabels.length}, minmax(28px, 1fr))` }}
-              >
-                <div />
-                {dayLabels.map((d, i) => (
-                  <div key={i} className="sn-mono text-[8px] text-[#2a4060] text-center truncate">
-                    {d.split(" ")[1]}
+      </CardHeader>
+      <CardContent>
+        {total === 0 ? (
+          <div className="py-12 text-center">
+            <Layers className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+            <p className="text-sm text-muted-foreground">No execution data in the last {days} days</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+            {/* Heat grid */}
+            <div className="overflow-x-auto">
+              <div className="inline-block min-w-full">
+                <div
+                  className="grid gap-1 mb-2"
+                  style={{ gridTemplateColumns: `140px repeat(${dayLabels.length}, minmax(28px, 1fr))` }}
+                >
+                  <div />
+                  {dayLabels.map((d, i) => (
+                    <div key={i} className="text-[10px] text-muted-foreground text-center truncate">
+                      {d.split(" ")[1]}
+                    </div>
+                  ))}
+                </div>
+
+                {tags.map((tag, ti) => (
+                  <div
+                    key={tag}
+                    className="grid gap-1 mb-1 items-center"
+                    style={{ gridTemplateColumns: `140px repeat(${dayLabels.length}, minmax(28px, 1fr))` }}
+                  >
+                    <div className="text-xs text-muted-foreground truncate pr-2 text-right" title={tag}>
+                      {tag}
+                    </div>
+                    {matrix[ti].map((c, di) => {
+                      const intensity = peak ? Math.min(1, c.total / peak) : 0;
+                      return (
+                        <div
+                          key={di}
+                          className="relative aspect-square rounded-[4px] border border-border/40 group/cell transition-transform hover:scale-[1.18] hover:z-10 animate-fade-in"
+                          style={{
+                            background: heatColor(c.rate, c.total),
+                            opacity: c.total === 0 ? 0.35 : 0.5 + 0.5 * intensity,
+                            animationDelay: `${(ti * 0.02 + di * 0.01).toFixed(2)}s`,
+                          }}
+                        >
+                          <div className="opacity-0 group-hover/cell:opacity-100 transition-opacity absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1.5 rounded-md text-[11px] whitespace-nowrap pointer-events-none z-20 border border-border bg-popover text-popover-foreground shadow-elevated">
+                            {c.total > 0 ? `${c.rate}% · ${c.passed}/${c.total}` : "no runs"}
+                            <span className="block text-muted-foreground text-[10px]">{dayLabels[di]}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* Rows */}
-              {tags.map((tag, ti) => (
-                <div
-                  key={tag}
-                  className="grid gap-1 mb-1 items-center"
-                  style={{ gridTemplateColumns: `140px repeat(${dayLabels.length}, minmax(28px, 1fr))` }}
-                >
-                  <div
-                    className="sn-mono text-[9px] text-[#4a6a88] truncate pr-2 text-right"
-                    title={tag}
-                  >
-                    {tag}
-                  </div>
-                  {matrix[ti].map((c, di) => {
-                    const intensity = peak ? Math.min(1, c.total / peak) : 0;
-                    return (
-                      <div
-                        key={di}
-                        className="relative aspect-square rounded-[3px] border border-[rgba(0,190,215,0.06)] group/cell transition-transform hover:scale-[1.18] hover:z-10"
-                        style={{
-                          background: heatColor(c.rate, c.total),
-                          opacity: c.total === 0 ? 0.5 : 0.4 + 0.6 * intensity,
-                          animation: `sn-count-up 0.4s ease-out ${(ti * 0.02 + di * 0.01).toFixed(2)}s backwards`,
-                        }}
-                      >
-                        <div className="opacity-0 group-hover/cell:opacity-100 transition-opacity absolute -top-9 left-1/2 -translate-x-1/2 px-2 py-1 rounded sn-mono text-[9px] whitespace-nowrap pointer-events-none z-20 border border-[rgba(0,207,224,0.25)]"
-                          style={{ background: "rgba(4,8,18,0.95)", color: "#dde8f0" }}>
-                          {c.total > 0 ? `${c.rate}% · ${c.passed}/${c.total}` : "no runs"}
-                          <span className="block text-[#4a6a88]">{dayLabels[di]}</span>
-                        </div>
+            {/* Tag leaderboard */}
+            <div className="flex flex-col gap-2.5 lg:border-l lg:border-border/50 lg:pl-6">
+              <div className="flex items-center gap-1.5 mb-1">
+                <TrendingUp className="h-3.5 w-3.5 text-accent" />
+                <span className="text-xs font-medium text-foreground">By tag · pass rate</span>
+              </div>
+              {tagStats
+                .slice()
+                .sort((a, b) => b.total - a.total)
+                .map((s) => {
+                  const col =
+                    s.total === 0
+                      ? "hsl(var(--muted-foreground))"
+                      : s.rate >= 80
+                      ? "hsl(var(--success))"
+                      : s.rate >= 60
+                      ? "hsl(var(--warning))"
+                      : "hsl(var(--destructive))";
+                  return (
+                    <div key={s.tag} className="flex items-center gap-2">
+                      <span className="text-xs truncate flex-1 text-foreground" title={s.tag}>
+                        {s.tag}
+                      </span>
+                      <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${s.rate}%`, background: col }}
+                        />
                       </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Tag leaderboard */}
-          <div className="flex flex-col gap-2 lg:border-l lg:border-[rgba(0,190,215,0.08)] lg:pl-5">
-            <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp size={11} className="text-[#00cfe0]" />
-              <ML>BY TAG · PASS RATE</ML>
-            </div>
-            {tagStats
-              .slice()
-              .sort((a, b) => b.total - a.total)
-              .map((s) => {
-                const col =
-                  s.total === 0
-                    ? "#2a4060"
-                    : s.rate >= 80
-                    ? "#22c55e"
-                    : s.rate >= 60
-                    ? "#eab308"
-                    : "#ff3058";
-                return (
-                  <div key={s.tag} className="flex items-center gap-2">
-                    <span
-                      className="sn-mono text-[10px] truncate flex-1 text-[#c0d0e0]"
-                      title={s.tag}
-                    >
-                      {s.tag}
-                    </span>
-                    <div className="w-20 h-[3px] bg-[#0a1a2e] rounded overflow-hidden">
-                      <div
-                        style={{
-                          width: `${s.rate}%`,
-                          height: "100%",
-                          background: col,
-                          boxShadow: `0 0 6px ${col}`,
-                          animation: "sn-progress-bar 0.8s ease-out",
-                        }}
-                      />
+                      <span className="text-xs font-medium w-10 text-right" style={{ color: col }}>
+                        {s.total ? `${s.rate}%` : "—"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground w-7 text-right">{s.total}</span>
                     </div>
-                    <span
-                      className="sn-mono text-[10px] w-12 text-right"
-                      style={{ color: col }}
-                    >
-                      {s.total ? `${s.rate}%` : "—"}
-                    </span>
-                    <span className="sn-mono text-[9px] text-[#2a4060] w-8 text-right">
-                      {s.total}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+            </div>
           </div>
-        </div>
-      )}
-    </Panel>
+        )}
+      </CardContent>
+    </Card>
   );
 }
