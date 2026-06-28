@@ -11,9 +11,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let docIdForError: string | undefined;
   try {
     // Auth header is optional (verify_jwt = false). We process by document_id.
     const body = await req.json();
+    docIdForError = body.documentId ?? body.document_id;
     const documentId = body.documentId ?? body.document_id;
     const documentContent = body.documentContent ?? body.inline_content ?? body.content;
 
