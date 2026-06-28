@@ -334,6 +334,19 @@ export default function ExecutionsPage() {
           }
         />
 
+        {activePlanId ? (
+          <div className="rounded-lg border border-success/30 bg-success/5 px-4 py-2.5 flex items-center gap-3 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            <span><span className="font-medium">Active Test Plan:</span> {activePlan?.name ?? "—"}</span>
+            <span className="text-muted-foreground">· {testCases.length} runnable test case{testCases.length === 1 ? "" : "s"}</span>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-sm text-warning-foreground/90">
+            No active test plan — activate a plan from the Test Plans page to scope executions.
+          </div>
+        )}
+
+
         {autoOpen && (
           <AutoExecutePanel
             running={autoRunning}
