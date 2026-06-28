@@ -400,7 +400,29 @@ export default function DefectsPage() {
               <SelectItem value="trivial">Trivial</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Project" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projectOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={planFilter} onValueChange={setPlanFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Test Plan" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Test Plans</SelectItem>
+              {projectPlans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={reporterFilter} onValueChange={setReporterFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Reporter" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Reporters</SelectItem>
+              {reporterOptions.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
+
 
         {/* Defects Table */}
         <Card className="border-border/50">
