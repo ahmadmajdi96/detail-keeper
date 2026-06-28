@@ -87,20 +87,71 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
     },
   });
 
+  // ----- Import: workspaces -> projects -> plans -> variables -----
+  const { data: impWorkspaces = [] } = useQuery({
+    queryKey: ["wizard-import-workspaces"],
+    enabled: open && importOpen,
+    queryFn: async () => {
+      const { data } = await supabase.from("workspaces").select("id, name").order("name");
+      return data || [];
+    },
+  });
+  const { data: impProjects = [] } = useQuery({
+    queryKey: ["wizard-import-projects", impWs],
+    enabled: open && importOpen && !!impWs,
+    queryFn: async () => {
+      const { data } = await supabase.from("projects").select("id, name").eq("workspace_id", impWs).order("name");
+      return data || [];
+    },
+  });
+  const { data: impPlans = [] } = useQuery({
+    queryKey: ["wizard-import-plans", impProj],
+    enabled: open && importOpen && !!impProj,
+    queryFn: async () => {
+      const { data } = await supabase.from("test_plans").select("id, name, variables").eq("project_id", impProj).order("name");
+      return data || [];
+    },
+  });
+
   const reset = () => {
     setStep(0); setDone(false); setName(""); setDescription(""); setObjective("");
     setAssignees([]); setDocs([]); setAutoAI(true); setUserQ(""); setDocQ("");
+    setVariables([]); setImportOpen(false); setImpWs(""); setImpProj(""); setImpPlan("");
   };
 
   useEffect(() => { if (!open) reset(); }, [open]);
 
   const canNext = () => {
     if (step === 0) return name.trim().length > 1;
+    if (step === 3) return variables.every((v) => v.key.trim().length > 0 || !v.value);
     return true;
+  };
+
+  const addVariable = () => setVariables((p) => [...p, { key: "", value: "" }]);
+  const updateVariable = (i: number, patch: Partial<PlanVar>) =>
+    setVariables((p) => p.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
+  const removeVariable = (i: number) =>
+    setVariables((p) => p.filter((_, idx) => idx !== i));
+
+  const importVariables = () => {
+    const src: any = impPlans.find((p: any) => p.id === impPlan);
+    const arr: PlanVar[] = Array.isArray(src?.variables) ? src.variables : [];
+    if (!arr.length) {
+      toast.error("That plan has no variables to import");
+      return;
+    }
+    // Merge by key (incoming wins) and de-dupe
+    const map = new Map<string, PlanVar>();
+    [...variables, ...arr].forEach((v) => v?.key && map.set(v.key, { key: v.key, value: v.value ?? "" }));
+    setVariables(Array.from(map.values()));
+    toast.success(`Imported ${arr.length} variable${arr.length === 1 ? "" : "s"}`);
+    setImportOpen(false);
+    setImpWs(""); setImpProj(""); setImpPlan("");
   };
 
   const create = useMutation({
     mutationFn: async () => {
+      const cleanVars = variables.filter((v) => v.key.trim().length > 0).map((v) => ({ key: v.key.trim(), value: v.value ?? "" }));
       const { data: plan, error } = await supabase
         .from("test_plans")
         .insert({
@@ -110,10 +161,12 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
           created_by: user?.id,
           workspace_id: workspaceId,
           project_id: projectId,
+          variables: cleanVars as any,
         })
         .select("id")
         .single();
       if (error) throw error;
+
 
       if (assignees.length) {
         await supabase.from("test_plan_assignees").insert(
