@@ -97,6 +97,10 @@ export function AppSidebar() {
     });
   };
 
+  const isMobile = useIsMobile();
+  const effectiveCollapsed = isMobile ? false : collapsed;
+  const sidebarWidth = isMobile ? 256 : (collapsed ? 72 : 256);
+
   // Determine which nav items to show based on user role
   const getNavItems = () => {
     if (!user) return [];
@@ -133,7 +137,7 @@ export function AppSidebar() {
           )}
         </div>
         <AnimatePresence mode="wait">
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <motion.span
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: "auto" }}
@@ -144,7 +148,7 @@ export function AppSidebar() {
             </motion.span>
           )}
         </AnimatePresence>
-        {item.badge && !collapsed && (
+        {item.badge && !effectiveCollapsed && (
           <span className="ml-auto rounded-full bg-accent/20 px-2 py-0.5 text-xs text-accent">
             {item.badge}
           </span>
@@ -152,7 +156,7 @@ export function AppSidebar() {
       </Link>
     );
 
-    if (collapsed) {
+    if (effectiveCollapsed) {
       return (
         <Tooltip key={item.href} delayDuration={0}>
           <TooltipTrigger asChild>{content}</TooltipTrigger>
@@ -189,9 +193,7 @@ export function AppSidebar() {
     return classes[role] || "";
   };
 
-  const isMobile = useIsMobile();
-  const effectiveCollapsed = isMobile ? false : collapsed;
-  const sidebarWidth = isMobile ? 256 : (collapsed ? 72 : 256);
+  const navItems = getNavItems();
 
   const sidebarBody = (
     <>
