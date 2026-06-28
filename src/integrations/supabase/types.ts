@@ -1413,6 +1413,17 @@ export type Database = {
         Args: { _user: string; _workspace: string }
         Returns: boolean
       }
+      notify_workspace_managers: {
+        Args: {
+          _data: Json
+          _exclude?: string
+          _message: string
+          _title: string
+          _type: string
+          _workspace: string
+        }
+        Returns: undefined
+      }
       workspace_role_of: {
         Args: { _user: string; _workspace: string }
         Returns: Database["public"]["Enums"]["workspace_role"]
