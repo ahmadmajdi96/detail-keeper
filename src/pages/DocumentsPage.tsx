@@ -93,45 +93,60 @@ export default function DocumentsPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const { error } = await supabase.from("documents").insert({
-        filename: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-        status: "processing",
-        uploader_id: user?.id,
-        project_id: projectId,
-        workspace_id: workspaceId,
-      });
+      // Read file content (best-effort: text-only for now)
+      let content = "";
+      try {
+        content = await file.text();
+      } catch {
+        content = "";
+      }
+
+      const { data: inserted, error } = await supabase
+        .from("documents")
+        .insert({
+          filename: file.name,
+          file_size: file.size,
+          mime_type: file.type,
+          status: "processing",
+          uploader_id: user?.id,
+          project_id: projectId,
+          workspace_id: workspaceId,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
-      
-      // Simulate AI processing
-      setTimeout(async () => {
-        const { data: docs } = await supabase
-          .from("documents")
-          .select("id")
-          .eq("filename", file.name)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        
-        if (docs && docs.length > 0) {
+
+      // Kick off processing via edge function (don't await success — runs in background)
+      try {
+        if (content && content.length > 0) {
+          await supabase.functions.invoke("process-document", {
+            body: { document_id: inserted.id, inline_content: content.slice(0, 500_000) },
+          });
+        } else {
+          // No readable text — mark processed with 0 endpoints so it never gets stuck
           await supabase
             .from("documents")
             .update({
               status: "processed",
-              requirements_count: Math.floor(Math.random() * 50) + 10,
+              requirements_count: 0,
               processed_at: new Date().toISOString(),
             })
-            .eq("id", docs[0].id);
-          queryClient.invalidateQueries({ queryKey: ["documents"] });
+            .eq("id", inserted.id);
         }
-      }, 3000);
+      } catch (e) {
+        await supabase
+          .from("documents")
+          .update({ status: "failed" })
+          .eq("id", inserted.id);
+        throw e;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success("Document uploaded and processing started");
     },
     onError: (error) => {
-      toast.error("Failed to upload: " + error.message);
+      toast.error("Failed to upload: " + (error as Error).message);
     },
   });
 
