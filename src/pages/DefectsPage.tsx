@@ -436,9 +436,12 @@ export default function DefectsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Defect</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Test Plan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Severity</TableHead>
                     <TableHead>Priority</TableHead>
+                    <TableHead>Reporter</TableHead>
                     <TableHead>Assignee</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
@@ -452,7 +455,8 @@ export default function DefectsPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="border-b transition-colors hover:bg-muted/50"
+                        onClick={() => navigate(`/defects/${defect.id}`)}
+                        className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
                       >
                         <TableCell>
                           <div className="flex items-start gap-3">
@@ -467,6 +471,8 @@ export default function DefectsPage() {
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell className="text-sm">{(defect as any).project?.name ?? "—"}</TableCell>
+                        <TableCell className="text-sm">{(defect as any).test_plan?.name ?? "—"}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={statusColors[defect.status]}>
                             {statusIcons[defect.status]}
