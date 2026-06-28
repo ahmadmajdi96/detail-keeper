@@ -267,9 +267,14 @@ export default function TestPlansPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "active" })}>
-                          Activate
+                        <DropdownMenuItem onClick={async () => { await setActivePlan(plan.id); toast.success(`Activated "${plan.name}"`); }}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> {activePlanId === plan.id ? "Active (re-set)" : "Set as Active"}
                         </DropdownMenuItem>
+                        {activePlanId === plan.id && (
+                          <DropdownMenuItem onClick={async () => { await setActivePlan(null); toast.message("Deactivated test plan"); }}>
+                            Deactivate
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={async () => { await setActivePlan(plan.id); toast.success(`Activated "${plan.name}"`); }}>
                           <CheckCircle2 className="mr-2 h-4 w-4" /> Set as Active
@@ -339,20 +344,19 @@ export default function TestPlansPage() {
                   </div>
 
                   {/* Action */}
-                  {plan.status === "active" && (
-                    <Button className="w-full mt-4" variant="outline" size="sm">
-                      <Play className="mr-2 h-3 w-3" />
-                      Start Run
-                    </Button>
-                  )}
-                  {plan.status === "draft" && (
-                    <Button 
-                      className="w-full mt-4 ai-gradient text-white" 
+                  {activePlanId !== plan.id ? (
+                    <Button
+                      className="w-full mt-4 ai-gradient text-white"
                       size="sm"
-                      onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "active" })}
+                      onClick={async (e) => { e.stopPropagation(); await setActivePlan(plan.id); toast.success(`Activated "${plan.name}"`); }}
                     >
-                      <Sparkles className="mr-2 h-3 w-3" />
-                      Activate Plan
+                      <CheckCircle2 className="mr-2 h-3 w-3" />
+                      Set as Active Plan
+                    </Button>
+                  ) : (
+                    <Button className="w-full mt-4" variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                      <CheckCircle2 className="mr-2 h-3 w-3 text-success" />
+                      Active Plan
                     </Button>
                   )}
                 </CardContent>
