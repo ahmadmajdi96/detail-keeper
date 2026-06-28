@@ -16,7 +16,7 @@ serve(async (req) => {
     // Auth header is optional (verify_jwt = false). We process by document_id.
     const body = await req.json();
     docIdForError = body.documentId ?? body.document_id;
-    const documentId = body.documentId ?? body.document_id;
+    const documentId = docIdForError;
     const documentContent = body.documentContent ?? body.inline_content ?? body.content;
 
     if (!documentId || !documentContent) {
