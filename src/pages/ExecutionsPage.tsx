@@ -167,6 +167,18 @@ export default function ExecutionsPage() {
       toast.error("No active test cases to execute");
       return;
     }
+
+    // Clear previous executions for this project so the cards reflect the new run only.
+    try {
+      let del = supabase.from("test_executions").delete();
+      del = projectId ? del.eq("project_id", projectId) : del.not("id", "is", null);
+      await del;
+    } catch {
+      /* non-fatal */
+    }
+    queryClient.invalidateQueries({ queryKey: ["executions"] });
+    setSelectedExecution(null);
+
     setAutoOpen(true);
     setAutoRunning(true);
     autoAbort.current = false;
@@ -178,7 +190,7 @@ export default function ExecutionsPage() {
       logs: [],
     }));
     setAutoItems(items);
-    toast.success(`Auto-executing ${items.length} test${items.length === 1 ? "" : "s"}`);
+    toast.success(`Cleared previous results · auto-executing ${items.length} test${items.length === 1 ? "" : "s"}`);
 
     for (let i = 0; i < items.length; i++) {
       if (autoAbort.current) break;
