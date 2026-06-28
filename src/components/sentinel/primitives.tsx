@@ -34,15 +34,15 @@ export function SentinelStyles() {
 
 export function Scanline() {
   return (
-    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
       <div
         style={{
           position: "absolute",
           left: 0,
           right: 0,
-          height: "2px",
-          background: "linear-gradient(180deg, transparent, rgba(0,207,224,0.08), transparent)",
-          animation: "sn-scanline 8s linear infinite",
+          height: "1px",
+          background: "linear-gradient(180deg, transparent, rgba(0,207,224,0.035), transparent)",
+          animation: "sn-scanline 14s linear infinite",
         }}
       />
     </div>
