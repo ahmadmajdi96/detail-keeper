@@ -43,23 +43,13 @@ function safeParseJson(input: string): any {
   throw new Error("Failed to parse AI JSON output");
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+async function runGeneration(test_plan_id: string) {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
 
   try {
-    const { test_plan_id } = await req.json();
-    if (!test_plan_id) {
-      return new Response(JSON.stringify({ error: "test_plan_id required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     await supabase
       .from("test_plans")
       .update({ ai_status: "running", ai_last_run_at: new Date().toISOString() })
@@ -75,17 +65,18 @@ serve(async (req) => {
 
     const { data: planDocs } = await supabase
       .from("test_plan_documents")
-      .select("document_id, documents:document_id(name, filename, content, summary)")
+      .select("document_id, documents:document_id(filename, content, summary)")
       .eq("test_plan_id", test_plan_id);
 
     const docsContext = (planDocs || [])
       .map((d: any) => {
         const doc = d.documents;
         if (!doc) return "";
-        return `### ${doc.name || doc.filename}\n${(doc.summary || "")}\n${(doc.content || "").slice(0, 6000)}`;
+        return `### ${doc.filename}\n${(doc.summary || "")}\n${(doc.content || "").slice(0, 6000)}`;
       })
       .filter(Boolean)
       .join("\n\n---\n\n");
+
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -133,17 +124,13 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
       const t = await aiRes.text();
       console.error("AI gateway error", aiRes.status, t);
       await supabase.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
-      return new Response(JSON.stringify({ error: `AI gateway: ${aiRes.status}` }), {
-        status: aiRes.status === 429 || aiRes.status === 402 ? aiRes.status : 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return;
     }
 
     const aiJson = await aiRes.json();
     const raw = aiJson.choices?.[0]?.message?.content || "{}";
     const parsed = safeParseJson(raw);
 
-    // Update plan with objective/scope
     await supabase
       .from("test_plans")
       .update({
@@ -153,7 +140,6 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
       })
       .eq("id", test_plan_id);
 
-    // Create test cases and link them
     const cases = Array.isArray(parsed.test_cases) ? parsed.test_cases : [];
     let created = 0;
     for (const tc of cases) {
@@ -184,7 +170,6 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
           test_case_id: inserted.id,
           added_by: plan.created_by,
         });
-        // Insert steps
         if (Array.isArray(tc.steps)) {
           const stepRows = tc.steps.map((s: string, i: number) => ({
             test_case_id: inserted.id,
@@ -198,7 +183,6 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
       }
     }
 
-    // Snapshot a version
     const nextVersion = (plan.current_version || 1) + (created > 0 ? 1 : 0);
     if (created > 0) {
       await supabase.from("test_plan_versions").insert({
@@ -213,7 +197,6 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
         .update({ ai_status: "ready", current_version: nextVersion })
         .eq("id", test_plan_id);
 
-      // Flag source documents as having their requirements extracted
       const docIds = (planDocs || []).map((d: any) => d.document_id).filter(Boolean);
       if (docIds.length) {
         await supabase
@@ -227,10 +210,36 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
         .update({ ai_status: "ready" })
         .eq("id", test_plan_id);
     }
+  } catch (e) {
+    console.error("Generation error", e);
+    try {
+      await supabase
+        .from("test_plans")
+        .update({ ai_status: "failed" })
+        .eq("id", test_plan_id);
+    } catch (_) { /* ignore */ }
+  }
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { test_plan_id } = await req.json();
+    if (!test_plan_id) {
+      return new Response(JSON.stringify({ error: "test_plan_id required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fire-and-forget: run generation in background so the client can navigate away.
+    // @ts-ignore EdgeRuntime is available in Supabase Edge Runtime
+    EdgeRuntime.waitUntil(runGeneration(test_plan_id));
 
     return new Response(
-      JSON.stringify({ success: true, created, version: nextVersion }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: true, status: "queued" }),
+      { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error(e);
@@ -240,3 +249,4 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
     );
   }
 });
+
