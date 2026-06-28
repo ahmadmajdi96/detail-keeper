@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
-  Plus, Edit3, Trash2, Layers,
+  Plus, Edit3, Trash2, Layers, Variable, Download, Save,
 } from "lucide-react";
 import { format } from "date-fns";
 
