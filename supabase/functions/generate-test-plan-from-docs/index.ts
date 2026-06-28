@@ -43,23 +43,13 @@ function safeParseJson(input: string): any {
   throw new Error("Failed to parse AI JSON output");
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+async function runGeneration(test_plan_id: string) {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
 
   try {
-    const { test_plan_id } = await req.json();
-    if (!test_plan_id) {
-      return new Response(JSON.stringify({ error: "test_plan_id required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     await supabase
       .from("test_plans")
       .update({ ai_status: "running", ai_last_run_at: new Date().toISOString() })
@@ -75,17 +65,18 @@ serve(async (req) => {
 
     const { data: planDocs } = await supabase
       .from("test_plan_documents")
-      .select("document_id, documents:document_id(name, filename, content, summary)")
+      .select("document_id, documents:document_id(filename, content, summary)")
       .eq("test_plan_id", test_plan_id);
 
     const docsContext = (planDocs || [])
       .map((d: any) => {
         const doc = d.documents;
         if (!doc) return "";
-        return `### ${doc.name || doc.filename}\n${(doc.summary || "")}\n${(doc.content || "").slice(0, 6000)}`;
+        return `### ${doc.filename}\n${(doc.summary || "")}\n${(doc.content || "").slice(0, 6000)}`;
       })
       .filter(Boolean)
       .join("\n\n---\n\n");
+
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
