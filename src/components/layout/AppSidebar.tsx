@@ -54,7 +54,8 @@ const mainNavItems: NavItem[] = [
   { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Executions", href: "/executions", icon: Play, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Defects", href: "/defects", icon: Bug, roles: ["qa_engineer", "qa_manager", "admin"] },
-  { title: "AI Automation", href: "/automation", icon: Bot, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  // AI Automation hidden from sidebar (route still available at /automation)
+  // { title: "AI Automation", href: "/automation", icon: Bot, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
 ];
 
