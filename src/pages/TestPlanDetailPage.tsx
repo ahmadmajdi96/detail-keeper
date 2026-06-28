@@ -128,7 +128,7 @@ export default function TestPlanDetailPage() {
   const failed = executions.filter((e: any) => e.status === "failed").length;
   const passRate = executions.length ? Math.round((passed / executions.length) * 100) : 0;
 
-  const aiStatusVariant = plan.ai_status === "ready" ? "success" : plan.ai_status === "running" ? "info" : plan.ai_status === "failed" ? "danger" : "muted";
+  const aiStatusVariant = plan.ai_status === "ready" ? "success" : plan.ai_status === "running" ? "info" : plan.ai_status === "failed" ? "destructive" : "muted";
 
   return (
     <AppLayout>
@@ -470,7 +470,7 @@ export default function TestPlanDetailPage() {
                   {executions.map((e: any) => (
                     <div key={e.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
                       <div className="flex items-center gap-3 min-w-0">
-                        <StatusBadge variant={e.status === "passed" ? "success" : e.status === "failed" ? "danger" : "warning"} size="sm">
+                        <StatusBadge variant={e.status === "passed" ? "success" : e.status === "failed" ? "destructive" : "warning"} size="sm">
                           {e.status}
                         </StatusBadge>
                         <div className="min-w-0">
