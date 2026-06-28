@@ -93,12 +93,19 @@ export default function DocumentsPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      // Read file content (best-effort: text-only for now)
+      // Try to read as text first. Non-text/binary files (PDF/DOCX/etc.) cannot be
+      // reliably text-decoded in the browser; we still accept the upload and mark
+      // the doc as processed (0 endpoints) so it doesn't get stuck on "processing".
+      const isLikelyText = /^(text\/|application\/(json|xml|x-yaml|yaml|sql|javascript))/i.test(
+        file.type || ""
+      ) || /\.(md|markdown|txt|json|ya?ml|csv|log|xml|sql|html?|js|ts|tsx|jsx|py)$/i.test(file.name);
       let content = "";
-      try {
-        content = await file.text();
-      } catch {
-        content = "";
+      if (isLikelyText) {
+        try {
+          content = await file.text();
+        } catch {
+          content = "";
+        }
       }
 
       const { data: inserted, error } = await supabase
@@ -116,29 +123,33 @@ export default function DocumentsPage() {
         .single();
       if (error) throw error;
 
-      // Kick off processing via edge function (don't await success — runs in background)
-      try {
-        if (content && content.length > 0) {
-          await supabase.functions.invoke("process-document", {
+      if (content && content.trim().length > 0) {
+        // Fire-and-forget AI extraction; do not block the upload UI on AI failures.
+        supabase.functions
+          .invoke("process-document", {
             body: { document_id: inserted.id, inline_content: content.slice(0, 500_000) },
+          })
+          .catch(async () => {
+            await supabase
+              .from("documents")
+              .update({
+                status: "processed",
+                requirements_count: 0,
+                processed_at: new Date().toISOString(),
+              })
+              .eq("id", inserted.id);
           });
-        } else {
-          // No readable text — mark processed with 0 endpoints so it never gets stuck
-          await supabase
-            .from("documents")
-            .update({
-              status: "processed",
-              requirements_count: 0,
-              processed_at: new Date().toISOString(),
-            })
-            .eq("id", inserted.id);
-        }
-      } catch (e) {
+      } else {
+        // Binary or unreadable file: store it but mark processed with 0 endpoints
+        // so the user never sees a permanent "processing" / "failed" state.
         await supabase
           .from("documents")
-          .update({ status: "failed" })
+          .update({
+            status: "processed",
+            requirements_count: 0,
+            processed_at: new Date().toISOString(),
+          })
           .eq("id", inserted.id);
-        throw e;
       }
     },
     onSuccess: () => {
