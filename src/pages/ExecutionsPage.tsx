@@ -52,6 +52,12 @@ export default function ExecutionsPage() {
   const [liveUrl, setLiveUrl] = useState<string | undefined>(undefined);
   const autoAbort = useRef(false);
 
+  // Manual execution log stream (newest first)
+  type ManualLog = { t: number; line: string; kind: "info" | "ok" | "err" | "warn" };
+  const [manualLogs, setManualLogs] = useState<ManualLog[]>([]);
+  const pushManualLog = (line: string, kind: ManualLog["kind"] = "info") =>
+    setManualLogs((p) => [{ t: Date.now(), line, kind }, ...p].slice(0, 200));
+
   const { data: executions = [], isLoading } = useQuery({
     queryKey: ["executions", ...scopeKey],
     queryFn: async () => {
@@ -90,6 +96,8 @@ export default function ExecutionsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["executions"] });
       setSelectedExecution(data);
+      setManualLogs([]);
+      pushManualLog(`▶ Started execution of "${data.test_case?.title ?? "test"}"`, "info");
       toast.success("Execution started");
     },
   });
@@ -101,6 +109,7 @@ export default function ExecutionsPage() {
         .update({ status, completed_at: ["passed", "failed", "blocked"].includes(status) ? new Date().toISOString() : null })
         .eq("id", id);
       if (error) throw error;
+      return status;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["executions"] });
