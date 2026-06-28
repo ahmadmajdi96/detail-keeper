@@ -20,7 +20,9 @@ serve(async (req) => {
       });
     }
 
-    const { documentId, documentContent } = await req.json();
+    const body = await req.json();
+    const documentId = body.documentId ?? body.document_id;
+    const documentContent = body.documentContent ?? body.inline_content ?? body.content;
 
     if (!documentId || !documentContent) {
       return new Response(
