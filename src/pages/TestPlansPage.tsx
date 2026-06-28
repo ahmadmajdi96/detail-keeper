@@ -270,6 +270,15 @@ export default function TestPlansPage() {
                         <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "active" })}>
                           Activate
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={async () => { await setActivePlan(plan.id); toast.success(`Activated "${plan.name}"`); }}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> Set as Active
+                        </DropdownMenuItem>
+                        {activePlanId === plan.id && (
+                          <DropdownMenuItem onClick={async () => { await setActivePlan(null); toast.message("Deactivated test plan"); }}>
+                            Deactivate
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: plan.id, status: "completed" })}>
                           Mark Complete
                         </DropdownMenuItem>
