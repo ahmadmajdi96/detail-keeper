@@ -298,15 +298,19 @@ export default function ExecutionsPage() {
       lines.push("```");
       lines.push("");
     });
-    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `auto-execution-report-${stamp}.md`;
+    a.rel = "noopener";
+    a.style.display = "none";
     document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 1500);
     toast.success("Report downloaded");
   };
 
