@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,6 +65,7 @@ import {
 } from "lucide-react";
 import type { Defect, Profile, DefectSeverity, DefectPriority } from "@/types";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
 
 type DefectWithRelations = Defect & {
   reporter?: Profile | null;
@@ -102,15 +104,21 @@ const statusIcons: Record<string, React.ReactNode> = {
 
 export default function DefectsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
+  const { activePlanId } = useActiveTestPlan();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [planFilter, setPlanFilter] = useState<string>("all");
+  const [reporterFilter, setReporterFilter] = useState<string>("all");
   const [selectedDefect, setSelectedDefect] = useState<DefectWithRelations | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [newTestPlanId, setNewTestPlanId] = useState<string>("none");
 
   // Form state
   const [newTitle, setNewTitle] = useState("");
