@@ -138,6 +138,56 @@ export default function TestPlanDetailPage() {
     },
   });
 
+  // ----- Variables: load from plan, save back, import from another plan -----
+  useState(() => {});
+  // hydrate vars when plan loads
+  if (plan && !varsLoaded) {
+    const arr = Array.isArray((plan as any).variables) ? (plan as any).variables : [];
+    setVars(arr.map((v: any) => ({ key: String(v?.key ?? ""), value: String(v?.value ?? "") })));
+    setVarsLoaded(true);
+  }
+
+  const saveVars = useMutation({
+    mutationFn: async () => {
+      const clean = vars.filter((v) => v.key.trim().length > 0).map((v) => ({ key: v.key.trim(), value: v.value ?? "" }));
+      const { error } = await supabase.from("test_plans").update({ variables: clean as any }).eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Variables saved");
+      qc.invalidateQueries({ queryKey: ["test-plan", id] });
+    },
+    onError: (e: any) => toast.error(e.message || "Save failed"),
+  });
+
+  const { data: impWorkspaces = [] } = useQuery({
+    queryKey: ["plan-import-workspaces"],
+    enabled: importOpen,
+    queryFn: async () => (await supabase.from("workspaces").select("id, name").order("name")).data || [],
+  });
+  const { data: impProjects = [] } = useQuery({
+    queryKey: ["plan-import-projects", impWs],
+    enabled: importOpen && !!impWs,
+    queryFn: async () => (await supabase.from("projects").select("id, name").eq("workspace_id", impWs).order("name")).data || [],
+  });
+  const { data: impPlans = [] } = useQuery({
+    queryKey: ["plan-import-plans", impProj],
+    enabled: importOpen && !!impProj,
+    queryFn: async () => (await supabase.from("test_plans").select("id, name, variables").eq("project_id", impProj).order("name")).data || [],
+  });
+
+  const doImport = () => {
+    const src: any = impPlans.find((p: any) => p.id === impPlan);
+    const arr = Array.isArray(src?.variables) ? src.variables : [];
+    if (!arr.length) { toast.error("Selected plan has no variables"); return; }
+    const map = new Map<string, PlanVar>();
+    [...vars, ...arr].forEach((v: any) => v?.key && map.set(v.key, { key: v.key, value: v.value ?? "" }));
+    setVars(Array.from(map.values()));
+    toast.success(`Imported ${arr.length} variable${arr.length === 1 ? "" : "s"}`);
+    setImportOpen(false); setImpWs(""); setImpProj(""); setImpPlan("");
+  };
+
+
   const generate = useMutation({
     mutationFn: async () => {
       await supabase.from("test_plans").update({ ai_status: "running" }).eq("id", id!);
