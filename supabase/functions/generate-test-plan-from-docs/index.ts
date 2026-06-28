@@ -7,6 +7,42 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Tolerant JSON parser for LLM output: strips code fences, trims to outer
+// braces, and fixes common issues (control chars, bad backslash escapes,
+// trailing commas) that break JSON.parse.
+function safeParseJson(input: string): any {
+  let s = String(input ?? "").trim();
+  // strip ```json ... ``` fences
+  s = s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  // trim to outermost { ... } or [ ... ]
+  const start = s.search(/[\{\[]/);
+  if (start > 0) s = s.slice(start);
+  const open = s[0];
+  const close = open === "[" ? "]" : "}";
+  const end = s.lastIndexOf(close);
+  if (end !== -1) s = s.slice(0, end + 1);
+
+  const tryParse = (x: string) => { try { return JSON.parse(x); } catch { return undefined; } };
+  let out = tryParse(s);
+  if (out !== undefined) return out;
+
+  // Remove raw control characters inside strings (newlines, tabs, etc.)
+  let cleaned = s.replace(/[\u0000-\u001F\u007F]/g, (c) => {
+    if (c === "\n") return "\\n";
+    if (c === "\r") return "\\r";
+    if (c === "\t") return "\\t";
+    return "";
+  });
+  // Escape any backslash not already starting a valid JSON escape sequence
+  cleaned = cleaned.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+  // Remove trailing commas
+  cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
+
+  out = tryParse(cleaned);
+  if (out !== undefined) return out;
+  throw new Error("Failed to parse AI JSON output");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
