@@ -582,7 +582,7 @@ export default function DefectsPage() {
                   </AnimatePresence>
                   {filteredDefects.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-32 text-center">
+                      <TableCell colSpan={10} className="h-32 text-center">
                         <p className="text-muted-foreground">No defects found</p>
                       </TableCell>
                     </TableRow>
