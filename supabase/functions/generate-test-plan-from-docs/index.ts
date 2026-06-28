@@ -105,7 +105,7 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
 
     const aiJson = await aiRes.json();
     const raw = aiJson.choices?.[0]?.message?.content || "{}";
-    const parsed = JSON.parse(raw);
+    const parsed = safeParseJson(raw);
 
     // Update plan with objective/scope
     await supabase
