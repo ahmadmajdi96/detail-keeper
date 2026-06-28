@@ -1,0 +1,1 @@
+ALTER TABLE public.test_plans ADD COLUMN IF NOT EXISTS variables jsonb NOT NULL DEFAULT '[]'::jsonb;
