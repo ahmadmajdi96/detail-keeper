@@ -14,6 +14,7 @@ import {
   Play, Plus, Shield, TestTube, TrendingUp, Zap,
 } from "lucide-react";
 import { format, startOfDay, subDays } from "date-fns";
+import { ExtendedHeatmap } from "@/components/dashboard/ExtendedHeatmap";
 
 const C_CYAN = "#00cfe0";
 const C_GREEN = "#22c55e";
