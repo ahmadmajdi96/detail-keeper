@@ -341,24 +341,28 @@ export default function ExecutionsPage() {
           />
         )}
 
-        {/* Compact stat strip */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Stat cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Total", value: stats.total, icon: Play, color: "primary" },
-            { label: "Passed", value: stats.passed, icon: CheckCircle2, color: "success" },
-            { label: "Failed", value: stats.failed, icon: XCircle, color: "destructive" },
-            { label: "In Progress", value: stats.inProgress, icon: Clock, color: "accent" },
+            { label: "Total Executions", value: stats.total, icon: Play, color: "text-primary", bg: "bg-primary/10" },
+            { label: "Passed", value: stats.passed, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+            { label: "Failed", value: stats.failed, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
+            { label: "In Progress", value: stats.inProgress, icon: Clock, color: "text-accent", bg: "bg-accent/10" },
           ].map((s) => (
-            <div
-              key={s.label}
-              className="flex items-center gap-2 rounded-md border border-border/50 bg-card/60 px-3 py-1.5"
-            >
-              <s.icon className={`h-3.5 w-3.5 text-${s.color}`} />
-              <span className="text-sm font-semibold tabular-nums">{s.value}</span>
-              <span className="text-xs text-muted-foreground">{s.label}</span>
-            </div>
+            <Card key={s.label} className="border-border/50">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                  <p className="text-3xl font-semibold tabular-nums mt-1">{s.value}</p>
+                </div>
+                <div className={`h-10 w-10 rounded-lg ${s.bg} flex items-center justify-center`}>
+                  <s.icon className={`h-5 w-5 ${s.color}`} />
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
+
 
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
