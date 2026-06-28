@@ -659,6 +659,83 @@ export default function TestPlanDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create / Edit case dialog */}
+      <Dialog open={caseDialogOpen} onOpenChange={(o) => { setCaseDialogOpen(o); if (!o) setEditingCase(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingCase ? "Edit Test Case" : "New Test Case"}</DialogTitle>
+            <DialogDescription>
+              {editingCase ? "Update the test case details." : "Add a new test case to this plan."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Title</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. User can reset password" />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="What does this case verify?" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Type</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as TestType })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TEST_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">P1 — High</SelectItem>
+                    <SelectItem value="2">P2 — Medium</SelectItem>
+                    <SelectItem value="3">P3 — Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Expected Result</Label>
+              <Textarea value={form.expected_result} onChange={(e) => setForm({ ...form, expected_result: e.target.value })} rows={2} placeholder="What should happen?" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCaseDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => saveCase.mutate()} disabled={saveCase.isPending}>
+              {saveCase.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {editingCase ? "Save Changes" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deletingCase} onOpenChange={(o) => !o && setDeletingCase(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete test case?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deletingCase?.title}" from the plan. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingCase && removeCase.mutate({ linkId: deletingCase.linkId, caseId: deletingCase.caseId })}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
+
