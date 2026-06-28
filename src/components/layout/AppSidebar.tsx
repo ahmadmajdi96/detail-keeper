@@ -71,9 +71,28 @@ const bottomNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = localStorage.getItem("qx_sidebar_collapsed");
+    if (stored !== null) return stored === "1";
+    return true; // default collapsed
+  });
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout, hasPermission } = useAuth();
   const location = useLocation();
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      try { localStorage.setItem("qx_sidebar_collapsed", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  };
 
   // Determine which nav items to show based on user role
   const getNavItems = () => {
