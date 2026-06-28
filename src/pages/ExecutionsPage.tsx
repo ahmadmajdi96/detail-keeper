@@ -111,8 +111,11 @@ export default function ExecutionsPage() {
       if (error) throw error;
       return status;
     },
-    onSuccess: () => {
+    onSuccess: (status) => {
       queryClient.invalidateQueries({ queryKey: ["executions"] });
+      const kind = status === "passed" ? "ok" : status === "failed" ? "err" : "warn";
+      const glyph = status === "passed" ? "✓" : status === "failed" ? "✗" : "⏸";
+      pushManualLog(`${glyph} Marked ${status}`, kind);
       toast.success("Status updated");
     },
   });
@@ -133,6 +136,7 @@ export default function ExecutionsPage() {
     },
     onSuccess: () => {
       toast.success("Defect logged");
+      pushManualLog(`🐞 Defect logged: "${defectTitle}" (${defectSeverity}/${defectPriority})`, "warn");
       setIsDefectDialogOpen(false);
       setDefectTitle("");
       setDefectDescription("");
