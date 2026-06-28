@@ -176,6 +176,15 @@ ${docsContext || "(no documents attached — infer from plan name/description)"}
         .from("test_plans")
         .update({ ai_status: "ready", current_version: nextVersion })
         .eq("id", test_plan_id);
+
+      // Flag source documents as having their requirements extracted
+      const docIds = (planDocs || []).map((d: any) => d.document_id).filter(Boolean);
+      if (docIds.length) {
+        await supabase
+          .from("documents")
+          .update({ status: "requirements_extracted" })
+          .in("id", docIds);
+      }
     } else {
       await supabase
         .from("test_plans")
