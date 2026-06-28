@@ -46,6 +46,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
+import { CheckCircle2 } from "lucide-react";
 
 interface TestPlan {
   id: string;
@@ -66,6 +68,7 @@ export default function TestPlansPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
+  const { activePlanId, setActivePlan } = useActiveTestPlan();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
