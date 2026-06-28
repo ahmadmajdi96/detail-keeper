@@ -490,6 +490,18 @@ export default function DefectsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
+                          {defect.reporter ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-xs">
+                                  {defect.reporter.name?.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{defect.reporter.name}</span>
+                            </div>
+                          ) : (<span className="text-sm text-muted-foreground">—</span>)}
+                        </TableCell>
+                        <TableCell>
                           {defect.assignee ? (
                             <div className="flex items-center gap-2">
                               <Avatar className="h-6 w-6">
@@ -507,7 +519,7 @@ export default function DefectsPage() {
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(defect.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
