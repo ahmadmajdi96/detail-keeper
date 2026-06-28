@@ -184,7 +184,7 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
       await supabase.from("test_plan_versions").insert({
         test_plan_id: plan.id,
         version: 1,
-        snapshot: { name, description, objective, assignees, documents: docs },
+        snapshot: { name, description, objective, assignees, documents: docs, variables: variables.filter((v) => v.key.trim().length > 0) },
         change_summary: "Initial plan created",
         created_by: user?.id,
       });
