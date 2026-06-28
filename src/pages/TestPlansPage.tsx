@@ -235,7 +235,7 @@ export default function TestPlansPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card className="group hover:shadow-soft transition-all duration-200 h-full flex flex-col">
+              <Card onClick={() => navigate(`/test-plans/${plan.id}`)} className="group hover:shadow-soft transition-all duration-200 h-full flex flex-col cursor-pointer">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
