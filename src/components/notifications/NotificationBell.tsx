@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Check, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -7,22 +8,90 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useNotifications } from '@/contexts/NotificationContext';
+import { useNotifications, type Notification } from '@/contexts/NotificationContext';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+
+// Map a notification to a route + element id to scroll to.
+function targetForNotification(n: Notification): { path: string; hash?: string } {
+  const d = (n.data || {}) as Record<string, any>;
+  switch (n.type) {
+    case 'defect_assigned':
+    case 'defect_created':
+    case 'defect_status':
+      return { path: '/defects', hash: d.defect_id ? `defect-${d.defect_id}` : undefined };
+    case 'execution_completed':
+      return { path: '/executions', hash: d.execution_id ? `execution-${d.execution_id}` : undefined };
+    case 'test_plan_created':
+      return d.test_plan_id
+        ? { path: `/test-plans/${d.test_plan_id}` }
+        : { path: '/test-plans' };
+    case 'document_ready':
+    case 'document_failed':
+      return { path: '/documents', hash: d.document_id ? `document-${d.document_id}` : undefined };
+    case 'project_created':
+    case 'project_ready':
+    case 'project_failed':
+      return d.project_id
+        ? { path: `/projects/${d.project_id}` }
+        : { path: '/projects' };
+    case 'workspace_invite':
+    case 'member_added':
+      return d.workspace_id
+        ? { path: `/workspaces/${d.workspace_id}` }
+        : { path: '/workspaces' };
+    default:
+      return { path: '/notifications' };
+  }
+}
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, clearAll } = useNotifications();
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'defect_assigned':
+      case 'defect_created':
+      case 'defect_status':
         return '🐛';
       case 'execution_completed':
         return '✅';
+      case 'test_plan_created':
+        return '📋';
+      case 'document_ready':
+        return '📄';
+      case 'document_failed':
+        return '⚠️';
+      case 'project_created':
+      case 'project_ready':
+        return '📁';
+      case 'workspace_invite':
+      case 'member_added':
+        return '👥';
       default:
         return '🔔';
+    }
+  };
+
+  const handleClick = (n: Notification) => {
+    if (!n.read) markAsRead(n.id);
+    const { path, hash } = targetForNotification(n);
+    setOpen(false);
+    navigate(path);
+    if (hash) {
+      // Wait for the destination page to render the element, then scroll to it.
+      setTimeout(() => {
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'rounded-md');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'rounded-md');
+          }, 2400);
+        }
+      }, 450);
     }
   };
 
@@ -80,11 +149,7 @@ export function NotificationBell() {
                     'flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors cursor-pointer relative group',
                     !notification.read && 'bg-accent/5'
                   )}
-                  onClick={() => {
-                    if (!notification.read) {
-                      markAsRead(notification.id);
-                    }
-                  }}
+                  onClick={() => handleClick(notification)}
                 >
                   <span className="text-lg">{getNotificationIcon(notification.type)}</span>
                   <div className="flex-1 min-w-0">
