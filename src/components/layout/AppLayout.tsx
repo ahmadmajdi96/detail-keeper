@@ -33,19 +33,20 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar />
-      <div className="pl-[72px] md:pl-64 min-h-screen flex flex-col">
+      <div className="pl-0 md:pl-[72px] min-h-screen flex flex-col transition-[padding] duration-200">
         {/* Top bar */}
-        <header className="sticky top-0 z-40 h-14 border-b border-border/40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container max-w-7xl h-full px-4 md:px-6 flex items-center gap-2">
+        <header className="sticky top-0 z-30 h-14 border-b border-border/40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="w-full h-full px-3 md:px-6 flex items-center gap-2">
+            <div className="w-12 md:hidden" />
             <WorkspaceSwitcher />
-            <span className="text-muted-foreground text-sm">/</span>
-            <ProjectSwitcher />
+            <span className="text-muted-foreground text-sm hidden sm:inline">/</span>
+            <div className="hidden sm:block"><ProjectSwitcher /></div>
             <div className="flex-1" />
             <NotificationBell />
           </div>
         </header>
-        <main className="flex-1">
-          <div className="container max-w-7xl py-6 px-4 md:px-6">{children}</div>
+        <main className="flex-1 min-w-0">
+          <div className="w-full max-w-[1600px] mx-auto py-6 px-3 md:px-6 lg:px-8">{children}</div>
         </main>
       </div>
     </div>

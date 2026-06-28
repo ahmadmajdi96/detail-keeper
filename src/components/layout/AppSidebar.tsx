@@ -240,14 +240,14 @@ export function AppSidebar() {
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
-          {navItems.map((item, i) => renderItem(item, i, effectiveCollapsed))}
+          {navItems.map((item, i) => renderNavItem(item, i))}
         </nav>
 
         {adminNavItems.some(item => !item.roles || hasPermission(item.roles)) && (
           <>
             <div className="my-4 h-px bg-sidebar-border" />
             <nav className="space-y-1">
-              {adminNavItems.map((item, i) => renderItem(item, i, effectiveCollapsed))}
+              {adminNavItems.map((item, i) => renderNavItem(item, i))}
             </nav>
           </>
         )}
@@ -256,7 +256,7 @@ export function AppSidebar() {
       {/* Bottom section */}
       <div className="border-t border-sidebar-border p-3">
         <nav className="space-y-1 mb-3">
-          {bottomNavItems.map((item, i) => renderItem(item, i, effectiveCollapsed))}
+          {bottomNavItems.map((item, i) => renderNavItem(item, i))}
         </nav>
 
         <div className={cn(
