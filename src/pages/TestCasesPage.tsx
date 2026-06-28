@@ -69,6 +69,7 @@ import {
 } from "lucide-react";
 import type { TestCase, TestCaseStep, TestCaseVersion, TestCaseStatus } from "@/types";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
 
 const statusColors: Record<TestCaseStatus, string> = {
   draft: "bg-muted text-muted-foreground border-border",
@@ -89,6 +90,7 @@ export default function TestCasesPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
+  const { activePlanId, activePlan, activeCaseIds } = useActiveTestPlan();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
@@ -105,15 +107,18 @@ export default function TestCasesPage() {
   const [aiPrompt, setAIPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Fetch test cases
+  // Fetch test cases (filtered to the active test plan when one is set)
   const { data: testCases = [], isLoading } = useQuery({
-    queryKey: ["test-cases", ...scopeKey],
+    queryKey: ["test-cases", ...scopeKey, activePlanId, activeCaseIds.join(",")],
     queryFn: async () => {
+      // If a plan is active but has no linked cases, return empty without hitting the DB.
+      if (activePlanId && activeCaseIds.length === 0) return [] as TestCase[];
       let q = supabase
         .from("test_cases")
         .select("*")
         .order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
+      if (activePlanId && activeCaseIds.length > 0) q = q.in("id", activeCaseIds);
       const { data, error } = await q;
       if (error) throw error;
       return data as TestCase[];
