@@ -656,6 +656,16 @@ export default function DefectsPage() {
                 </Select>
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Test Plan (optional)</Label>
+              <Select value={newTestPlanId} onValueChange={setNewTestPlanId}>
+                <SelectTrigger><SelectValue placeholder="Link to test plan" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{activePlanId ? "Use active plan" : "None"}</SelectItem>
+                  {projectPlans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
