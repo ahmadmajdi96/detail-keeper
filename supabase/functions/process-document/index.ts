@@ -12,14 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    // Auth header is optional (verify_jwt = false). We process by document_id.
     const body = await req.json();
     const documentId = body.documentId ?? body.document_id;
     const documentContent = body.documentContent ?? body.inline_content ?? body.content;
