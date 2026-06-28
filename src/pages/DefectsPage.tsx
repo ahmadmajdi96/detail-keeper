@@ -187,6 +187,7 @@ export default function DefectsPage() {
         status: "open",
         project_id: projectId,
         workspace_id: workspaceId,
+        test_plan_id: newTestPlanId === "none" ? (activePlanId ?? null) : newTestPlanId,
       });
 
       if (error) throw error;
