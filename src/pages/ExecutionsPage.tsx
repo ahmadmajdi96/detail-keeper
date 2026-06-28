@@ -422,7 +422,7 @@ export default function ExecutionsPage() {
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" className="flex-1" onClick={() => setIsDefectDialogOpen(true)}><Bug className="mr-2 h-4 w-4" />Log Defect</Button>
-                      <Button variant="outline" className="flex-1"><Camera className="mr-2 h-4 w-4" />Capture Evidence</Button>
+                      <Button variant="outline" className="flex-1" onClick={() => pushManualLog("📸 Evidence capture requested", "info")}><Camera className="mr-2 h-4 w-4" />Capture Evidence</Button>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="destructive" className="flex-1" onClick={() => updateStatusMutation.mutate({ id: selectedExecution.id, status: "failed" })}>Fail</Button>
