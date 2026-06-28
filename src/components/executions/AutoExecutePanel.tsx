@@ -104,6 +104,11 @@ export function AutoExecutePanel({
                   <StopCircle className="h-4 w-4" /> Stop
                 </Button>
               )}
+              {!running && items.length > 0 && onDownload && (
+                <Button size="sm" variant="outline" onClick={onDownload} className="gap-1.5">
+                  <Download className="h-4 w-4" /> Download Report
+                </Button>
+              )}
               <Button size="icon" variant="ghost" onClick={() => setExpanded((v) => !v)} title={expanded ? "Collapse" : "Expand"}>
                 {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
@@ -134,7 +139,7 @@ export function AutoExecutePanel({
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        onClick={() => setFocusedId(it.id)}
+                        onClick={() => pickItem(it.id)}
                         className={cn(
                           "w-full text-left rounded-md border p-2 transition-colors",
                           (focused?.id === it.id)
