@@ -80,7 +80,7 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
     queryKey: ["wizard-docs", projectId],
     enabled: open,
     queryFn: async () => {
-      let q = supabase.from("documents").select("id, name, filename, mime_type, status").order("created_at", { ascending: false });
+      let q = supabase.from("documents").select("id, filename, mime_type, status").order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
       const { data } = await q;
       return data || [];
