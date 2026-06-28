@@ -138,13 +138,14 @@ export default function TestPlanDetailPage() {
     },
   });
 
-  // ----- Variables: load from plan, save back, import from another plan -----
   // Hydrate variables when plan loads
-  if (false) { void varsLoaded; void setVarsLoaded; } // hint for lint
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useState; // no-op
-  // Use effect to hydrate
-  // (Imported via React already; useEffect added below.)
+  useEffect(() => {
+    if (!plan || varsLoaded) return;
+    const arr = Array.isArray((plan as any).variables) ? (plan as any).variables : [];
+    setVars(arr.map((v: any) => ({ key: String(v?.key ?? ""), value: String(v?.value ?? "") })));
+    setVarsLoaded(true);
+  }, [plan, varsLoaded]);
+
 
 
   const saveVars = useMutation({
