@@ -79,9 +79,13 @@ export default function ExecutionsPage() {
     queryFn: async () => {
       // When an active plan is set, only its linked test cases are runnable.
       if (activePlanId && activeCaseIds.length === 0) return [] as TestCase[];
-      let q = supabase.from("test_cases").select("*").eq("status", "active");
+      let q = supabase.from("test_cases").select("*");
       if (projectId) q = q.eq("project_id", projectId);
-      if (activePlanId && activeCaseIds.length > 0) q = q.in("id", activeCaseIds);
+      if (activePlanId && activeCaseIds.length > 0) {
+        q = q.in("id", activeCaseIds);
+      } else {
+        q = q.in("status", ["active", "draft"]);
+      }
       const { data, error } = await q;
       if (error) throw error;
       return data as TestCase[];
