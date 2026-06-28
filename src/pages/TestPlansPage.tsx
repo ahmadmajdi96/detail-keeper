@@ -250,6 +250,7 @@ export default function TestPlansPage() {
                       )}
                     </div>
                     <DropdownMenu>
+                      <div onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                           <MoreHorizontal className="h-4 w-4" />
@@ -275,6 +276,7 @@ export default function TestPlansPage() {
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
+                      </div>
                     </DropdownMenu>
                   </div>
                   <CardTitle className="text-base mt-2">{plan.name}</CardTitle>
