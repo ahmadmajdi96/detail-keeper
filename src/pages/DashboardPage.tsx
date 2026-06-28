@@ -14,6 +14,7 @@ import {
   Play, Plus, Shield, TestTube, TrendingUp, Zap,
 } from "lucide-react";
 import { format, startOfDay, subDays } from "date-fns";
+import { ExtendedHeatmap } from "@/components/dashboard/ExtendedHeatmap";
 
 const C_CYAN = "#00cfe0";
 const C_GREEN = "#22c55e";
@@ -459,7 +460,11 @@ export default function DashboardPage() {
             </Panel>
           </div>
 
+          {/* EXTENDED COVERAGE HEATMAP */}
+          <ExtendedHeatmap executions={executions as any} days={14} />
+
           {/* AI INSIGHTS */}
+
           <Panel
             title="AI Quality Insights"
             subtitle={<ML dim>INTELLIGENT RECOMMENDATIONS</ML>}
