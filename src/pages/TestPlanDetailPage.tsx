@@ -658,7 +658,7 @@ export default function TestPlanDetailPage() {
           </Card>
         </TabsContent>
 
-
+        <TabsContent value="ai">
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="md:col-span-2">
               <CardHeader>
