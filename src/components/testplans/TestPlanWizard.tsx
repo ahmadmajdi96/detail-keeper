@@ -57,6 +57,13 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
   const [userQ, setUserQ] = useState("");
   const [docQ, setDocQ] = useState("");
 
+  // Variables step
+  const [variables, setVariables] = useState<PlanVar[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
+  const [impWs, setImpWs] = useState<string>("");
+  const [impProj, setImpProj] = useState<string>("");
+  const [impPlan, setImpPlan] = useState<string>("");
+
   const { data: users = [] } = useQuery({
     queryKey: ["wizard-users", workspaceId],
     enabled: open,
