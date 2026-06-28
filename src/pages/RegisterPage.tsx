@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthShowcase } from "@/components/auth/AuthShowcase";
+import { Logo } from "@/components/Logo";
 import {
   Eye, EyeOff, Loader2, ArrowRight, Mail, Lock, User, Check,
 } from "lucide-react";
