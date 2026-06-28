@@ -146,6 +146,89 @@ export default function TestPlanDetailPage() {
     onError: (e: any) => toast.error(e.message || "Generation failed"),
   });
 
+  const saveCase = useMutation({
+    mutationFn: async () => {
+      if (!form.title.trim()) throw new Error("Title is required");
+      const priorityNum = parseInt(form.priority, 10) || 2;
+      const tags = [form.type];
+
+      if (editingCase) {
+        const { error } = await supabase
+          .from("test_cases")
+          .update({
+            title: form.title,
+            description: form.description || null,
+            expected_result: form.expected_result || null,
+            priority: priorityNum,
+            coverage_tags: tags,
+          })
+          .eq("id", editingCase.id);
+        if (error) throw error;
+      } else {
+        const { data: inserted, error } = await supabase
+          .from("test_cases")
+          .insert({
+            title: form.title,
+            description: form.description || null,
+            expected_result: form.expected_result || null,
+            priority: priorityNum,
+            status: "draft",
+            ai_generated: false,
+            coverage_tags: tags,
+            created_by: user?.id,
+            workspace_id: plan!.workspace_id || workspaceId,
+            project_id: plan!.project_id || projectId,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        await supabase.from("test_plan_test_cases").insert({
+          test_plan_id: id!,
+          test_case_id: inserted!.id,
+          added_by: user?.id,
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success(editingCase ? "Test case updated" : "Test case added");
+      setCaseDialogOpen(false);
+      setEditingCase(null);
+      setForm({ title: "", description: "", priority: "2", type: "functional", expected_result: "" });
+      qc.invalidateQueries({ queryKey: ["test-plan-cases", id] });
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to save"),
+  });
+
+  const removeCase = useMutation({
+    mutationFn: async ({ linkId, caseId }: { linkId: string; caseId: string }) => {
+      await supabase.from("test_plan_test_cases").delete().eq("id", linkId);
+      await supabase.from("test_cases").delete().eq("id", caseId);
+    },
+    onSuccess: () => {
+      toast.success("Test case removed");
+      setDeletingCase(null);
+      qc.invalidateQueries({ queryKey: ["test-plan-cases", id] });
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to delete"),
+  });
+
+  const openCreate = () => {
+    setEditingCase(null);
+    setForm({ title: "", description: "", priority: "2", type: "functional", expected_result: "" });
+    setCaseDialogOpen(true);
+  };
+  const openEdit = (tc: any) => {
+    setEditingCase(tc);
+    setForm({
+      title: tc.title || "",
+      description: tc.description || "",
+      priority: String(tc.priority || 2),
+      type: inferType(tc),
+      expected_result: tc.expected_result || "",
+    });
+    setCaseDialogOpen(true);
+  };
+
   if (isLoading || !plan) {
     return <AppLayout><div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div></AppLayout>;
   }
@@ -155,6 +238,18 @@ export default function TestPlanDetailPage() {
   const passRate = executions.length ? Math.round((passed / executions.length) * 100) : 0;
 
   const aiStatusVariant = plan.ai_status === "ready" ? "success" : plan.ai_status === "running" ? "info" : plan.ai_status === "failed" ? "destructive" : "muted";
+
+  // Group cases by type
+  const groups: Record<string, any[]> = {};
+  testCases.forEach((row: any) => {
+    const tc = row.test_case;
+    if (!tc) return;
+    const t = inferType(tc);
+    if (!groups[t]) groups[t] = [];
+    groups[t].push({ link: row, tc });
+  });
+  const groupedTypes = Object.keys(groups).sort();
+
 
   return (
     <AppLayout>
