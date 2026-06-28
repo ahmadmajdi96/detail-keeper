@@ -589,7 +589,76 @@ export default function TestPlanDetailPage() {
         </TabsContent>
 
 
-        <TabsContent value="ai">
+        <TabsContent value="variables">
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2"><Variable className="h-4 w-4" />Plan Variables</CardTitle>
+                <CardDescription>Dynamic key/value pairs available to every test case and execution in this plan.</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setImportOpen((v) => !v)} className="gap-1.5">
+                  <Download className="h-4 w-4" /> Import
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setVars((p) => [...p, { key: "", value: "" }])} className="gap-1.5">
+                  <Plus className="h-4 w-4" /> Add
+                </Button>
+                <Button size="sm" onClick={() => saveVars.mutate()} disabled={saveVars.isPending} className="gap-1.5">
+                  {saveVars.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {importOpen && (
+                <div className="rounded-lg border border-accent/40 bg-accent/5 p-4 space-y-3">
+                  <p className="text-xs font-mono tracking-wider text-accent uppercase">Import variables from another plan</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <Select value={impWs} onValueChange={(v) => { setImpWs(v); setImpProj(""); setImpPlan(""); }}>
+                      <SelectTrigger><SelectValue placeholder="Workspace…" /></SelectTrigger>
+                      <SelectContent>{impWorkspaces.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={impProj} onValueChange={(v) => { setImpProj(v); setImpPlan(""); }} disabled={!impWs}>
+                      <SelectTrigger><SelectValue placeholder="Project…" /></SelectTrigger>
+                      <SelectContent>{impProjects.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={impPlan} onValueChange={setImpPlan} disabled={!impProj}>
+                      <SelectTrigger><SelectValue placeholder="Test Plan…" /></SelectTrigger>
+                      <SelectContent>{impPlans.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name} ({Array.isArray(p.variables) ? p.variables.length : 0})</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setImportOpen(false)}>Cancel</Button>
+                    <Button size="sm" onClick={doImport} disabled={!impPlan}>Import Variables</Button>
+                  </div>
+                </div>
+              )}
+
+              {vars.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No variables yet — click "Add" or import from another plan.</p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs uppercase tracking-wider text-muted-foreground">
+                    <span>Key</span><span>Value</span><span className="w-9" />
+                  </div>
+                  {vars.map((v, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                      <Input value={v.key} placeholder="BASE_URL"
+                        onChange={(e) => setVars((p) => p.map((x, idx) => idx === i ? { ...x, key: e.target.value } : x))} />
+                      <Input value={v.value} placeholder="https://api.example.com"
+                        onChange={(e) => setVars((p) => p.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x))} />
+                      <Button variant="ghost" size="icon" onClick={() => setVars((p) => p.filter((_, idx) => idx !== i))}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="md:col-span-2">
               <CardHeader>
