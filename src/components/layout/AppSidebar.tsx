@@ -26,8 +26,11 @@ import {
   LogOut,
   Bug,
   Eye,
+  Menu,
+  X,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type UserRole = Database['public']['Enums']['user_role'];
 
@@ -186,14 +189,12 @@ export function AppSidebar() {
     return classes[role] || "";
   };
 
-  const navItems = getNavItems();
+  const isMobile = useIsMobile();
+  const effectiveCollapsed = isMobile ? false : collapsed;
+  const sidebarWidth = isMobile ? 256 : (collapsed ? 72 : 256);
 
-  return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 72 : 256 }}
-      className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar"
-    >
+  const sidebarBody = (
+    <>
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
         <Link to="/dashboard" className="flex items-center gap-2">
@@ -201,7 +202,7 @@ export function AppSidebar() {
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <AnimatePresence mode="wait">
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -213,27 +214,38 @@ export function AppSidebar() {
             )}
           </AnimatePresence>
         </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
+        {isMobile ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileOpen(false)}
+            className="h-8 w-8 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapsed}
+            className="h-8 w-8 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
-          {navItems.map(renderNavItem)}
+          {navItems.map((item, i) => renderItem(item, i, effectiveCollapsed))}
         </nav>
 
         {adminNavItems.some(item => !item.roles || hasPermission(item.roles)) && (
           <>
             <div className="my-4 h-px bg-sidebar-border" />
             <nav className="space-y-1">
-              {adminNavItems.map(renderNavItem)}
+              {adminNavItems.map((item, i) => renderItem(item, i, effectiveCollapsed))}
             </nav>
           </>
         )}
@@ -242,19 +254,18 @@ export function AppSidebar() {
       {/* Bottom section */}
       <div className="border-t border-sidebar-border p-3">
         <nav className="space-y-1 mb-3">
-          {bottomNavItems.map(renderNavItem)}
+          {bottomNavItems.map((item, i) => renderItem(item, i, effectiveCollapsed))}
         </nav>
-        
-        {/* User section */}
+
         <div className={cn(
           "flex items-center gap-3 rounded-lg p-2",
-          collapsed ? "justify-center" : ""
+          effectiveCollapsed ? "justify-center" : ""
         )}>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground font-medium text-sm shrink-0">
             {user?.name?.charAt(0).toUpperCase() || "U"}
           </div>
           <AnimatePresence mode="wait">
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -271,7 +282,7 @@ export function AppSidebar() {
               </motion.div>
             )}
           </AnimatePresence>
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <Button
               variant="ghost"
               size="icon"
@@ -283,6 +294,43 @@ export function AppSidebar() {
           )}
         </div>
       </div>
-    </motion.aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile menu button (rendered in fixed position; AppLayout header also has one) */}
+      {isMobile && !mobileOpen && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setMobileOpen(true)}
+          className="fixed top-2.5 left-2 z-50 h-9 w-9 md:hidden bg-background/80 backdrop-blur border border-border/40"
+          aria-label="Open menu"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+      )}
+
+      {/* Mobile backdrop */}
+      {isMobile && mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <motion.aside
+        initial={false}
+        animate={{
+          width: sidebarWidth,
+          x: isMobile && !mobileOpen ? -sidebarWidth : 0,
+        }}
+        transition={{ type: "tween", duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        className="fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-sidebar-border bg-sidebar"
+      >
+        {sidebarBody}
+      </motion.aside>
+    </>
   );
 }
