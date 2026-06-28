@@ -47,6 +47,7 @@ import {
   Microscope,
   Clock,
 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 // Company logos for marquee
 const companyLogos = [
