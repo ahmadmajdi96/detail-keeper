@@ -263,15 +263,28 @@ export default function DefectsPage() {
     setNewDescription("");
     setNewSeverity("minor");
     setNewPriority("medium");
+    setNewTestPlanId("none");
   };
 
   // Filter defects
-  const filteredDefects = defects.filter((defect) => {
+  const filteredDefects = defects.filter((defect: any) => {
     const matchesSearch = defect.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || defect.status === statusFilter;
     const matchesSeverity = severityFilter === "all" || defect.severity === severityFilter;
-    return matchesSearch && matchesStatus && matchesSeverity;
+    const matchesProject = projectFilter === "all" || defect.project_id === projectFilter;
+    const matchesPlan = planFilter === "all" || defect.test_plan_id === planFilter;
+    const matchesReporter = reporterFilter === "all" || defect.reported_by === reporterFilter;
+    return matchesSearch && matchesStatus && matchesSeverity && matchesProject && matchesPlan && matchesReporter;
   });
+
+  // Distinct projects + reporters from the loaded set
+  const projectOptions = Array.from(
+    new Map(defects.filter((d: any) => d.project).map((d: any) => [d.project.id, d.project])).values()
+  ) as { id: string; name: string }[];
+  const reporterOptions = Array.from(
+    new Map(defects.filter((d: any) => d.reporter).map((d: any) => [d.reporter.id, d.reporter])).values()
+  ) as { id: string; name: string }[];
+
 
   // Stats
   const stats = {
