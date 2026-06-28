@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Play, CheckCircle2, XCircle, AlertTriangle, Clock, Bug, Camera, FileText, Loader2, ChevronRight, Upload, Zap } from "lucide-react";
 import type { TestExecution, TestCase, ExecutionStatus, DefectSeverity, DefectPriority } from "@/types";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
 import { AutoExecutePanel, type AutoExecItem, type AutoExecMode } from "@/components/executions/AutoExecutePanel";
 
 type ExecutionWithTestCase = TestExecution & { test_case: TestCase | null };
@@ -36,6 +37,7 @@ export default function ExecutionsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
+  const { activePlanId, activePlan, activeCaseIds } = useActiveTestPlan();
   const [selectedExecution, setSelectedExecution] = useState<ExecutionWithTestCase | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isDefectDialogOpen, setIsDefectDialogOpen] = useState(false);
@@ -73,10 +75,13 @@ export default function ExecutionsPage() {
   });
 
   const { data: testCases = [] } = useQuery({
-    queryKey: ["test-cases-for-execution", ...scopeKey],
+    queryKey: ["test-cases-for-execution", ...scopeKey, activePlanId, activeCaseIds.join(",")],
     queryFn: async () => {
+      // When an active plan is set, only its linked test cases are runnable.
+      if (activePlanId && activeCaseIds.length === 0) return [] as TestCase[];
       let q = supabase.from("test_cases").select("*").eq("status", "active");
       if (projectId) q = q.eq("project_id", projectId);
+      if (activePlanId && activeCaseIds.length > 0) q = q.in("id", activeCaseIds);
       const { data, error } = await q;
       if (error) throw error;
       return data as TestCase[];
