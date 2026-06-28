@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +16,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Play, CheckCircle2, XCircle, AlertTriangle, Clock, Bug, Camera, FileText, Loader2, ChevronRight, Upload } from "lucide-react";
+import { Play, CheckCircle2, XCircle, AlertTriangle, Clock, Bug, Camera, FileText, Loader2, ChevronRight, Upload, Zap } from "lucide-react";
 import type { TestExecution, TestCase, ExecutionStatus, DefectSeverity, DefectPriority } from "@/types";
 import { useProjectScope } from "@/hooks/useProjectScope";
+import { AutoExecutePanel, type AutoExecItem, type AutoExecMode } from "@/components/executions/AutoExecutePanel";
 
 type ExecutionWithTestCase = TestExecution & { test_case: TestCase | null };
 
@@ -42,6 +43,14 @@ export default function ExecutionsPage() {
   const [defectDescription, setDefectDescription] = useState("");
   const [defectSeverity, setDefectSeverity] = useState<DefectSeverity>("minor");
   const [defectPriority, setDefectPriority] = useState<DefectPriority>("medium");
+
+  // Auto execute state
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoMode, setAutoMode] = useState<AutoExecMode>("api");
+  const [autoItems, setAutoItems] = useState<AutoExecItem[]>([]);
+  const [liveUrl, setLiveUrl] = useState<string | undefined>(undefined);
+  const autoAbort = useRef(false);
 
   const { data: executions = [], isLoading } = useQuery({
     queryKey: ["executions", ...scopeKey],
