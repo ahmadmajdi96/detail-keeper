@@ -194,19 +194,28 @@ export default function TestPlanDetailPage() {
   const generate = useMutation({
     mutationFn: async () => {
       await supabase.from("test_plans").update({ ai_status: "running" }).eq("id", id!);
+      // Fire-and-forget: edge function returns 202 immediately and runs in background.
+      // Don't await — even if the user navigates away, the server keeps processing.
       const { error } = await supabase.functions.invoke("generate-test-plan-from-docs", {
         body: { test_plan_id: id },
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("AI generation complete");
+      toast.success("AI generation started — running in the background");
       qc.invalidateQueries({ queryKey: ["test-plan", id] });
+    },
+    onError: (e: any) => toast.error(e.message || "Generation failed to start"),
+  });
+
+  // When ai_status transitions out of "running", refresh dependent queries.
+  useEffect(() => {
+    if (plan?.ai_status === "ready" || plan?.ai_status === "failed") {
       qc.invalidateQueries({ queryKey: ["test-plan-cases", id] });
       qc.invalidateQueries({ queryKey: ["test-plan-versions", id] });
-    },
-    onError: (e: any) => toast.error(e.message || "Generation failed"),
-  });
+    }
+  }, [plan?.ai_status, id, qc]);
+
 
   const saveCase = useMutation({
     mutationFn: async () => {
