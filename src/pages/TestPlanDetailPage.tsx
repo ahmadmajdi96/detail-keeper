@@ -146,6 +146,31 @@ export default function TestPlanDetailPage() {
     },
   });
 
+  const { data: requirements = [] } = useQuery({
+    queryKey: ["test-plan-requirements", id, plan?.project_id],
+    enabled: !!id && !!plan?.project_id,
+    queryFn: async () => {
+      const caseIds = (testCases || []).map((r: any) => r.test_case?.id).filter(Boolean);
+      const { data: reqs } = await supabase
+        .from("requirements")
+        .select("id, key, title, status, priority, tags")
+        .eq("project_id", plan!.project_id)
+        .order("created_at", { ascending: false });
+      let linkedByReq: Record<string, number> = {};
+      if (caseIds.length) {
+        const { data: links } = await supabase
+          .from("requirement_links")
+          .select("requirement_id, linked_id")
+          .eq("linked_type", "test_case")
+          .in("linked_id", caseIds);
+        (links || []).forEach((l: any) => {
+          linkedByReq[l.requirement_id] = (linkedByReq[l.requirement_id] || 0) + 1;
+        });
+      }
+      return (reqs || []).map((r: any) => ({ ...r, covered_cases: linkedByReq[r.id] || 0 }));
+    },
+  });
+
   // Hydrate variables when plan loads
   useEffect(() => {
     if (!plan || varsLoaded) return;
