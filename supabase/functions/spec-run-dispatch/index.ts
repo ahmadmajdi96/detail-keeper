@@ -63,6 +63,20 @@ Deno.serve(async (req) => {
     } as any).select("*").single();
     if (jErr) return j({ error: jErr.message }, 500);
 
+    // Snapshot artifacts (all plan docs + all plan specs) for replay/re-open.
+    const { data: snapDocs } = await admin.from("test_plan_documents_v2")
+      .select("id, slug, title, kind, content, sort_order")
+      .eq("test_plan_id", spec.test_plan_id).order("sort_order");
+    const { data: snapSpecs } = await admin.from("test_plan_specs")
+      .select("id, filename, content, language, test_case_id, document_id")
+      .eq("test_plan_id", spec.test_plan_id).order("filename");
+    const artifacts_json = {
+      captured_at: new Date().toISOString(),
+      spec: { id: spec.id, filename: spec.filename, content: spec.content },
+      documents: snapDocs ?? [],
+      specs: snapSpecs ?? [],
+    };
+
     // Create spec_runs row linked to job
     const { data: run, error: rErr } = await admin.from("spec_runs").insert({
       spec_id: spec.id,
@@ -70,6 +84,7 @@ Deno.serve(async (req) => {
       project_id: spec.project_id,
       runner_job_id: job.id,
       status: "queued",
+      artifacts_json: artifacts_json as any,
       created_by: userId,
     }).select("*").single();
     if (rErr) return j({ error: rErr.message }, 500);
