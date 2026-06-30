@@ -78,7 +78,14 @@ Return STRICT JSON:
       }
     }
 
-    return j({ cases: created.length, items: created });
+    const v = created.length
+      ? await snapshotTestPlanVersion(
+          admin, test_plan_id,
+          `AI Workbench · generated ${created.length} test case(s)`,
+          userId, { stage: "test_cases" },
+        )
+      : null;
+    return j({ cases: created.length, items: created, version: v });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
