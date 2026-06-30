@@ -33,6 +33,13 @@ export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) 
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<"docs" | "cases" | "code" | "suite" | null>(null);
+  const cfgKey = `wb-cfg-${testPlanId}`;
+  const initialCfg = (() => { try { return JSON.parse(localStorage.getItem(cfgKey) || "{}"); } catch { return {}; } })();
+  const [browser, setBrowser] = useState<string>(initialCfg.browser || "chromium");
+  const [headless, setHeadless] = useState<boolean>(initialCfg.headless ?? true);
+  const [retries, setRetries] = useState<number>(initialCfg.retries ?? 0);
+  const [activeSuiteRunId, setActiveSuiteRunId] = useState<string | null>(null);
+  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries })); }, [cfgKey, browser, headless, retries]);
 
   const { data: docs = [] } = useQuery<Doc[]>({
     queryKey: ["tp-docs", testPlanId],
