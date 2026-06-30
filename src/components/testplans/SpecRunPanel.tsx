@@ -35,8 +35,12 @@ export function SpecRunPanel({ specId }: Props) {
   });
 
   useEffect(() => {
+    if (!specId) return;
+    // Unique channel per mount so re-renders / spec swaps never share a channel
+    // and double-fire invalidations.
+    const tag = `${specId}-${Math.random().toString(36).slice(2, 8)}`;
     const ch = supabase
-      .channel(`spec-runs-${specId}`)
+      .channel(`spec-runs-${tag}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "spec_runs", filter: `spec_id=eq.${specId}` },
         () => qc.invalidateQueries({ queryKey: ["spec-runs", specId] }))
       .subscribe();
