@@ -61,6 +61,10 @@ Deno.serve(async (req) => {
         filename: spec.filename,
         content: spec.content,
         test_plan_id: spec.test_plan_id,
+        suite_run_id: suite_run_id ?? null,
+        browser: _browser,
+        headless: _headless,
+        retries: _retries,
       },
       created_by: userId,
     } as any).select("*").single();
