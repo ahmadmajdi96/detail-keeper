@@ -505,7 +505,20 @@ export default function DefectsPage() {
                               <Bug className="h-4 w-4 text-destructive" />
                             </div>
                             <div>
-                              <p className="font-medium">{defect.title}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium">{defect.title}</p>
+                                {(defect as any).jira_issue_key && (
+                                  <a
+                                    href={(defect as any).jira_issue_url ?? "#"}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] font-mono px-1.5 py-0.5 hover:bg-sky-500/20"
+                                  >
+                                    {(defect as any).jira_issue_key}
+                                  </a>
+                                )}
+                              </div>
                               <p className="text-xs text-muted-foreground line-clamp-1">
                                 {defect.description || "No description"}
                               </p>
