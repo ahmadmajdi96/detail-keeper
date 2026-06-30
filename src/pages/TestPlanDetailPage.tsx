@@ -568,6 +568,61 @@ export default function TestPlanDetailPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="requirements">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-accent" /> Requirements Coverage
+              </CardTitle>
+              <CardDescription>
+                Project requirements and how many test cases in this plan cover each.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {requirements.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <BookOpen className="mx-auto h-10 w-10 mb-3 opacity-50" />
+                  <p className="text-sm">No requirements defined for this project yet.</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/requirements")}>
+                    Manage Requirements
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {requirements.map((r: any) => (
+                    <div key={r.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {r.key && <Badge variant="outline" className="text-[10px] font-mono">{r.key}</Badge>}
+                          <p className="text-sm font-medium truncate">{r.title}</p>
+                        </div>
+                        {r.tags?.length > 0 && (
+                          <div className="flex gap-1 flex-wrap">
+                            {r.tags.slice(0, 4).map((t: string, i: number) => (
+                              <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" className="text-xs">P{r.priority}</Badge>
+                        <StatusBadge
+                          variant={r.covered_cases > 0 ? "success" : "warning"}
+                          size="sm"
+                        >
+                          {r.covered_cases} case{r.covered_cases === 1 ? "" : "s"}
+                        </StatusBadge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+
         <TabsContent value="cases">
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
