@@ -40,6 +40,7 @@ function inferType(tc: any): TestType {
 
 export default function TestPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { job: genJob } = useLatestJobForPlan(id || null);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
