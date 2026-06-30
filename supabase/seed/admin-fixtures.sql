@@ -72,7 +72,7 @@ BEGIN
     ON CONFLICT DO NOTHING;
 
   INSERT INTO public.defects (id, project_id, workspace_id, title, description, status, severity, priority, reported_by)
-    VALUES (v_defect, v_proj, v_ws, 'Demo defect', 'Captured by admin fixtures', 'open', 'high', 'medium', v_owner)
+    VALUES (v_defect, v_proj, v_ws, 'Demo defect', 'Captured by admin fixtures', 'open', 'major', 'medium', v_owner)
     ON CONFLICT (id) DO NOTHING;
   INSERT INTO public.defect_comments (defect_id, author_id, body)
     VALUES (v_defect, v_owner, 'Initial triage comment')
