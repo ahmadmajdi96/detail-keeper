@@ -458,6 +458,7 @@ export default function TestPlanDetailPage() {
           <TabsTrigger value="ai"><Sparkles className="mr-2 h-4 w-4" />AI Generation</TabsTrigger>
           <TabsTrigger value="versions"><GitBranch className="mr-2 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
           <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length})</TabsTrigger>
+          <TabsTrigger value="workbench"><Sparkles className="mr-2 h-4 w-4" />Workbench</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
