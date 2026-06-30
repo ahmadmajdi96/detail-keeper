@@ -670,7 +670,7 @@ export default function TestPlanDetailPage() {
                             key={link.id}
                             className="group flex items-start justify-between gap-3 p-3 rounded-lg border bg-card hover:border-accent/40 transition-colors"
                           >
-                            <Link to={`/test-cases/${tc.id}/edit`} className="flex-1 min-w-0">
+                            <Link to={`/test-cases/${tc.id}/edit?planId=${id}`} className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <p className="text-sm font-medium truncate">{tc.title}</p>
                                 {tc.ai_generated && <Sparkles className="h-3 w-3 text-accent shrink-0" />}
