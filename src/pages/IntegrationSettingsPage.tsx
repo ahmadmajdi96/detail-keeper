@@ -524,7 +524,7 @@ function JiraMappingForm({
 }: {
   projects: Array<{ id: string; name: string }>;
   sites: Array<{ id: string; url: string; name: string }>;
-  onAdd: (f: any) => Promise<void>;
+  onAdd: (f: any) => Promise<unknown>;
 }) {
   const [form, setForm] = useState({ project_id: "", jira_cloud_id: "", jira_project_key: "", rule_match: "summary", rule_labels: "" });
   return (
@@ -584,7 +584,7 @@ function GhMappingForm({
   onAdd,
 }: {
   projects: Array<{ id: string; name: string }>;
-  onAdd: (f: any) => Promise<void>;
+  onAdd: (f: any) => Promise<unknown>;
 }) {
   const [form, setForm] = useState({ project_id: "", owner: "", repo: "", default_branch: "main", test_plan_id: "" });
   return (
