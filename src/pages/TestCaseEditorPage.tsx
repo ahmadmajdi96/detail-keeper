@@ -261,9 +261,9 @@ export default function TestCaseEditorPage() {
           description="Define test steps, expected results, and preconditions"
           actions={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => navigate("/test-cases")}>
+              <Button variant="outline" onClick={() => navigate(backHref)}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Cancel
+                {backLabel}
               </Button>
               <Button
                 className="ai-gradient text-white"
