@@ -72,8 +72,29 @@ Deno.serve(async (req) => {
       { onConflict: "workspace_id,slug" },
     );
 
+    await admin.from("integration_activity_log").insert({
+      workspace_id: state.workspace_id,
+      provider: "github",
+      kind: "oauth_callback",
+      status: "ok",
+      message: `Linked @${me?.login ?? ""}`,
+      user_id: state.userId,
+    });
+
     return popupResponseHtml({ ok: true, origin: state.origin, provider: "github", message: `Linked @${me?.login ?? ""}` });
   } catch (e) {
+    try {
+      const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+      await admin.from("integration_activity_log").insert({
+        workspace_id: state?.workspace_id,
+        provider: "github",
+        kind: "oauth_callback",
+        status: "error",
+        message: String(e),
+        user_id: state?.userId,
+      });
+    } catch (_) { /* swallow */ }
     return popupResponseHtml({ ok: false, origin: state?.origin ?? "*", provider: "github", message: String(e) });
   }
 });
+
