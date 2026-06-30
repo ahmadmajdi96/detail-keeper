@@ -17,9 +17,9 @@ DECLARE
   v_aijob  uuid := '00000000-0000-0000-0000-00000000a00b';
   v_owner  uuid;
 BEGIN
-  SELECT id INTO v_owner FROM auth.users ORDER BY created_at LIMIT 1;
+  SELECT id INTO v_owner FROM public.profiles ORDER BY created_at LIMIT 1;
   IF v_owner IS NULL THEN
-    RAISE NOTICE 'No auth user found; skipping admin fixtures';
+    RAISE NOTICE 'No profile found; skipping admin fixtures';
     RETURN;
   END IF;
 
