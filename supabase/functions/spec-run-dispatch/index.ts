@@ -17,8 +17,11 @@ Deno.serve(async (req) => {
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
     const userId = claims.claims.sub;
 
-    const { spec_id, runner_id } = await req.json();
+    const { spec_id, runner_id, suite_run_id, browser, headless, retries } = await req.json();
     if (!spec_id) return j({ error: "spec_id required" }, 400);
+    const _browser = browser || "chromium";
+    const _headless = headless === undefined ? true : !!headless;
+    const _retries = Number.isInteger(retries) ? retries : 0;
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -58,6 +61,10 @@ Deno.serve(async (req) => {
         filename: spec.filename,
         content: spec.content,
         test_plan_id: spec.test_plan_id,
+        suite_run_id: suite_run_id ?? null,
+        browser: _browser,
+        headless: _headless,
+        retries: _retries,
       },
       created_by: userId,
     } as any).select("*").single();
@@ -77,12 +84,16 @@ Deno.serve(async (req) => {
       specs: snapSpecs ?? [],
     };
 
-    // Create spec_runs row linked to job
+    // Create spec_runs row linked to job + parent suite_run
     const { data: run, error: rErr } = await admin.from("spec_runs").insert({
       spec_id: spec.id,
       test_plan_id: spec.test_plan_id,
       project_id: spec.project_id,
       runner_job_id: job.id,
+      suite_run_id: suite_run_id ?? null,
+      browser: _browser,
+      headless: _headless,
+      retries: _retries,
       status: "queued",
       artifacts_json: artifacts_json as any,
       created_by: userId,
@@ -100,6 +111,9 @@ Deno.serve(async (req) => {
             spec_run_id: run.id,
             filename: spec.filename,
             content: spec.content,
+            browser: _browser,
+            headless: _headless,
+            retries: _retries,
             callback_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/runner-callback`,
           }),
         });

@@ -7,9 +7,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X,
-  ListChecks, FolderTree, Rocket,
+  ListChecks, FolderTree, Rocket, Settings2,
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
+import { SuiteRunProgress } from "./SuiteRunProgress";
+import { ArtifactViewer } from "./ArtifactViewer";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 type Doc = { id: string; slug: string; title: string; kind: string; content: string; sort_order: number };
 type Spec = { id: string; filename: string; content: string; document_id: string | null; test_case_id: string | null };
@@ -20,12 +27,19 @@ type OpenFile =
 
 interface Props { testPlanId: string; projectId: string }
 
-export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) {
+export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const qc = useQueryClient();
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<"docs" | "cases" | "code" | "suite" | null>(null);
+  const cfgKey = `wb-cfg-${testPlanId}`;
+  const initialCfg = (() => { try { return JSON.parse(localStorage.getItem(cfgKey) || "{}"); } catch { return {}; } })();
+  const [browser, setBrowser] = useState<string>(initialCfg.browser || "chromium");
+  const [headless, setHeadless] = useState<boolean>(initialCfg.headless ?? true);
+  const [retries, setRetries] = useState<number>(initialCfg.retries ?? 0);
+  const [activeSuiteRunId, setActiveSuiteRunId] = useState<string | null>(null);
+  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries })); }, [cfgKey, browser, headless, retries]);
 
   const { data: docs = [] } = useQuery<Doc[]>({
     queryKey: ["tp-docs", testPlanId],
@@ -144,13 +158,28 @@ export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) 
     if (specs.length === 0) { toast.error("No specs to run"); return; }
     setBusy("suite");
     try {
+      // Create parent suite_run with chosen config
+      const projectId2 = (specs[0] as any)?.project_id || projectId;
+      const { data: suite, error: sErr } = await supabase.from("suite_runs" as any).insert({
+        test_plan_id: testPlanId, project_id: projectId2,
+        browser, headless, retries,
+        config_json: { browser, headless, retries, spec_count: specs.length },
+        total_specs: specs.length,
+      }).select("id").single();
+      if (sErr) throw sErr;
+      const suiteRunId = (suite as any).id as string;
+      setActiveSuiteRunId(suiteRunId);
+
       let ok = 0;
       for (const s of specs) {
-        const { error } = await supabase.functions.invoke("spec-run-dispatch", { body: { spec_id: s.id } });
+        const { error } = await supabase.functions.invoke("spec-run-dispatch", {
+          body: { spec_id: s.id, suite_run_id: suiteRunId, browser, headless, retries },
+        });
         if (!error) ok++;
       }
-      toast.success(`Dispatched ${ok}/${specs.length} specs to the runner`);
+      toast.success(`Dispatched ${ok}/${specs.length} specs · live progress below`);
       qc.invalidateQueries({ queryKey: ["spec-runs"] });
+      qc.invalidateQueries({ queryKey: ["suite-spec-runs", suiteRunId] });
     } catch (e: any) {
       toast.error(e.message || "Suite run failed");
     } finally { setBusy(null); }
@@ -159,7 +188,9 @@ export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) 
   const runSpec = async () => {
     if (!currentFile || currentFile.kind !== "spec") return;
     try {
-      const { error } = await supabase.functions.invoke("spec-run-dispatch", { body: { spec_id: currentFile.id } });
+      const { error } = await supabase.functions.invoke("spec-run-dispatch", {
+        body: { spec_id: currentFile.id, browser, headless, retries },
+      });
       if (error) throw error;
       toast.success("Spec dispatched");
     } catch (e: any) {
@@ -199,11 +230,42 @@ export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) 
             {busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
             3. Generate Playwright Code
           </Button>
-          <Button size="sm" disabled={busy !== null || specs.length === 0} onClick={runSuite}
-            className="bg-accent text-accent-foreground hover:bg-accent/90">
-            {busy === "suite" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1" />}
-            Run Suite ({specs.length})
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" disabled={busy !== null || specs.length === 0}
+                className="bg-accent text-accent-foreground hover:bg-accent/90">
+                {busy === "suite" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1" />}
+                Run Suite ({specs.length})
+                <Settings2 className="h-3 w-3 ml-1.5 opacity-70" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 space-y-3">
+              <div className="text-xs font-semibold flex items-center gap-1"><Settings2 className="h-3 w-3" /> Run configuration</div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Browser</Label>
+                <Select value={browser} onValueChange={setBrowser}>
+                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="chromium">Chromium</SelectItem>
+                    <SelectItem value="firefox">Firefox</SelectItem>
+                    <SelectItem value="webkit">WebKit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="hl" className="text-xs">Headless</Label>
+                <Switch id="hl" checked={headless} onCheckedChange={setHeadless} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Retries</Label>
+                <Input type="number" min={0} max={5} value={retries} className="h-8"
+                  onChange={(e) => setRetries(Math.max(0, Math.min(5, parseInt(e.target.value) || 0)))} />
+              </div>
+              <Button size="sm" className="w-full" onClick={runSuite} disabled={busy !== null}>
+                <Rocket className="h-3.5 w-3.5 mr-1" /> Dispatch suite
+              </Button>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -330,6 +392,12 @@ export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) 
             <SpecRunPanel specId={currentFile.id} />
           )}
         </section>
+      </div>
+
+      {activeSuiteRunId && <SuiteRunProgress suiteRunId={activeSuiteRunId} />}
+
+      <div className="p-3 border-t border-border/50">
+        <ArtifactViewer testPlanId={testPlanId} />
       </div>
     </div>
   );
