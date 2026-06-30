@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
-  Plus, Edit3, Trash2, Layers, Variable, Download, Save,
+  Plus, Edit3, Trash2, Layers, Variable, Download, Save, BookOpen,
 } from "lucide-react";
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
@@ -143,6 +143,31 @@ export default function TestPlanDetailPage() {
         .order("created_at", { ascending: false })
         .limit(50);
       return data || [];
+    },
+  });
+
+  const { data: requirements = [] } = useQuery({
+    queryKey: ["test-plan-requirements", id, plan?.project_id],
+    enabled: !!id && !!plan?.project_id,
+    queryFn: async () => {
+      const caseIds = (testCases || []).map((r: any) => r.test_case?.id).filter(Boolean);
+      const { data: reqs } = await supabase
+        .from("requirements")
+        .select("id, key, title, status, priority, tags")
+        .eq("project_id", plan!.project_id)
+        .order("created_at", { ascending: false });
+      let linkedByReq: Record<string, number> = {};
+      if (caseIds.length) {
+        const { data: links } = await supabase
+          .from("requirement_links")
+          .select("requirement_id, linked_id")
+          .eq("linked_type", "test_case")
+          .in("linked_id", caseIds);
+        (links || []).forEach((l: any) => {
+          linkedByReq[l.requirement_id] = (linkedByReq[l.requirement_id] || 0) + 1;
+        });
+      }
+      return (reqs || []).map((r: any) => ({ ...r, covered_cases: linkedByReq[r.id] || 0 }));
     },
   });
 
@@ -343,14 +368,9 @@ export default function TestPlanDetailPage() {
         actions={
           <Button
             className="ai-gradient text-white"
-            onClick={() => generate.mutate()}
-            disabled={generate.isPending || plan.ai_status === "running"}
+            onClick={() => setTab("workbench")}
           >
-            {generate.isPending || plan.ai_status === "running" ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating…</>
-            ) : (
-              <><Sparkles className="mr-2 h-4 w-4" /> Generate with AI</>
-            )}
+            <Sparkles className="mr-2 h-4 w-4" /> Generate with AI
           </Button>
         }
       />
@@ -452,14 +472,15 @@ export default function TestPlanDetailPage() {
       </motion.div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex-wrap h-auto">
           <TabsTrigger value="overview"><FileText className="mr-2 h-4 w-4" />Overview</TabsTrigger>
-          <TabsTrigger value="cases"><ListChecks className="mr-2 h-4 w-4" />Test Cases ({testCases.length})</TabsTrigger>
+          <TabsTrigger value="requirements"><BookOpen className="mr-2 h-4 w-4" />Requirements</TabsTrigger>
           <TabsTrigger value="variables"><Variable className="mr-2 h-4 w-4" />Variables ({vars.filter(v => v.key.trim()).length})</TabsTrigger>
+          <TabsTrigger value="workbench"><Sparkles className="mr-2 h-4 w-4" />AI Workbench</TabsTrigger>
+          <TabsTrigger value="cases"><ListChecks className="mr-2 h-4 w-4" />Test Cases ({testCases.length})</TabsTrigger>
+          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length})</TabsTrigger>
           <TabsTrigger value="ai"><Sparkles className="mr-2 h-4 w-4" />AI Generation</TabsTrigger>
           <TabsTrigger value="versions"><GitBranch className="mr-2 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
-          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length})</TabsTrigger>
-          <TabsTrigger value="workbench"><Sparkles className="mr-2 h-4 w-4" />Workbench</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -546,6 +567,61 @@ export default function TestPlanDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="requirements">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-accent" /> Requirements Coverage
+              </CardTitle>
+              <CardDescription>
+                Project requirements and how many test cases in this plan cover each.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {requirements.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <BookOpen className="mx-auto h-10 w-10 mb-3 opacity-50" />
+                  <p className="text-sm">No requirements defined for this project yet.</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/requirements")}>
+                    Manage Requirements
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {requirements.map((r: any) => (
+                    <div key={r.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {r.key && <Badge variant="outline" className="text-[10px] font-mono">{r.key}</Badge>}
+                          <p className="text-sm font-medium truncate">{r.title}</p>
+                        </div>
+                        {r.tags?.length > 0 && (
+                          <div className="flex gap-1 flex-wrap">
+                            {r.tags.slice(0, 4).map((t: string, i: number) => (
+                              <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" className="text-xs">P{r.priority}</Badge>
+                        <StatusBadge
+                          variant={r.covered_cases > 0 ? "success" : "warning"}
+                          size="sm"
+                        >
+                          {r.covered_cases} case{r.covered_cases === 1 ? "" : "s"}
+                        </StatusBadge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
 
         <TabsContent value="cases">
           <Card>

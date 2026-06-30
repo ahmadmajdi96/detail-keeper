@@ -2407,6 +2407,7 @@ export type Database = {
       }
       spec_runs: {
         Row: {
+          artifacts_json: Json | null
           created_at: string
           created_by: string | null
           finished_at: string | null
@@ -2423,6 +2424,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artifacts_json?: Json | null
           created_at?: string
           created_by?: string | null
           finished_at?: string | null
@@ -2439,6 +2441,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artifacts_json?: Json | null
           created_at?: string
           created_by?: string | null
           finished_at?: string | null
@@ -3069,6 +3072,7 @@ export type Database = {
           id: string
           language: string
           project_id: string
+          test_case_id: string | null
           test_plan_id: string
           updated_at: string
         }
@@ -3081,6 +3085,7 @@ export type Database = {
           id?: string
           language?: string
           project_id: string
+          test_case_id?: string | null
           test_plan_id: string
           updated_at?: string
         }
@@ -3093,6 +3098,7 @@ export type Database = {
           id?: string
           language?: string
           project_id?: string
+          test_case_id?: string | null
           test_plan_id?: string
           updated_at?: string
         }
@@ -3109,6 +3115,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_plan_specs_test_case_id_fkey"
+            columns: ["test_case_id"]
+            isOneToOne: false
+            referencedRelation: "test_cases"
             referencedColumns: ["id"]
           },
           {

@@ -3,28 +3,29 @@ import Editor from "@monaco-editor/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X, CheckCircle2, XCircle, Clock } from "lucide-react";
+import {
+  FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X,
+  ListChecks, FolderTree, Rocket,
+} from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
 
 type Doc = { id: string; slug: string; title: string; kind: string; content: string; sort_order: number };
-type Spec = { id: string; filename: string; content: string; document_id: string | null };
+type Spec = { id: string; filename: string; content: string; document_id: string | null; test_case_id: string | null };
+type TCRow = { test_case: { id: string; title: string; priority: number } };
 type OpenFile =
   | { kind: "doc"; id: string; label: string }
   | { kind: "spec"; id: string; label: string };
 
 interface Props { testPlanId: string; projectId: string }
 
-export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
+export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) {
   const qc = useQueryClient();
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [generatingDocs, setGeneratingDocs] = useState(false);
-  const [generatingCode, setGeneratingCode] = useState(false);
+  const [busy, setBusy] = useState<"docs" | "cases" | "code" | "suite" | null>(null);
 
   const { data: docs = [] } = useQuery<Doc[]>({
     queryKey: ["tp-docs", testPlanId],
@@ -48,7 +49,19 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     },
   });
 
-  // Realtime: invalidate when docs/specs change for this plan.
+  const { data: caseRows = [] } = useQuery<TCRow[]>({
+    queryKey: ["tp-wb-cases", testPlanId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("test_plan_test_cases")
+        .select("test_case:test_cases!test_plan_test_cases_test_case_id_fkey(id, title, priority)")
+        .eq("test_plan_id", testPlanId);
+      if (error) throw error;
+      return (data ?? []) as any;
+    },
+  });
+  const cases = caseRows.map(r => r.test_case).filter(Boolean);
+
   useEffect(() => {
     const ch = supabase
       .channel(`tp-wb-${testPlanId}`)
@@ -56,6 +69,11 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         () => qc.invalidateQueries({ queryKey: ["tp-docs", testPlanId] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "test_plan_specs", filter: `test_plan_id=eq.${testPlanId}` },
         () => qc.invalidateQueries({ queryKey: ["tp-specs", testPlanId] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "test_plan_test_cases", filter: `test_plan_id=eq.${testPlanId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["tp-wb-cases", testPlanId] });
+          qc.invalidateQueries({ queryKey: ["test-plan-cases", testPlanId] });
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [testPlanId, qc]);
@@ -102,63 +120,89 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     onError: (e: any) => toast.error(e.message || "Save failed"),
   });
 
-  const runGenerateDocs = async () => {
-    setGeneratingDocs(true);
+  async function runStep(step: "docs" | "cases" | "code", fn: string, body: any, label: string) {
+    setBusy(step);
     try {
-      const { data, error } = await supabase.functions.invoke("tp-generate-docs", { body: { test_plan_id: testPlanId } });
+      const { data, error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
-      toast.success(`Generated ${data?.documents?.length ?? 0} documents`);
+      toast.success(label + (data?.cases ? ` — ${data.cases} cases` : data?.specs ? ` — ${data.specs} specs` : data?.documents?.length ? ` — ${data.documents.length} docs` : ""));
       qc.invalidateQueries({ queryKey: ["tp-docs", testPlanId] });
-    } catch (e: any) {
-      toast.error(e.message || "Generation failed");
-    } finally { setGeneratingDocs(false); }
-  };
-
-  const runGenerateCode = async () => {
-    setGeneratingCode(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("tp-generate-cases-and-code", { body: { test_plan_id: testPlanId } });
-      if (error) throw error;
-      toast.success(`Generated ${data?.specs ?? 0} specs and ${data?.cases ?? 0} test cases`);
       qc.invalidateQueries({ queryKey: ["tp-specs", testPlanId] });
+      qc.invalidateQueries({ queryKey: ["tp-wb-cases", testPlanId] });
       qc.invalidateQueries({ queryKey: ["test-plan-cases", testPlanId] });
     } catch (e: any) {
-      toast.error(e.message || "Generation failed");
-    } finally { setGeneratingCode(false); }
+      toast.error(e.message || "Step failed");
+    } finally { setBusy(null); }
+  }
+
+  const runSuite = async () => {
+    if (specs.length === 0) { toast.error("No specs to run"); return; }
+    setBusy("suite");
+    try {
+      let ok = 0;
+      for (const s of specs) {
+        const { error } = await supabase.functions.invoke("spec-run-dispatch", { body: { spec_id: s.id } });
+        if (!error) ok++;
+      }
+      toast.success(`Dispatched ${ok}/${specs.length} specs to the runner`);
+      qc.invalidateQueries({ queryKey: ["spec-runs"] });
+    } catch (e: any) {
+      toast.error(e.message || "Suite run failed");
+    } finally { setBusy(null); }
   };
 
   const runSpec = async () => {
     if (!currentFile || currentFile.kind !== "spec") return;
     try {
-      const { data, error } = await supabase.functions.invoke("spec-run-dispatch", { body: { spec_id: currentFile.id } });
+      const { error } = await supabase.functions.invoke("spec-run-dispatch", { body: { spec_id: currentFile.id } });
       if (error) throw error;
       toast.success("Spec dispatched");
-      return data?.spec_run_id as string;
     } catch (e: any) {
       toast.error(e.message || "Run failed");
     }
   };
 
+  // Group specs by test case
+  const specsByCase = new Map<string, Spec[]>();
+  const unlinkedSpecs: Spec[] = [];
+  specs.forEach(s => {
+    if (s.test_case_id) {
+      if (!specsByCase.has(s.test_case_id)) specsByCase.set(s.test_case_id, []);
+      specsByCase.get(s.test_case_id)!.push(s);
+    } else unlinkedSpecs.push(s);
+  });
+
   return (
     <div className="border border-border/50 rounded-lg overflow-hidden bg-card">
       <div className="flex items-center justify-between border-b border-border/50 px-3 py-2 bg-muted/30">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Sparkles className="h-4 w-4 text-accent" /> Test Plan Workbench
+          <Sparkles className="h-4 w-4 text-accent" /> AI Workbench
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={runGenerateDocs} disabled={generatingDocs}>
-            {generatingDocs ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" disabled={busy !== null}
+            onClick={() => runStep("docs", "tp-generate-docs", { test_plan_id: testPlanId }, "Generated documents")}>
+            {busy === "docs" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
             1. Generate 10 Documents
           </Button>
-          <Button size="sm" variant="outline" onClick={runGenerateCode} disabled={generatingCode || docs.length === 0}>
-            {generatingCode ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-            2. Generate Cases &amp; Code
+          <Button size="sm" variant="outline" disabled={busy !== null || docs.length === 0}
+            onClick={() => runStep("cases", "tp-generate-cases", { test_plan_id: testPlanId }, "Generated test cases")}>
+            {busy === "cases" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
+            2. Generate Test Cases
+          </Button>
+          <Button size="sm" variant="outline" disabled={busy !== null || cases.length === 0}
+            onClick={() => runStep("code", "tp-generate-code", { test_plan_id: testPlanId }, "Generated Playwright code")}>
+            {busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
+            3. Generate Playwright Code
+          </Button>
+          <Button size="sm" disabled={busy !== null || specs.length === 0} onClick={runSuite}
+            className="bg-accent text-accent-foreground hover:bg-accent/90">
+            {busy === "suite" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1" />}
+            Run Suite ({specs.length})
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-12 min-h-[600px]">
-        {/* File tree */}
         <aside className="col-span-3 border-r border-border/50 bg-muted/10">
           <ScrollArea className="h-[600px]">
             <div className="p-3 space-y-4">
@@ -166,7 +210,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
                   <FileText className="h-3 w-3" /> Documents ({docs.length})
                 </div>
-                {docs.length === 0 && <p className="text-xs text-muted-foreground">No documents yet — click <em>Generate 10 Documents</em>.</p>}
+                {docs.length === 0 && <p className="text-xs text-muted-foreground">Run step 1 to generate.</p>}
                 <div className="space-y-0.5">
                   {docs.map(d => (
                     <button key={d.id}
@@ -177,28 +221,53 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                   ))}
                 </div>
               </div>
+
               <div>
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
-                  <FileCode2 className="h-3 w-3" /> Specs ({specs.length})
+                  <FolderTree className="h-3 w-3" /> Test Cases &amp; Specs ({cases.length})
                 </div>
-                {specs.length === 0 && <p className="text-xs text-muted-foreground">No specs yet — generate documents then code.</p>}
-                <div className="space-y-0.5">
-                  {specs.map(s => (
-                    <button key={s.id}
-                      onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
-                      className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
-                      <span className="text-accent">🧪</span> {s.filename}
-                    </button>
-                  ))}
+                {cases.length === 0 && <p className="text-xs text-muted-foreground">Run step 2 to generate.</p>}
+                <div className="space-y-1">
+                  {cases.map(c => {
+                    const caseSpecs = specsByCase.get(c.id) || [];
+                    return (
+                      <div key={c.id} className="space-y-0.5">
+                        <div className="text-[11px] px-2 py-1 text-foreground truncate">
+                          <span className="text-accent">🧪</span> {c.title}
+                          <span className="ml-1 text-muted-foreground">P{c.priority}</span>
+                        </div>
+                        {caseSpecs.map(s => (
+                          <button key={s.id}
+                            onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
+                            className="w-full text-left text-xs pl-6 pr-2 py-1 rounded hover:bg-muted/50 truncate">
+                            <span className="text-cyan-400">⚡</span> {s.filename}
+                          </button>
+                        ))}
+                        {caseSpecs.length === 0 && (
+                          <div className="text-[10px] pl-6 text-muted-foreground italic">no spec yet — run step 3</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {unlinkedSpecs.length > 0 && (
+                    <div className="pt-2 mt-2 border-t border-border/30">
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">Other specs</div>
+                      {unlinkedSpecs.map(s => (
+                        <button key={s.id}
+                          onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
+                          className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
+                          <span className="text-cyan-400">⚡</span> {s.filename}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </ScrollArea>
         </aside>
 
-        {/* Editor */}
         <section className="col-span-9 flex flex-col">
-          {/* Tab bar */}
           <div className="flex items-center border-b border-border/50 bg-muted/20 overflow-x-auto">
             {openFiles.length === 0 && (
               <div className="px-3 py-2 text-xs text-muted-foreground">Open a file from the sidebar to edit.</div>
@@ -235,7 +304,6 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             )}
           </div>
 
-          {/* Monaco */}
           <div className="flex-1 min-h-[400px]">
             {currentFile ? (
               <Editor
@@ -253,7 +321,6 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             )}
           </div>
 
-          {/* Run output for active spec */}
           {currentFile?.kind === "spec" && (
             <SpecRunPanel specId={currentFile.id} />
           )}
