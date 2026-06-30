@@ -84,12 +84,16 @@ Deno.serve(async (req) => {
       specs: snapSpecs ?? [],
     };
 
-    // Create spec_runs row linked to job
+    // Create spec_runs row linked to job + parent suite_run
     const { data: run, error: rErr } = await admin.from("spec_runs").insert({
       spec_id: spec.id,
       test_plan_id: spec.test_plan_id,
       project_id: spec.project_id,
       runner_job_id: job.id,
+      suite_run_id: suite_run_id ?? null,
+      browser: _browser,
+      headless: _headless,
+      retries: _retries,
       status: "queued",
       artifacts_json: artifacts_json as any,
       created_by: userId,
