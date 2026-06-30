@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     const { data: run, error: runErr } = await admin.from("cycle_runs").insert({
       cycle_id: resolvedCycle, project_id,
       name: `${runner.name} #${Date.now().toString().slice(-5)}`,
-      status: "queued", executor_id: userId,
+      status: "planned", executor_id: userId,
     } as any).select("id").single();
     if (runErr) return json({ error: runErr.message }, 500);
 
