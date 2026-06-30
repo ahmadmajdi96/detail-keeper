@@ -483,6 +483,11 @@ export default function TestPlanDetailPage() {
           <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length})</TabsTrigger>
           <TabsTrigger value="ai"><Sparkles className="mr-2 h-4 w-4" />AI Generation</TabsTrigger>
           <TabsTrigger value="versions"><GitBranch className="mr-2 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
+          <TabsTrigger value="runners"><Server className="mr-2 h-4 w-4" />Runners</TabsTrigger>
+          <TabsTrigger value="defects"><Bug className="mr-2 h-4 w-4" />Defects</TabsTrigger>
+          <TabsTrigger value="gates"><ShieldCheck className="mr-2 h-4 w-4" />Quality Gates</TabsTrigger>
+          <TabsTrigger value="reports"><BarChart3 className="mr-2 h-4 w-4" />Reports</TabsTrigger>
+          <TabsTrigger value="live"><Radio className="mr-2 h-4 w-4" />Live</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
