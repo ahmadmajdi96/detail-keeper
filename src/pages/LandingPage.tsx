@@ -239,25 +239,28 @@ const personas = [
 ];
 
 const bento = [
-  { icon: Layers, title: "Unified Platform", desc: "Stop searching ten tools for one answer. Qualixa unifies your data and turns it into instant decisions." },
-  { icon: Eye, title: "Cognitive Profiles", desc: "A living quality profile for every feature — patterns, strengths, and hidden risks." },
-  { icon: Zap, title: "Instant Automation", desc: "Triage, routing, and reporting handled the moment a run completes." },
-  { icon: Clock, title: "Your Time Back", desc: "Twelve-plus hours saved weekly. Reports, triage, and follow-ups — automated." },
+  { icon: Wand2, title: "AI Workbench", desc: "Generate 10 living test docs, derive test cases, and synthesize Playwright code per case — all from a Monaco multi-tab editor." },
+  { icon: Play, title: "One-Click Run Suite", desc: "Dispatch generated specs to registered runners with inline browser, headless, and retry config. Watch progress stream in real time." },
+  { icon: Database, title: "Replayable Artifacts", desc: "Every suite run snapshots its docs JSON and per-case .spec.ts files so you can reopen, inspect, and rerun any historical run." },
+  { icon: Eye, title: "Cognitive Profiles", desc: "A living quality profile per feature — requirements, variables, benchmarks, and hidden risks in one view." },
 ];
 
 const days = [
-  { day: "Day 1", title: "Give your team their time back.",
-    body: "Automate triage, reporting, and everyday QA admin in one place — so engineers focus on testing, not data entry.",
-    magic: "Engineers stop managing systems and start improving quality." },
-  { day: "Day 2", title: "Turn coverage into momentum.",
-    body: "Transform regression suites into focused Quests that keep teams executing, learning, and progressing release after release.",
-    magic: "Teams stay engaged because the work feels purposeful, not repetitive." },
-  { day: "Day 3 and beyond", title: "See the risk behind every release.",
-    body: "Go beyond dashboards with Qualixa DNA. Understand how your product behaves, spot risk earlier, and intervene before it ships.",
-    magic: "You catch regressions and risk early — before they affect customers." },
+  { day: "Day 1", title: "Ingest, then generate.",
+    body: "Point Qualixa at your docs or repo. The AI Workbench produces 10 test plan documents, requirements, variables, benchmarks, and per-case Playwright code in one flow.",
+    magic: "What used to take a sprint of authoring lands in minutes." },
+  { day: "Day 2", title: "Run the suite, watch it live.",
+    body: "Hit Run Suite to dispatch every generated spec to your registered runner with the browser, headless, and retry settings you choose. Per-case status streams back in real time.",
+    magic: "Executions stop being a black box — every case reports as it finishes." },
+  { day: "Day 3 and beyond", title: "Reopen, replay, ship with confidence.",
+    body: "Each suite run archives its docs and .spec.ts artifacts. Reopen any past run in the Workbench, browse the files, and rerun with the exact same configuration.",
+    magic: "Quality history becomes an asset you can audit, diff, and re-execute on demand." },
 ];
 
 const faqs = [
+  { q: "What is the AI Workbench?", a: "A Monaco multi-tab editor inside every Test Plan. It runs the AI through generate-docs → generate-cases → generate-code, so you end up with up to 10 living docs and a Playwright .spec.ts per test case — all editable in place." },
+  { q: "How does one-click Run Suite work?", a: "Run Suite dispatches every generated spec to a registered runner with your chosen browser, headless mode, and retry count. A suite_run row tracks rollup status while per-spec progress streams back into the Workbench in real time." },
+  { q: "Can I reopen and rerun a past suite?", a: "Yes. Every spec_run archives a snapshot of the docs JSON and per-case Playwright files. The Artifact Viewer lets you browse, download, and rerun any historical suite with the exact original configuration." },
   { q: "What is Qualixa and who is it for?", a: "Qualixa is an AI-powered quality intelligence platform for engineering organizations that want one connected system for test management, execution, defects, and analytics." },
   { q: "Can Qualixa replace our existing test management tool?", a: "Yes. Qualixa consolidates planning, authoring, execution, defects, and reporting. Most teams migrate existing assets via our importers in days, not weeks." },
   { q: "Does Qualixa fit small teams as well as enterprises?", a: "Yes. The platform scales from a single squad to multi-org deployments with workspaces, projects, RBAC, and SSO." },
@@ -404,6 +407,7 @@ export default function LandingPage() {
               <div className="hidden md:flex items-center gap-8">
                 {[
                   { label: "Product", href: "#product" },
+                  { label: "Workbench", href: "#workbench" },
                   { label: "DNA", href: "#dna" },
                   { label: "Pricing", href: "#pricing" },
                   { label: "Resources", href: "#faq" },
@@ -441,10 +445,10 @@ export default function LandingPage() {
         >
           <div className="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-8 items-center">
             <div>
-              <a href="#product" className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[hsl(187,92%,50%)/0.4] bg-[hsl(187,92%,50%)/0.05] backdrop-blur-xl mb-8 animate-fade-in-up group">
+              <a href="#workbench" className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[hsl(187,92%,50%)/0.4] bg-[hsl(187,92%,50%)/0.05] backdrop-blur-xl mb-8 animate-fade-in-up group">
                 <Sparkles className="h-4 w-4 text-[hsl(187,92%,50%)]" />
                 <span className="text-sm bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent font-medium">
-                  AI Test Agents — Now Available
+                  New: AI Workbench with one-click Playwright runs
                 </span>
                 <ArrowRight className="h-3.5 w-3.5 text-[hsl(187,92%,50%)] group-hover:translate-x-1 transition-transform" />
               </a>
@@ -459,10 +463,10 @@ export default function LandingPage() {
 
               <ul className="mt-10 space-y-4 animate-fade-in-up animation-delay-400">
                 {[
-                  "Unify every test, run, and signal into one OS.",
-                  "Automate triage and reporting with Zero-Touch AI workflows.",
-                  "Govern your stack with a curated Integrations Hub.",
-                  "Know your product: Use Qualixa DNA to see exactly where it breaks.",
+                  "Generate 10 test plan docs, test cases, and Playwright code from one AI Workbench.",
+                  "Run entire suites on registered runners with inline browser, headless, and retry config.",
+                  "Stream per-case progress live and replay any past suite from its saved artifacts.",
+                  "Unify requirements, variables, benchmarks, and executions in a single Test Plan surface.",
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-3 text-white/70">
                     <span className="mt-1 h-5 w-5 rounded-full bg-[hsl(187,92%,50%)/0.15] border border-[hsl(187,92%,50%)/0.4] flex items-center justify-center shrink-0">
@@ -704,6 +708,100 @@ export default function LandingPage() {
               </TabsContent>
             ))}
           </Tabs>
+        </div>
+      </section>
+
+      {/* ===== AI Workbench Showcase ===== */}
+      <section id="workbench" className="py-32 relative">
+        <div className="container max-w-7xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <div className="text-xs uppercase tracking-[0.25em] text-[hsl(187,92%,50%)] mb-4">Inside the Test Plan</div>
+              <h2 className="text-4xl md:text-6xl font-bold mb-6">
+                The{" "}
+                <span className="bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent">
+                  AI Workbench
+                </span>
+              </h2>
+              <p className="text-white/50 text-lg">
+                A Monaco multi-tab editor that walks the AI through every step of building a runnable test suite — from project docs to per-case Playwright code — and dispatches it to your runners in one click.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
+            <Reveal>
+              <div className="rounded-3xl border border-white/10 bg-[hsl(222,47%,5%)] overflow-hidden shadow-2xl">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-[hsl(222,47%,7%)]">
+                  <span className="h-3 w-3 rounded-full bg-red-500/70" />
+                  <span className="h-3 w-3 rounded-full bg-yellow-500/70" />
+                  <span className="h-3 w-3 rounded-full bg-green-500/70" />
+                  <span className="ml-3 text-xs text-white/40 font-mono">AI Workbench · checkout-flow.spec.ts</span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-widest text-[hsl(187,92%,50%)] px-2 py-0.5 rounded-full border border-[hsl(187,92%,50%)/0.3] bg-[hsl(187,92%,50%)/0.05]">chromium</span>
+                    <button className="text-xs px-3 py-1 rounded-lg bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] text-white font-semibold inline-flex items-center gap-1.5">
+                      <Play className="h-3 w-3 fill-current" /> Run Suite
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-[180px_1fr] min-h-[340px]">
+                  <div className="border-r border-white/5 p-3 text-xs text-white/50 space-y-1 bg-[hsl(222,47%,6%)]">
+                    {[
+                      { n: "overview.md", a: true },
+                      { n: "requirements.md" },
+                      { n: "variables.md" },
+                      { n: "benchmark.md" },
+                      { n: "test-cases.md" },
+                      { n: "checkout-flow.spec.ts", c: true },
+                      { n: "login.spec.ts", c: true },
+                      { n: "payment.spec.ts", c: true },
+                    ].map((f) => (
+                      <div key={f.n} className={`px-2 py-1 rounded ${f.a ? "bg-[hsl(187,92%,50%)/0.1] text-[hsl(187,92%,50%)]" : "hover:bg-white/5"}`}>
+                        <span className={f.c ? "text-purple-300/70" : ""}>{f.n}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-5 font-mono text-xs leading-relaxed text-white/70 overflow-hidden">
+                    <div className="text-white/30"># Checkout Flow — generated by AI Workbench</div>
+                    <div className="mt-2"><span className="text-[hsl(187,92%,50%)]">## Overview</span></div>
+                    <div className="text-white/50">Validates the end-to-end checkout journey.</div>
+                    <div className="mt-3"><span className="text-[hsl(187,92%,50%)]">## Requirements</span></div>
+                    <div className="text-white/50">REQ-204 · REQ-218 · REQ-301</div>
+                    <div className="mt-3"><span className="text-[hsl(187,92%,50%)]">## Variables</span></div>
+                    <div className="text-white/50">{`{ env: "staging", currency: "USD" }`}</div>
+                    <div className="mt-3"><span className="text-[hsl(187,92%,50%)]">## Benchmark</span></div>
+                    <div className="text-white/50">p95 &lt; 1200ms · error rate &lt; 0.5%</div>
+                    <div className="mt-3 flex items-center gap-2 text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Streaming: 7 / 12 cases passed
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+
+            <div className="space-y-5">
+              {[
+                { icon: FileText, title: "10 AI-decided docs", desc: "Overview, Requirements, Variables, Benchmark, Test Cases, and more — each project gets the docs it actually needs." },
+                { icon: TestTube, title: "Cases + code per case", desc: "Generate test cases, then synthesize a Playwright .spec.ts for every single case in parallel." },
+                { icon: ServerCog, title: "Registered runner dispatch", desc: "Run Suite ships your generated suite to any connected runner with browser, headless, and retry settings." },
+                { icon: Zap, title: "Realtime suite progress", desc: "Per-case status updates stream into the Workbench as the runner executes — no refresh needed." },
+                { icon: Database, title: "Artifact archive", desc: "Browse and download the exact docs JSON and .spec.ts files saved with every suite run." },
+              ].map((f, i) => (
+                <Reveal key={f.title} delay={i * 0.05}>
+                  <div className="flex gap-4 p-5 rounded-2xl bg-[hsl(222,47%,6%)] border border-white/5 hover:border-[hsl(187,92%,50%)/0.4] transition-colors">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] flex items-center justify-center shrink-0">
+                      <f.icon className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1">{f.title}</div>
+                      <p className="text-sm text-white/50">{f.desc}</p>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
