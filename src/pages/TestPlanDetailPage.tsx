@@ -277,6 +277,13 @@ export default function TestPlanDetailPage() {
   }, [id, qc]);
 
 
+  useEffect(() => {
+    if (plan?.ai_status === "ready" || plan?.ai_status === "failed") {
+      qc.invalidateQueries({ queryKey: ["test-plan-cases", id] });
+      qc.invalidateQueries({ queryKey: ["test-plan-versions", id] });
+    }
+  }, [plan?.ai_status, id, qc]);
+
   const saveCase = useMutation({
     mutationFn: async () => {
       if (!form.title.trim()) throw new Error("Title is required");
