@@ -202,7 +202,7 @@ export default function TestCaseEditorPage() {
       setIsSaving(false);
       queryClient.invalidateQueries({ queryKey: ["test-cases"] });
       toast.success(isEditing ? "Test case updated successfully" : "Test case created successfully");
-      navigate("/test-cases");
+      navigate(backHref);
     },
     onError: (error) => {
       setIsSaving(false);
