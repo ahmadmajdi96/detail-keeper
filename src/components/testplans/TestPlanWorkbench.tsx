@@ -7,9 +7,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X,
-  ListChecks, FolderTree, Rocket,
+  ListChecks, FolderTree, Rocket, Settings2,
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
+import { SuiteRunProgress } from "./SuiteRunProgress";
+import { ArtifactViewer } from "./ArtifactViewer";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 type Doc = { id: string; slug: string; title: string; kind: string; content: string; sort_order: number };
 type Spec = { id: string; filename: string; content: string; document_id: string | null; test_case_id: string | null };
