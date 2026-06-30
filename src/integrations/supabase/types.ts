@@ -2202,6 +2202,209 @@ export type Database = {
           },
         ]
       }
+      runner_jobs: {
+        Row: {
+          attempt: number
+          created_at: string
+          created_by: string | null
+          cycle_id: string | null
+          cycle_run_id: string | null
+          dispatched_at: string | null
+          environment_id: string | null
+          error: Json | null
+          finished_at: string | null
+          id: string
+          logs_url: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          progress: number
+          project_id: string
+          queued_at: string
+          release_id: string | null
+          result: Json | null
+          runner_id: string | null
+          started_at: string | null
+          status: string
+          suite_id: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          attempt?: number
+          created_at?: string
+          created_by?: string | null
+          cycle_id?: string | null
+          cycle_run_id?: string | null
+          dispatched_at?: string | null
+          environment_id?: string | null
+          error?: Json | null
+          finished_at?: string | null
+          id?: string
+          logs_url?: string | null
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          progress?: number
+          project_id: string
+          queued_at?: string
+          release_id?: string | null
+          result?: Json | null
+          runner_id?: string | null
+          started_at?: string | null
+          status?: string
+          suite_id?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          attempt?: number
+          created_at?: string
+          created_by?: string | null
+          cycle_id?: string | null
+          cycle_run_id?: string | null
+          dispatched_at?: string | null
+          environment_id?: string | null
+          error?: Json | null
+          finished_at?: string | null
+          id?: string
+          logs_url?: string | null
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          progress?: number
+          project_id?: string
+          queued_at?: string
+          release_id?: string | null
+          result?: Json | null
+          runner_id?: string | null
+          started_at?: string | null
+          status?: string
+          suite_id?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runner_jobs_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "test_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runner_jobs_cycle_run_id_fkey"
+            columns: ["cycle_run_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runner_jobs_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runner_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runner_jobs_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runner_jobs_runner_id_fkey"
+            columns: ["runner_id"]
+            isOneToOne: false
+            referencedRelation: "runners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runner_jobs_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "test_suites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      runners: {
+        Row: {
+          capabilities: Json
+          config: Json
+          created_at: string
+          created_by: string | null
+          current_job_id: string | null
+          environment_id: string | null
+          id: string
+          kind: string
+          last_seen_at: string | null
+          name: string
+          project_id: string
+          status: string
+          token_hash: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          capabilities?: Json
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          current_job_id?: string | null
+          environment_id?: string | null
+          id?: string
+          kind?: string
+          last_seen_at?: string | null
+          name: string
+          project_id: string
+          status?: string
+          token_hash?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          capabilities?: Json
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          current_job_id?: string | null
+          environment_id?: string | null
+          id?: string
+          kind?: string
+          last_seen_at?: string | null
+          name?: string
+          project_id?: string
+          status?: string
+          token_hash?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runners_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runners_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suite_test_cases: {
         Row: {
           added_by: string | null
@@ -3097,6 +3300,42 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_runner_jobs: {
+        Args: { _limit?: number; _runner: string }
+        Returns: {
+          attempt: number
+          created_at: string
+          created_by: string | null
+          cycle_id: string | null
+          cycle_run_id: string | null
+          dispatched_at: string | null
+          environment_id: string | null
+          error: Json | null
+          finished_at: string | null
+          id: string
+          logs_url: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          progress: number
+          project_id: string
+          queued_at: string
+          release_id: string | null
+          result: Json | null
+          runner_id: string | null
+          started_at: string | null
+          status: string
+          suite_id: string | null
+          updated_at: string
+          workspace_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "runner_jobs"
           isOneToOne: false
           isSetofReturn: true
         }
