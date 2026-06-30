@@ -26,7 +26,7 @@ export default function RequirementVersionsPage() {
               {rows.map((r) => (
                 <tr key={r.id} onClick={() => setActive(r)} style={{ cursor: "pointer" }}>
                   <td className="font-mono">{r.requirement_id.slice(0, 8)}</td>
-                  <td><span className="badge admin-accent">v{r.version_number}</span></td>
+                  <td><span className="badge admin-accent">v{r.version}</span></td>
                   <td>{new Date(r.created_at).toLocaleString()}</td>
                 </tr>
               ))}
@@ -37,7 +37,8 @@ export default function RequirementVersionsPage() {
         <div className="admin-surface rounded p-4">
           {active ? (
             <>
-              <h2 className="text-lg mb-2">v{active.version_number} snapshot</h2>
+              <h2 className="text-lg mb-2">v{active.version} snapshot</h2>
+              {active.change_note && <div className="opacity-70 text-xs mb-2">{active.change_note}</div>}
               <pre style={{ fontSize: 12, whiteSpace: "pre-wrap", maxHeight: "60vh", overflow: "auto" }}>
                 {JSON.stringify(active.snapshot, null, 2)}
               </pre>

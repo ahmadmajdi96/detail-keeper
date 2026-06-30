@@ -19,9 +19,9 @@ export default function ApprovalsPage() {
   }
   useEffect(() => { load(); }, []);
 
-  async function decide(id: string, status: "approved" | "rejected") {
+  async function decide(id: string, decision: "approved" | "rejected") {
     try {
-      await gql(UPDATE_APPROVAL, { id, patch: { status, decided_at: new Date().toISOString() } });
+      await gql(UPDATE_APPROVAL, { id, patch: { status: decision, decision, decided_at: new Date().toISOString() } });
       await load();
     } catch (e) { setErr(String(e)); }
   }
@@ -38,13 +38,13 @@ export default function ApprovalsPage() {
       {tab === "approvals" ? (
         <div className="admin-surface rounded overflow-hidden">
           <table>
-            <thead><tr><th>Subject</th><th>Status</th><th>Rationale</th><th>Requested</th><th></th></tr></thead>
+            <thead><tr><th>Subject</th><th>Status</th><th>Notes</th><th>Requested</th><th></th></tr></thead>
             <tbody>
               {approvals.map((a) => (
                 <tr key={a.id}>
-                  <td>{a.subject_type} <span className="font-mono opacity-60">{a.subject_id.slice(0, 8)}</span></td>
+                  <td>{a.subject_kind} <span className="font-mono opacity-60">{a.subject_id.slice(0, 8)}</span></td>
                   <td><span className="badge">{a.status}</span></td>
-                  <td>{a.rationale || "—"}</td>
+                  <td>{a.notes || "—"}</td>
                   <td>{new Date(a.created_at).toLocaleString()}</td>
                   <td>
                     {a.status === "pending" && <>
@@ -61,16 +61,18 @@ export default function ApprovalsPage() {
       ) : (
         <div className="admin-surface rounded overflow-hidden">
           <table>
-            <thead><tr><th>Scope</th><th>Reason</th><th>Expires</th><th>Created</th></tr></thead>
+            <thead><tr><th>Subject</th><th>Reason</th><th>Expires</th><th>Revoked</th><th>Created</th></tr></thead>
             <tbody>
               {waivers.map((w) => (
                 <tr key={w.id}>
-                  <td>{w.scope}</td><td>{w.reason || "—"}</td>
+                  <td>{w.subject_kind} <span className="font-mono opacity-60">{w.subject_id.slice(0, 8)}</span></td>
+                  <td>{w.reason || "—"}</td>
                   <td>{w.expires_at ? new Date(w.expires_at).toLocaleString() : "—"}</td>
+                  <td>{w.revoked_at ? new Date(w.revoked_at).toLocaleString() : "—"}</td>
                   <td>{new Date(w.created_at).toLocaleString()}</td>
                 </tr>
               ))}
-              {!waivers.length && <tr><td colSpan={4} className="opacity-50 text-center">No waivers.</td></tr>}
+              {!waivers.length && <tr><td colSpan={5} className="opacity-50 text-center">No waivers.</td></tr>}
             </tbody>
           </table>
         </div>

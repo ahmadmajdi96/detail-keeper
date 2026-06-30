@@ -33,15 +33,15 @@ export default function AIJobsPage() {
       <div className="grid grid-cols-2 gap-4">
         <div className="admin-surface rounded overflow-hidden">
           <table>
-            <thead><tr><th>Type</th><th>Status</th><th>Model</th><th>Tokens</th><th>Cost</th></tr></thead>
+            <thead><tr><th>Kind</th><th>Status</th><th>Model</th><th>Tokens</th><th>Cost</th></tr></thead>
             <tbody>
               {jobs.map((j) => (
                 <tr key={j.id} onClick={() => setActive(j)} style={{ cursor: "pointer" }}>
-                  <td>{j.job_type}</td>
+                  <td>{j.kind}</td>
                   <td><span className="badge">{j.status}</span></td>
-                  <td>{j.model_name || "—"}</td>
-                  <td>{(j.prompt_tokens ?? 0) + (j.completion_tokens ?? 0)}</td>
-                  <td>{j.total_cost_cents != null ? `$${(j.total_cost_cents / 100).toFixed(3)}` : "—"}</td>
+                  <td>{j.model || "—"}</td>
+                  <td>{(j.tokens_in ?? 0) + (j.tokens_out ?? 0)}</td>
+                  <td>{j.cost_usd != null ? `$${Number(j.cost_usd).toFixed(3)}` : "—"}</td>
                 </tr>
               ))}
               {!jobs.length && <tr><td colSpan={5} className="opacity-50 text-center">No AI jobs.</td></tr>}
@@ -51,7 +51,7 @@ export default function AIJobsPage() {
         <div className="admin-surface rounded p-4">
           {active ? (
             <>
-              <h2 className="text-lg mb-2">{active.job_type}</h2>
+              <h2 className="text-lg mb-2">{active.kind}</h2>
               <h3 className="admin-accent text-sm">Outputs</h3>
               {outs.length ? outs.map((o) => (
                 <pre key={o.id} style={{ fontSize: 11, maxHeight: 200, overflow: "auto" }}>{JSON.stringify(o.content, null, 2)}</pre>
@@ -62,7 +62,7 @@ export default function AIJobsPage() {
           <h3 className="admin-accent text-sm mt-6">Recent Audit Events</h3>
           {audit.slice(0, 10).map((a) => (
             <div key={a.id} className="text-xs my-1 opacity-80">
-              <span className="badge">{a.event_type}</span> <span className="opacity-60">{new Date(a.created_at).toLocaleString()}</span>
+              <span className="badge">{a.action}</span> <span className="opacity-60">{new Date(a.created_at).toLocaleString()}</span>
             </div>
           ))}
         </div>
