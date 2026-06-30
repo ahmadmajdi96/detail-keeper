@@ -290,15 +290,19 @@ export function PlanLivePanel({ testPlanId }: { testPlanId: string }) {
   const [specs, setSpecs] = useState<any[]>([]);
 
   const refresh = async () => {
-    const { data: rows } = await supabase.from("test_plan_specs" as any)
+    const { data: rowsData } = await supabase.from("test_plan_specs" as any)
       .select("id, filename, status").eq("test_plan_id", testPlanId)
       .order("updated_at", { ascending: false });
-    setSpecs(rows || []);
-    // pick currently running, else most recent with any run
-    const { data: runs } = await supabase.from("spec_runs" as any)
+    const rows: any[] = (rowsData as any[]) || [];
+    setSpecs(rows);
+    const { data: runsData } = await supabase.from("spec_runs" as any)
       .select("spec_id, status, created_at")
-      .in("spec_id", (rows || []).map((r: any) => r.id))
+      .in("spec_id", rows.map((r) => r.id))
       .order("created_at", { ascending: false }).limit(50);
+    const runs: any[] = (runsData as any[]) || [];
+    const live = runs.find((r) => ["queued", "dispatched", "running"].includes(r.status));
+    setActiveSpec(live?.spec_id || runs[0]?.spec_id || rows[0]?.id || null);
+  };
     const live = (runs || []).find((r: any) => ["queued", "dispatched", "running"].includes(r.status));
     setActiveSpec(live?.spec_id || runs?.[0]?.spec_id || (rows || [])[0]?.id || null);
   };
