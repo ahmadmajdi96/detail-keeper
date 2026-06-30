@@ -35,7 +35,6 @@ import {
   RefreshCw,
   Loader2,
 } from "lucide-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { CIIntegrationsManager } from "@/components/integrations/CIIntegrationsManager";
 
 interface Integration {
