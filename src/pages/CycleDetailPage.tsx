@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Rocket, Server, Layers, Repeat } from "lucide-react";
+import { ArrowLeft, Loader2, Rocket, Server, Layers, Repeat, Bug } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect } from "react";
+import { ReleaseJudgeCard } from "@/components/sentinel/ReleaseJudgeCard";
+import { GateEvaluationsCard } from "@/components/sentinel/GateEvaluationsCard";
 
 const STATUS_COLORS: Record<string, string> = {
   not_run: "bg-muted text-muted-foreground",
@@ -28,13 +30,15 @@ const ITEM_STATUSES = ["not_run","in_progress","passed","failed","blocked","skip
 export default function CycleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+
 
   const { data: cycle, isLoading } = useQuery({
     queryKey: ["cycle", id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("test_cycles")
-        .select("*, release:releases(name,version), environment:environments(name,type), suite:test_suites(name)")
+        .select("*, release:releases(name,version), environment:environments(name,type), suite:test_suites(name), project:projects(workspace_id)")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
@@ -163,6 +167,16 @@ export default function CycleDetailPage() {
           </Card>
         )}
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <GateEvaluationsCard cycleRunId={runs[runs.length - 1]?.id} />
+          <ReleaseJudgeCard
+            cycleRunId={runs[runs.length - 1]?.id}
+            releaseId={cycle.release_id}
+            projectId={cycle.project_id}
+            workspaceId={cycle.project?.workspace_id}
+          />
+        </div>
+
         <Card className="border-border/50">
           <CardHeader><CardTitle className="text-base">Test Items</CardTitle></CardHeader>
           <CardContent>
@@ -181,19 +195,31 @@ export default function CycleDetailPage() {
                         {it.last_executed_at && <> · last run: {new Date(it.last_executed_at).toLocaleString()}</>}
                       </div>
                     </div>
-                    <Select
-                      value={it.status}
-                      onValueChange={(v) => updateItem.mutate({ itemId: it.id, status: v })}
-                    >
-                      <SelectTrigger className="w-44">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ITEM_STATUSES.map((s) => (
-                          <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-1">
+                      {it.status === "failed" && (
+                        <Button size="sm" variant="ghost" title="Report defect"
+                          onClick={() => navigate("/defects", { state: {
+                            openCreate: true,
+                            cycle_run_item_id: it.id,
+                            cycle_run_id: it.run_id,
+                            project_id: it.project_id || cycle.project_id,
+                            title: `Failure: ${it.test_case?.title}`,
+                          }})}>
+                          <Bug className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <Select
+                        value={it.status}
+                        onValueChange={(v) => updateItem.mutate({ itemId: it.id, status: v })}
+                      >
+                        <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ITEM_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,6 +105,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 export default function DefectsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
   const { activePlanId } = useActiveTestPlan();
@@ -119,6 +120,9 @@ export default function DefectsPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [newTestPlanId, setNewTestPlanId] = useState<string>("none");
+  const [cycleContext, setCycleContext] = useState<{ cycle_run_id?: string; cycle_run_item_id?: string; project_id?: string } | null>(null);
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [newTitle, setNewTitle] = useState("");
@@ -126,6 +130,18 @@ export default function DefectsPage() {
   const [newSeverity, setNewSeverity] = useState<DefectSeverity>("minor");
   const [newPriority, setNewPriority] = useState<DefectPriority>("medium");
   const [selectedAssignee, setSelectedAssignee] = useState<string>("");
+
+  // Read navigation state (e.g. "Report defect" from CycleDetailPage)
+  useEffect(() => {
+    const st = location.state as any;
+    if (st?.openCreate) {
+      setIsCreateDialogOpen(true);
+      if (st.title) setNewTitle(st.title);
+      setCycleContext({ cycle_run_id: st.cycle_run_id, cycle_run_item_id: st.cycle_run_item_id, project_id: st.project_id });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
 
   // Fetch defects (scoped to active project; include project + plan names)
   const { data: defects = [], isLoading } = useQuery({
@@ -175,22 +191,43 @@ export default function DefectsPage() {
     },
   });
 
-  // Create defect mutation
+  // Create defect mutation (with optional evidence file uploads)
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("defects").insert({
+      const effProjectId = cycleContext?.project_id || projectId;
+      const { data: created, error } = await supabase.from("defects").insert({
         title: newTitle,
         description: newDescription,
         severity: newSeverity,
         priority: newPriority,
         reported_by: user?.id,
         status: "open",
-        project_id: projectId,
+        project_id: effProjectId,
         workspace_id: workspaceId,
         test_plan_id: newTestPlanId === "none" ? (activePlanId ?? null) : newTestPlanId,
-      });
-
+        cycle_run_id: cycleContext?.cycle_run_id ?? null,
+        cycle_run_item_id: cycleContext?.cycle_run_item_id ?? null,
+      } as any).select("id").single();
       if (error) throw error;
+
+      // Upload evidence files (if any) to defect-evidence bucket
+      for (const file of evidenceFiles) {
+        const path = `${effProjectId}/${created!.id}/${Date.now()}-${file.name}`;
+        const { error: upErr } = await supabase.storage.from("defect-evidence").upload(path, file, { upsert: false });
+        if (upErr) { toast.error(`Upload failed: ${upErr.message}`); continue; }
+        await (supabase as any).from("evidence").insert({
+          defect_id: created!.id,
+          project_id: effProjectId,
+          workspace_id: workspaceId,
+          file_name: file.name,
+          file_type: file.type || "application/octet-stream",
+          size_bytes: file.size,
+          storage_path: path,
+          uploaded_by: user?.id,
+          cycle_run_id: cycleContext?.cycle_run_id ?? null,
+          cycle_run_item_id: cycleContext?.cycle_run_item_id ?? null,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["defects"] });
@@ -202,6 +239,7 @@ export default function DefectsPage() {
       toast.error("Failed to create defect: " + error.message);
     },
   });
+
 
   // Update defect status mutation
   const updateStatusMutation = useMutation({
@@ -264,6 +302,9 @@ export default function DefectsPage() {
     setNewSeverity("minor");
     setNewPriority("medium");
     setNewTestPlanId("none");
+    setCycleContext(null);
+    setEvidenceFiles([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   // Filter defects
@@ -666,7 +707,25 @@ export default function DefectsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {cycleContext?.cycle_run_item_id && (
+              <div className="rounded border border-cyan-500/30 bg-cyan-500/5 p-2 text-xs text-cyan-300">
+                <Link2 className="inline h-3 w-3 mr-1" /> Linked to failed test in cycle run
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Evidence (screenshots, logs)</Label>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
+              />
+              {evidenceFiles.length > 0 && (
+                <p className="text-xs text-muted-foreground">{evidenceFiles.length} file(s) selected</p>
+              )}
+            </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
