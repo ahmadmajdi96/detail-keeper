@@ -148,6 +148,20 @@ export default function TestPlanDetailPage() {
     },
   });
 
+  const { data: suiteRuns = [] } = useQuery({
+    queryKey: ["test-plan-suite-runs", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("suite_runs")
+        .select("id, status, total_specs, passed_specs, failed_specs, completed_specs, created_at, started_at, finished_at")
+        .eq("test_plan_id", id!)
+        .order("created_at", { ascending: false })
+        .limit(25);
+      return data || [];
+    },
+  });
+
   const { data: requirements = [] } = useQuery({
     queryKey: ["test-plan-requirements", id, plan?.project_id],
     enabled: !!id && !!plan?.project_id,
