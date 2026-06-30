@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     let resolvedCycle = cycle_id;
     if (!resolvedCycle) {
       const { data: newCycle, error: cErr } = await admin.from("test_cycles").insert({
-        project_id, workspace_id: ws, name: `Runner: ${suite.name} @ ${new Date().toISOString().slice(0,16)}`,
+        project_id, name: `Runner: ${suite.name} @ ${new Date().toISOString().slice(0,16)}`,
         suite_id, environment_id: env, release_id, status: "active", created_by: userId,
       } as any).select("id").single();
       if (cErr) return json({ error: cErr.message }, 500);
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
 
     // Create cycle_run
     const { data: run, error: runErr } = await admin.from("cycle_runs").insert({
-      cycle_id: resolvedCycle, project_id, workspace_id: ws,
+      cycle_id: resolvedCycle, project_id,
       name: `${runner.name} #${Date.now().toString().slice(-5)}`,
       status: "queued", executor_id: userId,
     } as any).select("id").single();
