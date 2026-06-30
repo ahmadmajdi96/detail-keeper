@@ -111,6 +111,9 @@ Deno.serve(async (req) => {
             spec_run_id: run.id,
             filename: spec.filename,
             content: spec.content,
+            browser: _browser,
+            headless: _headless,
+            retries: _retries,
             callback_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/runner-callback`,
           }),
         });
