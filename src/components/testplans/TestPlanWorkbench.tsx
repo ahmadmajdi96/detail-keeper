@@ -393,6 +393,12 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           )}
         </section>
       </div>
+
+      {activeSuiteRunId && <SuiteRunProgress suiteRunId={activeSuiteRunId} />}
+
+      <div className="p-3 border-t border-border/50">
+        <ArtifactViewer testPlanId={testPlanId} />
+      </div>
     </div>
   );
 }
