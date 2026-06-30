@@ -94,7 +94,12 @@ Exactly 10 documents. Slugs unique. Choose the kinds most relevant to THIS proje
       .select("id, slug, title, kind, sort_order");
     if (error) return j({ error: error.message }, 500);
 
-    return j({ documents: inserted });
+    const v = await snapshotTestPlanVersion(
+      admin, test_plan_id,
+      `AI Workbench · generated ${inserted?.length ?? 0} document(s)`,
+      userId, { stage: "documents" },
+    );
+    return j({ documents: inserted, version: v });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
