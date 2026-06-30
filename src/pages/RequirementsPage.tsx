@@ -76,7 +76,7 @@ export default function RequirementsPage() {
       <PageHeader
         title="Requirements"
         description="Traceable requirements linked to test cases and defects"
-        action={
+        actions={
           <Button onClick={() => setOpen(true)} disabled={!projectId}>
             <Plus className="mr-2 h-4 w-4" /> New Requirement
           </Button>
