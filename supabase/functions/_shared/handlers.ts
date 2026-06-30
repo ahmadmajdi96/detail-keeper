@@ -263,9 +263,9 @@ export async function handleIngestCiResults(sb: Sb, job: any) {
         run_item_id: item.id, attempt_no: 1, status: itemStatus,
         started_at: new Date().toISOString(), finished_at: new Date().toISOString(),
         duration_ms: t.duration_ms || null,
-        error_message: t.error?.message || null,
         error_signature: t.error?.signature || null,
-        logs: t.error?.stack || null,
+        notes: t.error?.message || null,
+        logs_ref: t.error?.stack ? t.error.stack.slice(0, 4000) : null,
       });
     }
 
