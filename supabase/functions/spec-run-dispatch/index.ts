@@ -17,8 +17,11 @@ Deno.serve(async (req) => {
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
     const userId = claims.claims.sub;
 
-    const { spec_id, runner_id } = await req.json();
+    const { spec_id, runner_id, suite_run_id, browser, headless, retries } = await req.json();
     if (!spec_id) return j({ error: "spec_id required" }, 400);
+    const _browser = browser || "chromium";
+    const _headless = headless === undefined ? true : !!headless;
+    const _retries = Number.isInteger(retries) ? retries : 0;
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
