@@ -30,4 +30,8 @@ verify_jwt = false
 [functions.oauth-jira-callback]
 verify_jwt = false
 
+[functions.integrations-callback-info]
+verify_jwt = false
+
+
 
