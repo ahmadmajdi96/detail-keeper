@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     if (!resolvedCycle) {
       const { data: newCycle, error: cErr } = await admin.from("test_cycles").insert({
         project_id, name: `Runner: ${suite.name} @ ${new Date().toISOString().slice(0,16)}`,
-        suite_id, environment_id: env, release_id, status: "active", created_by: userId,
+        suite_id, environment_id: env, release_id, status: "in_progress", created_by: userId,
       } as any).select("id").single();
       if (cErr) return json({ error: cErr.message }, 500);
       resolvedCycle = newCycle.id;
