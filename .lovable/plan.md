@@ -1,126 +1,120 @@
 
-# Qualixa → Quality Operations Platform: Phased Roadmap
+# Sprint B + C — Durable Jobs, CI Ingestion, Traceability
 
-## Guiding principle
-Remove the "single active test plan owns the whole project" assumption. The **Test Cycle** becomes the operational scope (release × environment × build × suite). Test Plans go back to being strategy documents. Multiple cycles run in parallel.
+This batch covers Phase 1.8 (durable jobs), Phase 1.6 (CI ingestion + result parsing), the realtime/notification layer those feed, plus a first slice of Phase 1.2/1.3 (requirements traceability + test case governance) and the missing CRUD wiring around the entities Sprint A introduced.
 
----
-
-## Phase 1 — Core QA Operations (Foundation)
-
-### 1.1 Release & Delivery Model (FIRST SLICE — build now)
-
-New entities:
-
-```text
-releases            (project_id, name, version, status, target_date, owner_id)
-environments        (project_id, name, type, base_url, secrets_ref)
-builds              (project_id, release_id, branch, commit_sha, artifact_url, ci_run_url, status)
-deployments         (build_id, environment_id, deployed_at, deployed_by, status)
-test_suites         (project_id, name, parent_id, tags)
-test_cycles         (release_id, environment_id, build_id, suite_id, name, status, start_at, end_at, owner_id)
-test_runs           (cycle_id, executor_id, status, started_at, finished_at)
-test_run_items      (run_id, test_case_id, status, attempt_no, duration_ms, evidence_ref)
-test_attempts       (run_item_id, attempt_no, status, logs_ref, error_signature)
-```
-
-Behavior changes:
-- Drop demote-others-to-draft logic. `test_plans.status` = strategy lifecycle (`draft|approved|archived`), no longer "the active one".
-- `ActiveTestPlanContext` → `ActiveCycleContext` (per project, multi-select allowed in UI).
-- Executions page lists cycles, not plans. "0 runnable cases" issue disappears: runnable = cases linked to the cycle's suite + cycle status `in_progress`.
-- Realtime channel per cycle so parallel hotfix + feature work don't collide.
-
-User stories shipped:
-- Create Release 2.4, link branch/build/env.
-- Run regression on staging without touching UAT results.
-- Two parallel cycles (hotfix + feature) on one project.
-- Stakeholder release-readiness view per release.
-
-### 1.2 Requirements Traceability Layer
-Tables: `requirements`, `acceptance_criteria`, `requirement_versions`, `requirement_links` (polymorphic to test_cases, defects, risks).
-Coverage statuses computed in a view: `not_analyzed | no_coverage | manual | automated | covered_failing | covered_passing | blocked | obsolete | needs_review`.
-AI extraction writes to a **review queue** (status `proposed`) — humans approve into baseline. Source citations stored (`document_id`, `page`, `span`).
-
-### 1.3 Test Case Governance
-Add to `test_cases`: `review_status`, `reviewer_id`, `owner_id`, `risk_score`, `estimated_duration_min`, `automation_status`, `automation_path`, `component_tags`, `env_requirements`.
-New: `test_case_reviews`, `test_case_baselines` (frozen sets per release), `shared_steps`, `test_parameters`, `test_data_sets`.
-Versioning: every approved edit creates a `test_case_versions` row; baselines pin a version per release.
-
-### 1.4 Execution Workspace upgrades
-Per-step results already partially exist (`execution_step_results`) — extend with evidence per step (screenshot/video/HAR/console/API response). Add `not_run`, `in_progress`, `not_applicable`. Pause/resume, bulk execute, "re-run failed", "re-run for fixed defects". Exploratory module: `exploration_sessions` (charter, timebox, notes, findings, linked defects/requirements).
-
-### 1.5 Defect Lifecycle
-Add: `severity` and `priority` separate, `sla_policy_id`, `found_in_build_id`, `fixed_in_build_id`, `verified_in_build_id`, `root_cause_category`, `source` (manual/automation/customer/prod/security/monitoring), `reopen_count`, `duplicate_of`. New tables: `defect_slas`, `defect_history` (immutable), `root_cause_records`. Duplicate detection via embedding similarity on title+repro.
-
-### 1.6 CI/CD Ingestion
-New: `ci_integrations`, `ci_runs`, edge function `ingest-ci-results` accepting JUnit XML, Playwright JSON, Allure, Cypress, pytest, k6, Lighthouse via signed webhook. Maps to test cases via `automation_mappings(test_case_id, framework, test_id_pattern)`. Posts PR check status back via GitHub/GitLab connectors.
-
-### 1.7 Quality Gates & Release Decisions
-Tables: `quality_gates` (rules), `release_decisions` (Go/Conditional/Block + rationale), `approvals`, `waivers`. Evaluation function runs on cycle completion and writes a decision draft.
-
-### 1.8 Durable Job System (replaces `EdgeRuntime.waitUntil` for long work)
-Tables: `jobs`, `job_attempts`, `job_artifacts`. Statuses: `queued|scheduled|running|waiting_for_input|retrying|completed|failed|cancelled|expired`. Worker = scheduled edge function pulling FIFO with `FOR UPDATE SKIP LOCKED`, checkpoints, idempotency keys, dead-letter. Realtime stream on `jobs` row for UI progress. `waitUntil` retained only for <30s fire-and-forget.
+Out of scope for this batch (will be later sprints to keep this shippable): full Phase 2 (runners, perf, a11y, visual), Phase 3 AI judges, and the heavier defect-lifecycle / quality-gates work (Phase 1.5/1.7).
 
 ---
 
-## Phase 2 — Automation & Quality Dimensions
+## 1. Durable Job Orchestration (Phase 1.8)
 
-- **Runner architecture:** `runners`, `runner_groups`, `runner_tokens` (scoped), capability tags, hosted + self-hosted agents (Docker image polling jobs queue), concurrency + quotas per workspace, secret injection via short-lived JWT.
-- **API quality module:** OpenAPI diff + breaking-change detection, contract tests (consumer/provider), request chaining, environment variables, auth profiles (OAuth2/JWT/APIKey/Basic/mTLS), mock server, negative/boundary/rate-limit generators, response-time assertions, OWASP API Top 10 checks.
-- **UI automation:** Playwright/Cypress trace + video + screenshot ingestion, browser project matrix, shard awareness.
-- **Performance:** k6 integration, thresholds → pass/fail, Core Web Vitals + Lighthouse CI trends, perf budgets per release.
-- **Accessibility:** WCAG 2.2 axe-core scans, manual checklists, contrast/keyboard/ARIA evidence.
-- **Visual regression + cross-browser/device matrix.**
-- **Test data & environment management:** datasets versioned, env health pings, "env ready for cycle" gate.
+### Schema (one migration)
+- `jobs(id, workspace_id, project_id, kind, status, priority, payload jsonb, result jsonb, error jsonb, attempt_count, max_attempts, run_after, locked_at, locked_by, idempotency_key UNIQUE, progress int, checkpoint jsonb, created_by, created_at, updated_at)`
+  - `status`: `queued | running | waiting | retrying | completed | failed | cancelled | dead_letter`
+  - `kind`: `generate_test_plan_from_docs | generate_test_cases | ingest_ci_results | ingest_junit | …`
+- `job_attempts(id, job_id, attempt_no, started_at, finished_at, status, error jsonb, logs text)`
+- `job_artifacts(id, job_id, kind, ref text, meta jsonb, created_at)`
+- GRANTs to `authenticated` (select on own workspace) + `service_role` (all); RLS via `is_workspace_member(workspace_id, auth.uid())`.
+- `ALTER PUBLICATION supabase_realtime ADD TABLE jobs, job_attempts;`
 
----
+### Worker
+- New edge function `job-worker` (verify_jwt = false, called by cron). Loop:
+  1. `SELECT … FROM jobs WHERE status IN ('queued','retrying') AND run_after <= now() ORDER BY priority, created_at FOR UPDATE SKIP LOCKED LIMIT N;`
+  2. Mark `running`, insert `job_attempts` row, dispatch by `kind`.
+  3. Handler streams `progress`/`checkpoint` updates so UI sees motion.
+  4. On success → `completed`; on retryable failure → `retrying` with exp backoff and `attempt_count++`; when `attempt_count >= max_attempts` → `dead_letter`.
+- pg_cron schedule: every minute hit `job-worker` via `net.http_post` (uses anon key + project URL; user-specific so done via `insert` tool, not migration).
+- Idempotency: `idempotency_key` unique constraint; producers reuse keys to dedupe.
 
-## Phase 3 — AI Quality Intelligence (Differentiator)
+### Producer refactor
+- `generate-test-plan-from-docs`: replace `EdgeRuntime.waitUntil(runGeneration(...))` with `INSERT INTO jobs(kind='generate_test_plan_from_docs', payload={test_plan_id})` and return `{job_id}`. The actual generation logic moves to `_shared/handlers/generate-test-plan.ts` and is invoked by `job-worker`.
+- Same pattern for any future >30s work (CI ingestion below uses it too).
+- `test_plans.ai_status` keeps working but is now mirrored from the job row.
 
-Each AI module writes to `ai_jobs` → `ai_outputs` → human review → `ai_evaluations` + `ai_feedback`. Every output stores model+prompt version, source citations, confidence, reviewer decision (NIST AI RMF aligned).
-
-- **Requirement Quality Analyst** — ambiguity, contradictions, missing AC, untestable items.
-- **Test Architect** — scenarios, negative/boundary, BDD, test data, dedupe suggestions, risk scoring.
-- **Failure Triage Agent** — cluster failures, compare to history, suggest component + root cause, link/create defect drafts.
-- **Test-Maintenance Agent** — detect stale tests on requirement/API change, propose diffs (never auto-apply approved assets).
-- **Release Quality Judge** — flagship. Inputs: coverage, executions, defects, security, perf, a11y, flakiness, env stability, history. Output: Go/Conditional/Block + confidence + blocking issues + required actions. **Advises only; humans approve.**
-
----
-
-## Phase 1.1 Implementation Detail (next concrete sprint)
-
-Migrations (one file):
-1. Create `releases`, `environments`, `builds`, `deployments`, `test_suites`, `test_cycles`, `test_runs`, `test_run_items`, `test_attempts` with GRANTs + RLS scoped via `is_workspace_member(project.workspace_id, auth.uid())`.
-2. Backfill: for each existing project with an active test plan, create Release "Initial", Environment "Default", a Suite from the plan's cases, and one open Cycle so current data keeps working.
-3. Drop the trigger/code path that demotes other plans on activation.
-
-Frontend:
-- New routes: `/releases`, `/releases/:id`, `/cycles`, `/cycles/:id`.
-- `ActiveTestPlanContext` → `ActiveCycleContext` (allows multiple selected cycles).
-- `ExecutionsPage` rewritten around cycles; "runnable" = `test_run_items` for the chosen cycle. Removes the status-filter workaround.
-- `TestPlansPage` becomes strategy-only (no more "active plan" toggle).
-- Sidebar: add Releases + Cycles, keep Test Plans under "Strategy".
-
-Edge functions:
-- `create-cycle-from-suite` (snapshots case versions into `test_run_items` at cycle start → baseline).
-- `ingest-ci-results` (skeleton; full parsers in Phase 1.6).
-- Refactor `generate-test-plan-from-docs` to enqueue a `job` row instead of relying on `waitUntil` for >30s work.
-
-### Technical notes
-- All new public-schema tables include `GRANT SELECT, INSERT, UPDATE, DELETE ... TO authenticated` + `GRANT ALL ... TO service_role`, RLS enabled, policies use `has_role` / `is_workspace_member`.
-- Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE test_run_items, jobs, test_cycles`.
-- Keep dark "Qualixa" cyan/purple aesthetic; no new design tokens needed in Phase 1.1.
-- No breaking removal of `test_plans` — kept as strategy, with a deprecation note in code comments only.
+### UI
+- `useJob(jobId)` hook: realtime subscription on `jobs` row for live progress.
+- `TestPlanDetailPage` shows progress bar + attempt count + last error from the job instead of polling `ai_status`.
+- Navigation away no longer cancels anything (worker owns the lifecycle).
 
 ---
 
-## Deliverable order if you approve
+## 2. CI Webhook + Result Ingestion (Phase 1.6)
 
-1. **Sprint A (Phase 1.1):** Releases + Cycles + parallel Runs + migration + UI swap + executions rewrite.
-2. **Sprint B (Phase 1.8 + 1.6):** Jobs system + CI ingestion + PR checks.
-3. **Sprint C (Phase 1.2 + 1.3):** Requirements traceability + test case governance.
-4. **Sprint D (Phase 1.4 + 1.5 + 1.7):** Execution evidence, defect lifecycle, quality gates.
-5. **Phase 2** sprints (runners, API quality, perf, a11y, visual).
-6. **Phase 3** sprints (AI modules, ending with Release Quality Judge).
+### Schema
+- `ci_integrations(id, project_id, provider, name, secret_hash, default_environment_id, default_release_id, branch_release_map jsonb, created_by, created_at)`
+- `ci_runs(id, project_id, integration_id, provider_run_id, branch, commit_sha, status, started_at, finished_at, url, raw jsonb)`
+- `automation_mappings(id, project_id, test_case_id, framework, test_id_pattern)` — links automation test ids to manual cases.
+- GRANTs + RLS + realtime on `ci_runs`.
 
-Approve to start Sprint A.
+### Edge functions (public, no JWT, HMAC-validated)
+- `ci-webhook` — accepts `{ provider, event: 'build'|'deployment'|'results', release, environment, branch, commit_sha, build_url, status, artifacts[] }`. Creates/updates `builds` + `deployments` rows under the right `release`/`environment`, enqueues `ingest_ci_results` job per artifact.
+- `ingest-ci-results` (called by worker): downloads artifact, detects format (JUnit XML / Playwright JSON / Allure / Cypress JSON), parses to a normalized shape, then:
+  1. Resolves `test_cycle` (auto-create one named `CI {commit_sha[:7]}` if none exists for that release+env+build).
+  2. Creates a `cycle_run` (executor = ci_integration), and per parsed test:
+     - Resolve `test_case_id` via `automation_mappings` (fallback: by `coverage_tags`/title match, otherwise create a ghost case flagged `ai_generated=false, source='ci'`).
+     - Insert `cycle_run_item` with status, duration, attempt_no.
+     - Insert `cycle_attempt` with logs/error_signature.
+     - Upload screenshots/videos/HAR to `job_artifacts` (bucket `ci-evidence`, created in migration).
+  3. Updates `builds.status`, posts notifications.
+- Parser code in `supabase/functions/_shared/parsers/{junit,playwright,allure,cypress}.ts`.
+
+### UI
+- `IntegrationsPage`: add "CI Integrations" tab — create integration, copy webhook URL + signing secret (shown once), map branches → releases.
+- `ReleasesPage` / `CycleDetailPage`: show linked builds + commit SHA + CI run link.
+
+---
+
+## 3. Realtime + Notifications
+
+- New trigger `notify_build_status` on `builds`: notify workspace managers on `failed`/`succeeded` transitions.
+- New trigger `notify_cycle_run_status` on `cycle_runs`: notify cycle owner + executor on completion.
+- Extend `useRealtimeUpdates` to subscribe to `cycle_runs`, `cycle_run_items`, `builds`, `jobs` and invalidate the matching React Query keys + toast on terminal status.
+- `CycleDetailPage` already lives — add live progress (`pending/passed/failed/blocked` counts) computed from realtime stream.
+
+---
+
+## 4. Requirements Traceability — first slice (Phase 1.2)
+
+Lightweight to unblock the UI; deeper governance later.
+- `requirements(id, project_id, key, title, description, source_document_id, status, priority, created_by, created_at, updated_at)`
+- `acceptance_criteria(id, requirement_id, text, order_index)`
+- `requirement_links(id, requirement_id, linked_type, linked_id)` polymorphic to `test_cases | defects`.
+- View `requirement_coverage` computing status from linked test_case execution results.
+- New page `/requirements` with list + detail + link-to-test-case dialog. Sidebar entry under "Strategy".
+
+## 5. Test Case Governance — first slice (Phase 1.3)
+
+- Add columns to `test_cases`: `review_status`, `reviewer_id`, `owner_id`, `automation_status`, `automation_path`, `estimated_duration_min` (only what UI uses now).
+- Already-existing `test_case_versions` table: add trigger to snapshot on approved edits.
+- `TestCaseEditorPage`: review/approve buttons, owner picker, version history drawer.
+
+## 6. CRUD + Wiring Gaps from Sprint A
+
+- `ReleasesPage`: add edit + delete + status transitions (`planned → in_progress → released → archived`).
+- `CyclesPage`: add edit + close + clone-from-suite action that calls new `create-cycle-from-suite` edge function (snapshots case versions into `cycle_run_items`).
+- `ExecutionsPage`: wire to `cycle_runs` instead of legacy `test_executions` for cycle-scoped runs; keep legacy for ad-hoc.
+- `AppSidebar`: add Requirements + CI Integrations entries.
+- `ActiveCycleContext`: persist multi-select in localStorage per project.
+
+---
+
+## Technical notes
+
+- Every new `public` table gets `GRANT SELECT, INSERT, UPDATE, DELETE … TO authenticated` + `GRANT ALL … TO service_role`, RLS enabled, policies via `is_workspace_member` / `has_role`.
+- New secrets: `CI_WEBHOOK_SIGNING_SECRET` (generate_secret, 64 chars).
+- New storage bucket `ci-evidence` (private), policy: workspace members read, service_role write.
+- Cron registration uses the `insert` tool (contains project URL + anon key), not migrations.
+- Validation: after deploy, hit `job-worker` via `supabase--curl_edge_functions`, post a sample JUnit XML to `ci-webhook` (HMAC-signed) and confirm a `cycle_run` appears; load `/cycles/:id` and watch realtime progress.
+
+## Delivery order inside this batch
+
+1. Jobs schema + worker + producer refactor (test plan generation no longer cancellable).
+2. CI schema + `ci-webhook` + JUnit parser + `ingest-ci-results` handler.
+3. Add Playwright/Allure/Cypress parsers.
+4. Realtime triggers + UI live progress + notification routing.
+5. Requirements + governance slice.
+6. CRUD wiring (releases/cycles/executions/sidebar).
+7. End-to-end validation pass with `supabase--curl_edge_functions` + Playwright screenshots of `/cycles/:id` and `/requirements`.
+
+Approve to start.
