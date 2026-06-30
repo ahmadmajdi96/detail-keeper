@@ -51,8 +51,8 @@ export function PlanRunnersPanel({ projectId, workspaceId }: { projectId: string
       if (!form.name.trim()) throw new Error("Name required");
       const labels = form.labels.split(",").map((s) => s.trim()).filter(Boolean);
       if (editing) {
-        const { error } = await supabase.from("runners")
-          .update({ name: form.name, kind: form.kind, labels, status: form.status as any })
+        const { error } = await (supabase as any).from("runners")
+          .update({ name: form.name, kind: form.kind, labels, status: form.status })
           .eq("id", editing.id);
         if (error) throw error;
       } else {
