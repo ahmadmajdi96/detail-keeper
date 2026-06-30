@@ -2408,52 +2408,64 @@ export type Database = {
       spec_runs: {
         Row: {
           artifacts_json: Json | null
+          browser: string | null
           created_at: string
           created_by: string | null
           finished_at: string | null
+          headless: boolean | null
           id: string
           project_id: string
           result_json: Json | null
+          retries: number | null
           runner_job_id: string | null
           spec_id: string
           started_at: string | null
           status: string
           stderr: string | null
           stdout: string | null
+          suite_run_id: string | null
           test_plan_id: string
           updated_at: string
         }
         Insert: {
           artifacts_json?: Json | null
+          browser?: string | null
           created_at?: string
           created_by?: string | null
           finished_at?: string | null
+          headless?: boolean | null
           id?: string
           project_id: string
           result_json?: Json | null
+          retries?: number | null
           runner_job_id?: string | null
           spec_id: string
           started_at?: string | null
           status?: string
           stderr?: string | null
           stdout?: string | null
+          suite_run_id?: string | null
           test_plan_id: string
           updated_at?: string
         }
         Update: {
           artifacts_json?: Json | null
+          browser?: string | null
           created_at?: string
           created_by?: string | null
           finished_at?: string | null
+          headless?: boolean | null
           id?: string
           project_id?: string
           result_json?: Json | null
+          retries?: number | null
           runner_job_id?: string | null
           spec_id?: string
           started_at?: string | null
           status?: string
           stderr?: string | null
           stdout?: string | null
+          suite_run_id?: string | null
           test_plan_id?: string
           updated_at?: string
         }
@@ -2480,7 +2492,86 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "spec_runs_suite_run_id_fkey"
+            columns: ["suite_run_id"]
+            isOneToOne: false
+            referencedRelation: "suite_runs"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "spec_runs_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suite_runs: {
+        Row: {
+          browser: string
+          completed_specs: number
+          config_json: Json
+          created_at: string
+          created_by: string | null
+          failed_specs: number
+          finished_at: string | null
+          headless: boolean
+          id: string
+          passed_specs: number
+          project_id: string
+          retries: number
+          status: string
+          test_plan_id: string
+          total_specs: number
+          updated_at: string
+        }
+        Insert: {
+          browser?: string
+          completed_specs?: number
+          config_json?: Json
+          created_at?: string
+          created_by?: string | null
+          failed_specs?: number
+          finished_at?: string | null
+          headless?: boolean
+          id?: string
+          passed_specs?: number
+          project_id: string
+          retries?: number
+          status?: string
+          test_plan_id: string
+          total_specs?: number
+          updated_at?: string
+        }
+        Update: {
+          browser?: string
+          completed_specs?: number
+          config_json?: Json
+          created_at?: string
+          created_by?: string | null
+          failed_specs?: number
+          finished_at?: string | null
+          headless?: boolean
+          id?: string
+          passed_specs?: number
+          project_id?: string
+          retries?: number
+          status?: string
+          test_plan_id?: string
+          total_specs?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suite_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suite_runs_test_plan_id_fkey"
             columns: ["test_plan_id"]
             isOneToOne: false
             referencedRelation: "test_plans"
