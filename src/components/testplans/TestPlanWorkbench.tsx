@@ -158,13 +158,28 @@ export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) 
     if (specs.length === 0) { toast.error("No specs to run"); return; }
     setBusy("suite");
     try {
+      // Create parent suite_run with chosen config
+      const projectId = (specs[0] as any)?.project_id || _projectId;
+      const { data: suite, error: sErr } = await supabase.from("suite_runs" as any).insert({
+        test_plan_id: testPlanId, project_id: projectId,
+        browser, headless, retries,
+        config_json: { browser, headless, retries, spec_count: specs.length },
+        total_specs: specs.length,
+      }).select("id").single();
+      if (sErr) throw sErr;
+      const suiteRunId = (suite as any).id as string;
+      setActiveSuiteRunId(suiteRunId);
+
       let ok = 0;
       for (const s of specs) {
-        const { error } = await supabase.functions.invoke("spec-run-dispatch", { body: { spec_id: s.id } });
+        const { error } = await supabase.functions.invoke("spec-run-dispatch", {
+          body: { spec_id: s.id, suite_run_id: suiteRunId, browser, headless, retries },
+        });
         if (!error) ok++;
       }
-      toast.success(`Dispatched ${ok}/${specs.length} specs to the runner`);
+      toast.success(`Dispatched ${ok}/${specs.length} specs · live progress below`);
       qc.invalidateQueries({ queryKey: ["spec-runs"] });
+      qc.invalidateQueries({ queryKey: ["suite-spec-runs", suiteRunId] });
     } catch (e: any) {
       toast.error(e.message || "Suite run failed");
     } finally { setBusy(null); }
@@ -173,7 +188,9 @@ export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) 
   const runSpec = async () => {
     if (!currentFile || currentFile.kind !== "spec") return;
     try {
-      const { error } = await supabase.functions.invoke("spec-run-dispatch", { body: { spec_id: currentFile.id } });
+      const { error } = await supabase.functions.invoke("spec-run-dispatch", {
+        body: { spec_id: currentFile.id, browser, headless, retries },
+      });
       if (error) throw error;
       toast.success("Spec dispatched");
     } catch (e: any) {
