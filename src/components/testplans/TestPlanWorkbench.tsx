@@ -161,7 +161,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
       // Create parent suite_run with chosen config
       const projectId2 = (specs[0] as any)?.project_id || projectId;
       const { data: suite, error: sErr } = await supabase.from("suite_runs" as any).insert({
-        test_plan_id: testPlanId, project_id: projectId,
+        test_plan_id: testPlanId, project_id: projectId2,
         browser, headless, retries,
         config_json: { browser, headless, retries, spec_count: specs.length },
         total_specs: specs.length,
