@@ -354,6 +354,41 @@ export default function TestPlanDetailPage() {
         }
       />
 
+      {genJob && (genJob.status === "queued" || genJob.status === "running" || genJob.status === "retrying") && (
+        <Card className="mb-4 border-accent/40">
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                Generating test cases — {genJob.progress_message || genJob.status}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                attempt {genJob.attempt_count}/{genJob.max_attempts} · {genJob.progress}%
+              </span>
+            </div>
+            <Progress value={genJob.progress} />
+            <p className="text-[11px] text-muted-foreground mt-2">
+              You can safely navigate away — generation continues in the background.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+      {genJob && (genJob.status === "dead_letter" || genJob.status === "failed") && (
+        <Card className="mb-4 border-destructive/50">
+          <CardContent className="pt-5">
+            <div className="text-sm font-medium text-destructive">
+              Generation failed: {genJob.error?.message || "unknown error"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {genJob.status === "dead_letter"
+                ? `Exhausted ${genJob.max_attempts} attempts.`
+                : "Will retry automatically."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+
       {/* KPI Strip */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
