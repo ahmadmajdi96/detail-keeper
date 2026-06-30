@@ -30,6 +30,7 @@ import {
   X,
   Rocket,
   Repeat,
+  Target,
 } from "lucide-react";
 
 import type { Database } from "@/integrations/supabase/types";
