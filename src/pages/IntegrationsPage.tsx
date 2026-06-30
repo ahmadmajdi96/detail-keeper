@@ -36,6 +36,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { CIIntegrationsManager } from "@/components/integrations/CIIntegrationsManager";
+import { connectOAuthPopup, type OAuthProvider } from "@/lib/oauth-popup";
+import { useProjectScope } from "@/hooks/useProjectScope";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Integration {
   id: string;
@@ -219,10 +223,75 @@ export default function IntegrationsPage() {
     toast.success(`${integration.name} synced successfully`);
   };
 
-  const openConfigureDialog = (integration: Integration) => {
+  const { workspaceId, projectId } = useProjectScope();
+
+  // Hydrate connected status for OAuth-backed providers (github/jira) from DB.
+  useEffect(() => {
+    if (!workspaceId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("integration_connections")
+        .select("slug, status, last_sync_at")
+        .eq("workspace_id", workspaceId)
+        .in("slug", ["github", "jira"]);
+      if (cancelled || !data) return;
+      setIntegrationsList((prev) =>
+        prev.map((i) => {
+          const row = data.find((d) => d.slug === i.id);
+          if (!row) return i;
+          return {
+            ...i,
+            connected: row.status === "active",
+            status: (row.status as Integration["status"]) ?? "active",
+            lastSync: row.last_sync_at
+              ? new Date(row.last_sync_at).toLocaleString()
+              : i.lastSync,
+          };
+        }),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  const openConfigureDialog = async (integration: Integration) => {
+    // Route GitHub & Jira through OAuth popup, never the API-key dialog.
+    if (integration.id === "github" || integration.id === "jira") {
+      if (!workspaceId) {
+        toast.error("Select a workspace first.");
+        return;
+      }
+      try {
+        const result = await connectOAuthPopup({
+          provider: integration.id as OAuthProvider,
+          workspace_id: workspaceId,
+          project_id: projectId,
+        });
+        if (result.ok) {
+          setIntegrationsList((prev) =>
+            prev.map((i) =>
+              i.id === integration.id
+                ? { ...i, connected: true, status: "active", lastSync: "Just now" }
+                : i,
+            ),
+          );
+          toast.success(
+            `${integration.name} connected${result.message ? ` — ${result.message}` : ""}`,
+          );
+        } else {
+          toast.error(`${integration.name}: ${result.message ?? "failed"}`);
+        }
+      } catch (e: any) {
+        toast.error(e?.message ?? "OAuth failed");
+      }
+      return;
+    }
     setSelectedIntegration(integration);
     setConfigureDialogOpen(true);
   };
+
 
   return (
     <AppLayout>
