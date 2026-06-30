@@ -26,6 +26,7 @@ import {
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
   Plus, Edit3, Trash2, Layers, Variable, Download, Save,
 } from "lucide-react";
+import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
 
 const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
