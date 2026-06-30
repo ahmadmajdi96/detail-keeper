@@ -37,8 +37,9 @@ export function parseJUnitXml(xml: string): NormalizedTest[] {
     let cm: RegExpExecArray | null;
     const caseRe2 = new RegExp(caseRe.source, "g");
     while ((cm = caseRe2.exec(body))) {
-      const attrs = cm[1] || cm[3] || "";
-      const inner = cm[2] || "";
+      // group 1 = attrs from self-closing form; group 2/3 = attrs/body from full form
+      const attrs = cm[1] !== undefined ? cm[1] : (cm[2] || "");
+      const inner = cm[3] || "";
       const name = attr(attrs, "name");
       const className = attr(attrs, "classname");
       const time = parseFloat(attr(attrs, "time") || "0");
