@@ -41,49 +41,52 @@ Deno.serve(async (req) => {
       stepsByCase.get(s.test_case_id)!.push(s.action);
     });
 
-    const created: Array<{ id: string; filename: string; test_case_id: string }> = [];
-
-    for (const c of cases) {
+    async function genOne(c: any) {
       const slug = String(c.title || "case").toLowerCase()
         .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || `case-${c.id.slice(0, 8)}`;
       const filename = `${slug}.spec.ts`;
       const caseSteps = stepsByCase.get(c.id) || [];
-
       const prompt = `Generate ONE complete Playwright TypeScript spec for this test case. Output runnable code only.
 
 Test case: ${c.title}
 Description: ${c.description ?? ""}
 Expected: ${c.expected_result ?? ""}
 Steps:
-${caseSteps.map((s, i) => `${i + 1}. ${s}`).join("\n") || "(no explicit steps)"}
+${caseSteps.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n") || "(no explicit steps)"}
 
 Return STRICT JSON:
-{ "content": "// Full file: import { test, expect } from '@playwright/test'; BASE_URL = process.env.BASE_URL ?? 'http://localhost:8080'. One test(...) per scenario. No external network besides BASE_URL." }`;
-
+{ "content": "// Full file: import { test, expect } from '@playwright/test'; BASE_URL = process.env.BASE_URL ?? 'http://localhost:8080'. One test(...) per scenario." }`;
       try {
         const out = await callAiJson<{ content: string }>(prompt, { temperature: 0.2 });
         const content = (out.content || "").trim() ||
           `import { test, expect } from '@playwright/test';\ntest('${c.title.replace(/'/g, "\\'")}', async ({ page }) => { /* TODO */ });\n`;
-
-        // Upsert by (test_plan_id, filename)
         const { data: existing } = await admin.from("test_plan_specs")
           .select("id").eq("test_plan_id", test_plan_id).eq("filename", filename).maybeSingle();
         if (existing) {
           await admin.from("test_plan_specs").update({ content, test_case_id: c.id }).eq("id", existing.id);
-          created.push({ id: existing.id, filename, test_case_id: c.id });
         } else {
-          const { data: ins } = await admin.from("test_plan_specs").insert({
+          await admin.from("test_plan_specs").insert({
             test_plan_id, project_id: plan.project_id, test_case_id: c.id,
             filename, content, language: "typescript", created_by: userId,
-          }).select("id, filename").single();
-          if (ins) created.push({ id: ins.id, filename: ins.filename, test_case_id: c.id });
+          });
         }
       } catch (e) {
         console.error("code gen failed", c.id, (e as Error).message);
       }
     }
 
-    return j({ specs: created.length, items: created });
+    // Run in background to avoid 150s edge idle timeout; UI updates via realtime on test_plan_specs.
+    const work = (async () => {
+      const CONCURRENCY = 4;
+      for (let i = 0; i < cases.length; i += CONCURRENCY) {
+        await Promise.all(cases.slice(i, i + CONCURRENCY).map(genOne));
+      }
+    })();
+    // @ts-ignore EdgeRuntime is available in Supabase functions
+    if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(work);
+    else work.catch((e) => console.error(e));
+
+    return j({ status: "queued", queued: cases.length }, 202);
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
