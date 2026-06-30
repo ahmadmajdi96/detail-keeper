@@ -1,0 +1,88 @@
+{
+  "summary": {
+    "total": 13,
+    "blocked": 13,
+    "leaks": [],
+    "timestamp": 1782826370
+  },
+  "results": [
+    {
+      "table": "organizations",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "repositories",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "requirement_versions",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "defect_comments",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "defect_links",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "defect_slas",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "approvals",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "waivers",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "ai_jobs",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "ai_outputs",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "ai_audit_events",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "audit_logs",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    },
+    {
+      "table": "activity_events",
+      "anon_status": 200,
+      "anon_blocked": true,
+      "anon_body_preview": "[]"
+    }
+  ]
+}
