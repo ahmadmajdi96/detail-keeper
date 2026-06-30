@@ -28,7 +28,10 @@ import {
   Eye,
   Menu,
   X,
+  Rocket,
+  Repeat,
 } from "lucide-react";
+
 import type { Database } from "@/integrations/supabase/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Logo } from "@/components/Logo";
@@ -52,8 +55,11 @@ const mainNavItems: NavItem[] = [
   { title: "Documents", href: "/documents", icon: FileText, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Test Plans", href: "/test-plans", icon: ClipboardList, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Releases", href: "/releases", icon: Rocket, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Test Cycles", href: "/cycles", icon: Repeat, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Executions", href: "/executions", icon: Play, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Defects", href: "/defects", icon: Bug, roles: ["qa_engineer", "qa_manager", "admin"] },
+
   // AI Automation hidden from sidebar (route still available at /automation)
   // { title: "AI Automation", href: "/automation", icon: Bot, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },

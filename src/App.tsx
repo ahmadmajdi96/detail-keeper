@@ -29,7 +29,11 @@ import NotificationsPage from "./pages/NotificationsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import DefectsPage from "./pages/DefectsPage";
+import ReleasesPage from "./pages/ReleasesPage";
+import CyclesPage from "./pages/CyclesPage";
+import CycleDetailPage from "./pages/CycleDetailPage";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
@@ -107,6 +111,22 @@ const App = () => (
                   <ExecutionsPage />
                 </ProtectedRoute>
               } />
+              <Route path="/releases" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <ReleasesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/cycles" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <CyclesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/cycles/:id" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <CycleDetailPage />
+                </ProtectedRoute>
+              } />
+
               <Route path="/defects" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
                   <DefectsPage />
