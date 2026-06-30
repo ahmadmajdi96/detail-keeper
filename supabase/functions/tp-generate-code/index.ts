@@ -82,6 +82,12 @@ Return STRICT JSON:
       for (let i = 0; i < cases.length; i += CONCURRENCY) {
         await Promise.all(cases.slice(i, i + CONCURRENCY).map(genOne));
       }
+      // Snapshot a new version once all per-case specs are written.
+      await snapshotTestPlanVersion(
+        admin, test_plan_id,
+        `AI Workbench · generated Playwright code for ${cases.length} test case(s)`,
+        userId, { stage: "playwright_code" },
+      );
     })();
     // @ts-ignore EdgeRuntime is available in Supabase functions
     if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(work);
