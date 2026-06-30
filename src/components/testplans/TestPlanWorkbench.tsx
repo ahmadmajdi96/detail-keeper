@@ -77,8 +77,13 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const cases = caseRows.map(r => r.test_case).filter(Boolean);
 
   useEffect(() => {
+    if (!testPlanId) return;
+    // Hardened: unique channel name per mount, scoped strictly to this plan
+    // (test_plan_id is itself project-scoped). Always tear down on unmount /
+    // plan switch to prevent duplicated invalidations.
+    const tag = `${testPlanId}-${Math.random().toString(36).slice(2, 8)}`;
     const ch = supabase
-      .channel(`tp-wb-${testPlanId}`)
+      .channel(`tp-wb-${tag}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "test_plan_documents_v2", filter: `test_plan_id=eq.${testPlanId}` },
         () => qc.invalidateQueries({ queryKey: ["tp-docs", testPlanId] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "test_plan_specs", filter: `test_plan_id=eq.${testPlanId}` },
@@ -90,7 +95,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [testPlanId, qc]);
+  }, [testPlanId, projectId, qc]);
 
   const fileKey = (f: OpenFile) => `${f.kind}:${f.id}`;
   const openFile = (f: OpenFile) => {
