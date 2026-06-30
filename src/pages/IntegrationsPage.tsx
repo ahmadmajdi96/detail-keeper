@@ -300,10 +300,18 @@ export default function IntegrationsPage() {
           title="Integration Gateway"
           description="Connect external tools and services to enhance your testing workflow"
           actions={
-            <Button className="ai-gradient text-white">
-              <Plug className="mr-2 h-4 w-4" />
-              Request Integration
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <a href="/integrations/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Integration Settings
+                </a>
+              </Button>
+              <Button className="ai-gradient text-white">
+                <Plug className="mr-2 h-4 w-4" />
+                Request Integration
+              </Button>
+            </div>
           }
         />
 
