@@ -51,6 +51,10 @@ export default function TestCaseEditorPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isEditing = !!id;
+  // Optional return-to-plan context (passed by Test Plan detail page)
+  const planId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("planId") : null;
+  const backHref = planId ? `/test-plans/${planId}` : "/test-cases";
+  const backLabel = planId ? "Back to Test Plan" : "Cancel";
 
   // Form state
   const [title, setTitle] = useState("");
