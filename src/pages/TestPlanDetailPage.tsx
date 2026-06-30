@@ -932,6 +932,22 @@ export default function TestPlanDetailPage() {
             <p className="text-sm text-muted-foreground">Loading workbench...</p>
           )}
         </TabsContent>
+
+        <TabsContent value="runners">
+          {plan?.project_id && <PlanRunnersPanel projectId={plan.project_id} />}
+        </TabsContent>
+        <TabsContent value="defects">
+          {id && <PlanDefectsPanel testPlanId={id} />}
+        </TabsContent>
+        <TabsContent value="gates">
+          {plan?.project_id && <PlanQualityGatesPanel projectId={plan.project_id} />}
+        </TabsContent>
+        <TabsContent value="reports">
+          {id && plan?.project_id && <PlanReportsPanel testPlanId={id} projectId={plan.project_id} />}
+        </TabsContent>
+        <TabsContent value="live">
+          {id && <PlanLivePanel testPlanId={id} />}
+        </TabsContent>
       </Tabs>
 
       {/* Create / Edit case dialog */}
