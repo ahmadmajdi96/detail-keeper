@@ -7,8 +7,10 @@ WORKDIR /app
 COPY package*.json ./
 COPY bun.lockb* ./
 
-# Install dependencies
-RUN npm ci --legacy-peer-deps
+# Install dependencies (use `npm install` so the container regenerates the
+# lock file when package.json drifts from package-lock.json — the project's
+# source of truth is bun.lockb, not package-lock.json, so `npm ci` would fail).
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # Copy source code
 COPY . .
