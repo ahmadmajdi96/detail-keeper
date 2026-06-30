@@ -954,13 +954,13 @@ export default function TestPlanDetailPage() {
         </TabsContent>
 
         <TabsContent value="runners">
-          {plan?.project_id && <PlanRunnersPanel projectId={plan.project_id} />}
+          {plan?.project_id && <PlanRunnersPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
         </TabsContent>
         <TabsContent value="defects">
-          {id && <PlanDefectsPanel testPlanId={id} />}
+          {id && <PlanDefectsPanel testPlanId={id} projectId={plan.project_id} workspaceId={plan.workspace_id} />}
         </TabsContent>
         <TabsContent value="gates">
-          {plan?.project_id && <PlanQualityGatesPanel projectId={plan.project_id} />}
+          {plan?.project_id && <PlanQualityGatesPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
         </TabsContent>
         <TabsContent value="reports">
           {id && plan?.project_id && <PlanReportsPanel testPlanId={id} projectId={plan.project_id} />}
