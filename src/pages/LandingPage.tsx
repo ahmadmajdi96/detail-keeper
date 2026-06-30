@@ -239,22 +239,22 @@ const personas = [
 ];
 
 const bento = [
-  { icon: Layers, title: "Unified Platform", desc: "Stop searching ten tools for one answer. Qualixa unifies your data and turns it into instant decisions." },
-  { icon: Eye, title: "Cognitive Profiles", desc: "A living quality profile for every feature — patterns, strengths, and hidden risks." },
-  { icon: Zap, title: "Instant Automation", desc: "Triage, routing, and reporting handled the moment a run completes." },
-  { icon: Clock, title: "Your Time Back", desc: "Twelve-plus hours saved weekly. Reports, triage, and follow-ups — automated." },
+  { icon: Wand2, title: "AI Workbench", desc: "Generate 10 living test docs, derive test cases, and synthesize Playwright code per case — all from a Monaco multi-tab editor." },
+  { icon: Play, title: "One-Click Run Suite", desc: "Dispatch generated specs to registered runners with inline browser, headless, and retry config. Watch progress stream in real time." },
+  { icon: Database, title: "Replayable Artifacts", desc: "Every suite run snapshots its docs JSON and per-case .spec.ts files so you can reopen, inspect, and rerun any historical run." },
+  { icon: Eye, title: "Cognitive Profiles", desc: "A living quality profile per feature — requirements, variables, benchmarks, and hidden risks in one view." },
 ];
 
 const days = [
-  { day: "Day 1", title: "Give your team their time back.",
-    body: "Automate triage, reporting, and everyday QA admin in one place — so engineers focus on testing, not data entry.",
-    magic: "Engineers stop managing systems and start improving quality." },
-  { day: "Day 2", title: "Turn coverage into momentum.",
-    body: "Transform regression suites into focused Quests that keep teams executing, learning, and progressing release after release.",
-    magic: "Teams stay engaged because the work feels purposeful, not repetitive." },
-  { day: "Day 3 and beyond", title: "See the risk behind every release.",
-    body: "Go beyond dashboards with Qualixa DNA. Understand how your product behaves, spot risk earlier, and intervene before it ships.",
-    magic: "You catch regressions and risk early — before they affect customers." },
+  { day: "Day 1", title: "Ingest, then generate.",
+    body: "Point Qualixa at your docs or repo. The AI Workbench produces 10 test plan documents, requirements, variables, benchmarks, and per-case Playwright code in one flow.",
+    magic: "What used to take a sprint of authoring lands in minutes." },
+  { day: "Day 2", title: "Run the suite, watch it live.",
+    body: "Hit Run Suite to dispatch every generated spec to your registered runner with the browser, headless, and retry settings you choose. Per-case status streams back in real time.",
+    magic: "Executions stop being a black box — every case reports as it finishes." },
+  { day: "Day 3 and beyond", title: "Reopen, replay, ship with confidence.",
+    body: "Each suite run archives its docs and .spec.ts artifacts. Reopen any past run in the Workbench, browse the files, and rerun with the exact same configuration.",
+    magic: "Quality history becomes an asset you can audit, diff, and re-execute on demand." },
 ];
 
 const faqs = [
