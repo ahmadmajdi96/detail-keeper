@@ -80,14 +80,8 @@ export function SuiteRunProgress({ suiteRunId, projectId }: Props) {
       await supabase.from("suite_runs" as any)
         .update({ status: "cancelled", finished_at: new Date().toISOString() })
         .eq("id", suiteRunId);
-      // Best-effort: cancel queued runner_jobs for those specs.
-      const jobIds = runs.filter(r => ACTIVE.has(r.status)).map(r => r.id);
-      if (jobIds.length) {
-        await supabase.from("runner_jobs" as any)
-          .update({ status: "cancelled" })
-          .in("status", ["queued", "dispatched"])
-          .in("id", []); // no direct link from spec_run id — handled by sync trigger via spec_runs
-      }
+      // (runner_jobs are linked from spec_runs.runner_job_id and will be reconciled
+      // by the spec_runs cancellation above via the sync trigger.)
       toast.success("Suite cancelled");
       qc.invalidateQueries({ queryKey: ["suite-run", suiteRunId] });
       qc.invalidateQueries({ queryKey: ["suite-spec-runs", suiteRunId] });
