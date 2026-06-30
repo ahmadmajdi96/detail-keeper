@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      acceptance_criteria: {
+        Row: {
+          created_at: string
+          id: string
+          order_index: number
+          requirement_id: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          requirement_id: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          requirement_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acceptance_criteria_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_execution_logs: {
         Row: {
           action: string
@@ -343,6 +375,48 @@ export type Database = {
           },
         ]
       }
+      automation_mappings: {
+        Row: {
+          created_at: string
+          framework: string
+          id: string
+          project_id: string
+          test_case_id: string | null
+          test_id_pattern: string
+        }
+        Insert: {
+          created_at?: string
+          framework: string
+          id?: string
+          project_id: string
+          test_case_id?: string | null
+          test_id_pattern: string
+        }
+        Update: {
+          created_at?: string
+          framework?: string
+          id?: string
+          project_id?: string
+          test_case_id?: string | null
+          test_id_pattern?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_mappings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_mappings_test_case_id_fkey"
+            columns: ["test_case_id"]
+            isOneToOne: false
+            referencedRelation: "test_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       builds: {
         Row: {
           artifact_url: string | null
@@ -411,6 +485,146 @@ export type Database = {
             columns: ["release_id"]
             isOneToOne: false
             referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ci_integrations: {
+        Row: {
+          branch_release_map: Json
+          created_at: string
+          created_by: string | null
+          default_environment_id: string | null
+          default_release_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+          project_id: string
+          provider: string
+          secret_hash: string
+          updated_at: string
+        }
+        Insert: {
+          branch_release_map?: Json
+          created_at?: string
+          created_by?: string | null
+          default_environment_id?: string | null
+          default_release_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          project_id: string
+          provider: string
+          secret_hash: string
+          updated_at?: string
+        }
+        Update: {
+          branch_release_map?: Json
+          created_at?: string
+          created_by?: string | null
+          default_environment_id?: string | null
+          default_release_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          project_id?: string
+          provider?: string
+          secret_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ci_integrations_default_environment_id_fkey"
+            columns: ["default_environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ci_integrations_default_release_id_fkey"
+            columns: ["default_release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ci_integrations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ci_runs: {
+        Row: {
+          branch: string | null
+          build_id: string | null
+          commit_sha: string | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          integration_id: string | null
+          project_id: string
+          provider: string
+          provider_run_id: string | null
+          raw: Json
+          started_at: string | null
+          status: string
+          url: string | null
+        }
+        Insert: {
+          branch?: string | null
+          build_id?: string | null
+          commit_sha?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          integration_id?: string | null
+          project_id: string
+          provider: string
+          provider_run_id?: string | null
+          raw?: Json
+          started_at?: string | null
+          status?: string
+          url?: string | null
+        }
+        Update: {
+          branch?: string | null
+          build_id?: string | null
+          commit_sha?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          integration_id?: string | null
+          project_id?: string
+          provider?: string
+          provider_run_id?: string | null
+          raw?: Json
+          started_at?: string | null
+          status?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ci_runs_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "builds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ci_runs_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "ci_integrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ci_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1158,6 +1372,162 @@ export type Database = {
           },
         ]
       }
+      job_artifacts: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          kind: string
+          meta: Json
+          ref: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          kind: string
+          meta?: Json
+          ref: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          kind?: string
+          meta?: Json
+          ref?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_artifacts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_attempts: {
+        Row: {
+          attempt_no: number
+          error: Json | null
+          finished_at: string | null
+          id: string
+          job_id: string
+          logs: string | null
+          started_at: string
+          status: Database["public"]["Enums"]["job_status"]
+        }
+        Insert: {
+          attempt_no: number
+          error?: Json | null
+          finished_at?: string | null
+          id?: string
+          job_id: string
+          logs?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["job_status"]
+        }
+        Update: {
+          attempt_no?: number
+          error?: Json | null
+          finished_at?: string | null
+          id?: string
+          job_id?: string
+          logs?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["job_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_attempts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          attempt_count: number
+          checkpoint: Json | null
+          created_at: string
+          created_by: string | null
+          error: Json | null
+          id: string
+          idempotency_key: string | null
+          kind: string
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          progress: number
+          progress_message: string | null
+          project_id: string | null
+          result: Json | null
+          run_after: string
+          status: Database["public"]["Enums"]["job_status"]
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          checkpoint?: Json | null
+          created_at?: string
+          created_by?: string | null
+          error?: Json | null
+          id?: string
+          idempotency_key?: string | null
+          kind: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          progress?: number
+          progress_message?: string | null
+          project_id?: string | null
+          result?: Json | null
+          run_after?: string
+          status?: Database["public"]["Enums"]["job_status"]
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          checkpoint?: Json | null
+          created_at?: string
+          created_by?: string | null
+          error?: Json | null
+          id?: string
+          idempotency_key?: string | null
+          kind?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          progress?: number
+          progress_message?: string | null
+          project_id?: string | null
+          result?: Json | null
+          run_after?: string
+          status?: Database["public"]["Enums"]["job_status"]
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -1376,6 +1746,101 @@ export type Database = {
           },
         ]
       }
+      requirement_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          linked_id: string
+          linked_type: string
+          requirement_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          linked_id: string
+          linked_type: string
+          requirement_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          linked_id?: string
+          linked_type?: string
+          requirement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirement_links_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requirements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          key: string | null
+          priority: number
+          project_id: string
+          source_document_id: string | null
+          status: Database["public"]["Enums"]["requirement_status"]
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          key?: string | null
+          priority?: number
+          project_id: string
+          source_document_id?: string | null
+          status?: Database["public"]["Enums"]["requirement_status"]
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          key?: string | null
+          priority?: number
+          project_id?: string
+          source_document_id?: string | null
+          status?: Database["public"]["Enums"]["requirement_status"]
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requirements_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suite_test_cases: {
         Row: {
           added_by: string | null
@@ -1540,16 +2005,23 @@ export type Database = {
         Row: {
           ai_confidence: number | null
           ai_generated: boolean
+          automation_path: string | null
+          automation_status: Database["public"]["Enums"]["automation_status"]
           coverage_tags: string[] | null
           created_at: string
           created_by: string | null
           description: string | null
+          estimated_duration_min: number | null
           expected_result: string | null
           id: string
+          owner_id: string | null
           preconditions: string | null
           priority: number
           project_id: string | null
           requirement_ids: string[] | null
+          review_status: Database["public"]["Enums"]["review_status"]
+          reviewer_id: string | null
+          source: string | null
           status: Database["public"]["Enums"]["test_case_status"]
           title: string
           updated_at: string
@@ -1559,16 +2031,23 @@ export type Database = {
         Insert: {
           ai_confidence?: number | null
           ai_generated?: boolean
+          automation_path?: string | null
+          automation_status?: Database["public"]["Enums"]["automation_status"]
           coverage_tags?: string[] | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          estimated_duration_min?: number | null
           expected_result?: string | null
           id?: string
+          owner_id?: string | null
           preconditions?: string | null
           priority?: number
           project_id?: string | null
           requirement_ids?: string[] | null
+          review_status?: Database["public"]["Enums"]["review_status"]
+          reviewer_id?: string | null
+          source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
           title: string
           updated_at?: string
@@ -1578,16 +2057,23 @@ export type Database = {
         Update: {
           ai_confidence?: number | null
           ai_generated?: boolean
+          automation_path?: string | null
+          automation_status?: Database["public"]["Enums"]["automation_status"]
           coverage_tags?: string[] | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          estimated_duration_min?: number | null
           expected_result?: string | null
           id?: string
+          owner_id?: string | null
           preconditions?: string | null
           priority?: number
           project_id?: string | null
           requirement_ids?: string[] | null
+          review_status?: Database["public"]["Enums"]["review_status"]
+          reviewer_id?: string | null
+          source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
           title?: string
           updated_at?: string
@@ -2245,6 +2731,7 @@ export type Database = {
     }
     Enums: {
       agent_status: "idle" | "learning" | "executing" | "paused" | "error"
+      automation_status: "manual" | "planned" | "automated" | "obsolete"
       build_status: "pending" | "building" | "success" | "failed" | "cancelled"
       cycle_status:
         | "planned"
@@ -2277,6 +2764,15 @@ export type Database = {
         | "blocked"
         | "skipped"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
+      job_status:
+        | "queued"
+        | "running"
+        | "waiting"
+        | "retrying"
+        | "completed"
+        | "failed"
+        | "cancelled"
+        | "dead_letter"
       project_source: "documentation" | "zip" | "github"
       project_status: "pending" | "processing" | "ready" | "failed" | "archived"
       release_status:
@@ -2285,6 +2781,8 @@ export type Database = {
         | "released"
         | "blocked"
         | "cancelled"
+      requirement_status: "proposed" | "approved" | "obsolete"
+      review_status: "draft" | "in_review" | "approved" | "rejected"
       run_item_status:
         | "not_run"
         | "in_progress"
@@ -2426,6 +2924,7 @@ export const Constants = {
   public: {
     Enums: {
       agent_status: ["idle", "learning", "executing", "paused", "error"],
+      automation_status: ["manual", "planned", "automated", "obsolete"],
       build_status: ["pending", "building", "success", "failed", "cancelled"],
       cycle_status: [
         "planned",
@@ -2462,6 +2961,16 @@ export const Constants = {
         "skipped",
       ],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
+      job_status: [
+        "queued",
+        "running",
+        "waiting",
+        "retrying",
+        "completed",
+        "failed",
+        "cancelled",
+        "dead_letter",
+      ],
       project_source: ["documentation", "zip", "github"],
       project_status: ["pending", "processing", "ready", "failed", "archived"],
       release_status: [
@@ -2471,6 +2980,8 @@ export const Constants = {
         "blocked",
         "cancelled",
       ],
+      requirement_status: ["proposed", "approved", "obsolete"],
+      review_status: ["draft", "in_review", "approved", "rejected"],
       run_item_status: [
         "not_run",
         "in_progress",
