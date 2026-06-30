@@ -76,8 +76,29 @@ Deno.serve(async (req) => {
       { onConflict: "workspace_id,slug" },
     );
 
+    await admin.from("integration_activity_log").insert({
+      workspace_id: state.workspace_id,
+      provider: "jira",
+      kind: "oauth_callback",
+      status: "ok",
+      message: primary ? `Linked ${primary.name}` : "Linked",
+      user_id: state.userId,
+    });
+
     return popupResponseHtml({ ok: true, origin: state.origin, provider: "jira", message: primary ? `Linked ${primary.name}` : "Linked" });
   } catch (e) {
+    try {
+      const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+      await admin.from("integration_activity_log").insert({
+        workspace_id: state?.workspace_id,
+        provider: "jira",
+        kind: "oauth_callback",
+        status: "error",
+        message: String(e),
+        user_id: state?.userId,
+      });
+    } catch (_) { /* swallow */ }
     return popupResponseHtml({ ok: false, origin: state?.origin ?? "*", provider: "jira", message: String(e) });
   }
 });
+

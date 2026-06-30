@@ -27,7 +27,11 @@ export async function connectOAuthPopup(opts: {
     `oauth_${opts.provider}`,
     "popup=yes,width=560,height=720,left=200,top=120",
   );
-  if (!popup) throw new Error("Popup blocked. Please allow popups for this site.");
+  if (!popup || popup.closed || typeof popup.closed === "undefined") {
+    throw new Error(
+      "POPUP_BLOCKED:Please allow popups for this site, then click Connect again.",
+    );
+  }
 
   try {
     const { data, error } = await supabase.functions.invoke("oauth-start", {
@@ -50,30 +54,42 @@ export async function connectOAuthPopup(opts: {
 
   return new Promise<OAuthResult>((resolve) => {
     const expectedOrigin = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
+    let settled = false;
+
+    const finish = (result: OAuthResult) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("message", handler);
+      clearInterval(pollClosed);
+      clearTimeout(timeout);
+      resolve(result);
+    };
+
     const handler = (event: MessageEvent) => {
-      // Callback runs on the supabase functions origin and posts to window.opener
-      // with our app origin as the target — so we receive event.origin === app origin
-      // only when running same-origin. Edge function posts with target = state.origin
-      // so event.origin will equal the supabase functions origin. Accept either.
-      const ok =
+      const okOrigin =
         event.origin === window.location.origin ||
         event.origin === expectedOrigin;
-      if (!ok) return;
+      if (!okOrigin) return;
       const data = event.data;
       if (!data || data.type !== "qualixa:oauth") return;
       if (data.provider !== opts.provider) return;
-      window.removeEventListener("message", handler);
-      clearInterval(pollClosed);
-      resolve({ ok: !!data.ok, provider: opts.provider, message: data.message });
+      const msg = data.message ?? "";
+      const friendly = /access_denied|user_denied|cancelled/i.test(msg)
+        ? "You declined the request."
+        : msg;
+      finish({ ok: !!data.ok, provider: opts.provider, message: friendly });
     };
     window.addEventListener("message", handler);
 
     const pollClosed = setInterval(() => {
       if (popup.closed) {
-        window.removeEventListener("message", handler);
-        clearInterval(pollClosed);
-        resolve({ ok: false, provider: opts.provider, message: "Popup closed before completion" });
+        finish({ ok: false, provider: opts.provider, message: "Window closed before completing sign-in." });
       }
     }, 600);
+
+    const timeout = setTimeout(() => {
+      try { popup.close(); } catch { /* ignore */ }
+      finish({ ok: false, provider: opts.provider, message: "Timed out waiting for sign-in (5 min). Please try again." });
+    }, 5 * 60_000);
   });
 }

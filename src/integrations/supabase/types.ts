@@ -898,12 +898,16 @@ export type Database = {
           commit_sha: string | null
           created_at: string
           created_by: string | null
+          gh_html_url: string | null
+          gh_run_id: number | null
+          gh_workflow: string | null
           id: string
           metadata: Json
           name: string | null
           project_id: string
           release_id: string | null
           status: Database["public"]["Enums"]["build_status"]
+          test_plan_id: string | null
           updated_at: string
         }
         Insert: {
@@ -916,12 +920,16 @@ export type Database = {
           commit_sha?: string | null
           created_at?: string
           created_by?: string | null
+          gh_html_url?: string | null
+          gh_run_id?: number | null
+          gh_workflow?: string | null
           id?: string
           metadata?: Json
           name?: string | null
           project_id: string
           release_id?: string | null
           status?: Database["public"]["Enums"]["build_status"]
+          test_plan_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -934,12 +942,16 @@ export type Database = {
           commit_sha?: string | null
           created_at?: string
           created_by?: string | null
+          gh_html_url?: string | null
+          gh_run_id?: number | null
+          gh_workflow?: string | null
           id?: string
           metadata?: Json
           name?: string | null
           project_id?: string
           release_id?: string | null
           status?: Database["public"]["Enums"]["build_status"]
+          test_plan_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -955,6 +967,13 @@ export type Database = {
             columns: ["release_id"]
             isOneToOne: false
             referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "builds_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -1509,6 +1528,8 @@ export type Database = {
           description: string | null
           execution_id: string | null
           id: string
+          jira_issue_key: string | null
+          jira_issue_url: string | null
           priority: Database["public"]["Enums"]["defect_priority"]
           project_id: string | null
           release_id: string | null
@@ -1534,6 +1555,8 @@ export type Database = {
           description?: string | null
           execution_id?: string | null
           id?: string
+          jira_issue_key?: string | null
+          jira_issue_url?: string | null
           priority?: Database["public"]["Enums"]["defect_priority"]
           project_id?: string | null
           release_id?: string | null
@@ -1559,6 +1582,8 @@ export type Database = {
           description?: string | null
           execution_id?: string | null
           id?: string
+          jira_issue_key?: string | null
+          jira_issue_url?: string | null
           priority?: Database["public"]["Enums"]["defect_priority"]
           project_id?: string | null
           release_id?: string | null
@@ -2242,6 +2267,111 @@ export type Database = {
           },
         ]
       }
+      github_repo_mappings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_branch: string
+          id: string
+          owner: string
+          project_id: string
+          repo: string
+          test_plan_id: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_branch?: string
+          id?: string
+          owner: string
+          project_id: string
+          repo: string
+          test_plan_id?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_branch?: string
+          id?: string
+          owner?: string
+          project_id?: string
+          repo?: string
+          test_plan_id?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_repo_mappings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "github_repo_mappings_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "github_repo_mappings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_activity_log: {
+        Row: {
+          counts: Json | null
+          id: string
+          kind: string
+          message: string | null
+          occurred_at: string
+          provider: string
+          status: string
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          counts?: Json | null
+          id?: string
+          kind: string
+          message?: string | null
+          occurred_at?: string
+          provider: string
+          status: string
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          counts?: Json | null
+          id?: string
+          kind?: string
+          message?: string | null
+          occurred_at?: string
+          provider?: string
+          status?: string
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_activity_log_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_connections: {
         Row: {
           config: Json
@@ -2249,11 +2379,14 @@ export type Database = {
           created_by: string | null
           id: string
           integration_id: string | null
+          last_error: string | null
+          last_error_at: string | null
           last_sync_at: string | null
           name: string | null
           project_id: string | null
           slug: string
           status: string
+          sync_enabled: boolean
           updated_at: string
           workspace_id: string
         }
@@ -2263,11 +2396,14 @@ export type Database = {
           created_by?: string | null
           id?: string
           integration_id?: string | null
+          last_error?: string | null
+          last_error_at?: string | null
           last_sync_at?: string | null
           name?: string | null
           project_id?: string | null
           slug: string
           status?: string
+          sync_enabled?: boolean
           updated_at?: string
           workspace_id: string
         }
@@ -2277,11 +2413,14 @@ export type Database = {
           created_by?: string | null
           id?: string
           integration_id?: string | null
+          last_error?: string | null
+          last_error_at?: string | null
           last_sync_at?: string | null
           name?: string | null
           project_id?: string | null
           slug?: string
           status?: string
+          sync_enabled?: boolean
           updated_at?: string
           workspace_id?: string
         }
@@ -2344,6 +2483,60 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      jira_project_mappings: {
+        Row: {
+          auto_link_rule: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          jira_cloud_id: string
+          jira_project_key: string
+          jira_site_url: string | null
+          project_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          auto_link_rule?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          jira_cloud_id: string
+          jira_project_key: string
+          jira_site_url?: string | null
+          project_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          auto_link_rule?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          jira_cloud_id?: string
+          jira_project_key?: string
+          jira_site_url?: string | null
+          project_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jira_project_mappings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jira_project_mappings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       job_artifacts: {
         Row: {
