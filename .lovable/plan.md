@@ -1,84 +1,75 @@
-## Goal
+# Jira + GitHub Integration: Sync, Mapping, Settings, Activity
 
-Harden, expose, and operate the 30 tables added in the last migration: prove they work, type them, build an isolated admin to drive them, and seed sample data.
+## 1. Schema (one migration)
 
-## 1. Database verification (no schema changes expected)
+New / extended tables (workspace-scoped, RLS via `is_workspace_member`):
 
-- Confirm last migration applied cleanly by introspecting `information_schema` for all 30 target tables, their `rowsecurity`, and at least one policy each.
-- Add a tiny helper migration **only if gaps surface** (e.g. missing `GRANT`, missing policy on a child table). Otherwise zero migrations in this step.
-- Enable `pg_graphql` extension in the `graphql` schema (Supabase ships it; just `CREATE EXTENSION IF NOT EXISTS pg_graphql`).
-- Add `COMMENT ON TABLE` directives so pg_graphql generates clean type names for the new tables (organizations, repositories, requirement_versions, defect_comments/links/history/slas, approvals, waivers, ai_jobs/outputs/audit_events, etc.).
+- `integration_connections` — add columns:
+  - `sync_enabled boolean default true`
+  - `last_error text`, `last_error_at timestamptz`
+- `jira_project_mappings` — links a Qualixa project to a Jira project key
+  - `workspace_id, project_id, jira_cloud_id, jira_project_key, auto_link_rule jsonb` (e.g. `{ "match": "summary", "labels": ["bug"] }`)
+- `github_repo_mappings` — links a Qualixa project to a GitHub repo
+  - `workspace_id, project_id, owner, repo, default_branch, test_plan_id (nullable)`
+- `integration_activity_log` — every connect / sync / OAuth attempt
+  - `workspace_id, provider, kind ('oauth_connect'|'oauth_callback'|'sync'|'disconnect'), status ('ok'|'error'), message, counts jsonb, user_id, occurred_at`
+- `defects` — add `jira_issue_key text`, `jira_issue_url text` (nullable)
+- `builds` — already has `commit_sha`; add `gh_run_id bigint`, `gh_workflow text` if absent
 
-## 2. CRUD + RLS probe (`tests/rls/probe.py`)
+GRANTs and RLS per Lovable rules; all log writes via `service_role` from edge fns.
 
-Standalone Python script driven by `psql` + the Supabase REST endpoint with two synthetic users in two workspaces.
+## 2. Edge functions
 
-For every new table:
-1. User A inserts a row scoped to workspace A — expect success.
-2. User B selects/updates/deletes — expect 0 rows / permission error.
-3. User A selects own row — expect success.
-4. Cleanup.
+- `oauth-start` (exists) — extend to log to `integration_activity_log` and surface popup-blocked / bad-state errors
+- `oauth-github-callback`, `oauth-jira-callback` (exist) — write activity log row on success/failure
+- `integrations-disconnect` (new, JWT) — `{provider}` → flips status='disconnected', wipes `config.access_token`, logs row
+- `integrations-reconnect` (new, JWT) — alias of disconnect + returns fresh `oauth-start` URL in one round trip
+- `github-sync` (new, JWT) — pulls workflow runs for each mapped repo, upserts into `builds` (matched on `gh_run_id`), links to `test_plan_id` when the mapping sets one. Returns counts.
+- `jira-sync` (new, JWT) — for each mapping: fetches issues with JQL (default: `updated >= -7d`), upserts a `defect_links` row keyed by `jira_issue_key`, refreshes `defects.jira_issue_key/url` for any defect whose summary matches the configured rule.
+- `integrations-callback-info` (new, public read) — returns the two callback URLs the user must register, so the UI can render them (no hard-coded Supabase URLs in the React code).
 
-Output: `tests/rls/report.json` + console summary. Wired into `.github/workflows/smoke.yml` as a separate job before the existing Playwright smoke.
+All sync edge fns: rate-limit per workspace (1/min), capture errors into `integration_activity_log`, refresh Jira access token via `refresh_token` when expired.
 
-## 3. GraphQL layer (pg_graphql + codegen)
+## 3. New page: `/integrations/settings`
 
-- Add deps: `bun add graphql graphql-request` and `bun add -d @graphql-codegen/cli @graphql-codegen/client-preset @graphql-codegen/typescript @graphql-codegen/typescript-operations`.
-- `codegen.ts` at repo root pointing at `${VITE_SUPABASE_URL}/graphql/v1` with the publishable key header.
-- `src/graphql/client.ts` — `GraphQLClient` wired to Supabase GraphQL endpoint, injects current session JWT.
-- `src/graphql/operations/*.graphql` — queries + mutations for: organizations, repositories, requirement_versions, defects (+ comments/links/history), approvals, waivers, ai_jobs, ai_outputs, ai_audit_events.
-- `bun run codegen` generates `src/graphql/generated.ts` (typed hooks via `graphql-request`).
-- Doc in `README.md` for how to regenerate.
+Three tabs:
 
-## 4. Isolated `/admin` dashboard
+- **Connections** — GitHub and Jira cards with:
+  - "Connected / Not connected" pill (green/grey)
+  - Connect / Disconnect / Reconnect buttons
+  - Sync toggle (writes `sync_enabled`)
+  - **Callback URLs** block with copy buttons — fetched from `integrations-callback-info`
+- **Project Mapping** — per Qualixa project:
+  - Jira: pick `jira_cloud_id` from connection's `sites`, type a Jira project key, configure auto-link rule (`match summary` / `match labels` / both)
+  - GitHub: pick `owner/repo` from connection's repos (fetched on-demand via gateway), set default branch, optionally bind to a Test Plan
+- **Sync / Activity** — table of last 50 rows from `integration_activity_log`, with manual "Sync now" buttons for GitHub and Jira; shows counts (e.g. "12 builds, 4 issues, 0 errors") and per-row error details.
 
-Mounted at `/admin/*` in `App.tsx` with its own `AdminLayout` — no `AppSidebar`, no `WorkflowNav`, distinct slate/amber theme so it's visually clearly separate. Gated by `useAuth().hasPermission('admin')`; non-admins get a 403 panel.
+## 4. Existing pages
 
-```text
-/admin
-  /repositories          (CRUD + branches drawer)
-  /requirement-versions  (browse, diff, restore)
-  /defects               (list + detail with comments/links/history/slas)
-  /approvals             (approvals + waivers tabs)
-  /ai-jobs               (read-only: jobs, outputs, audit events)
-```
+- `IntegrationsPage.tsx` — keep cards, add real-time status pill from `integration_connections.status` and "Open Settings" link to `/integrations/settings`.
+- `DefectsPage.tsx` — when `jira_issue_key` is set, render `[PROJ-123]` chip linking to `jira_issue_url`.
+- `defects` insert path — call edge fn `jira-auto-link` (or run inline RPC) to find a Jira issue per the project's `auto_link_rule` and set `jira_issue_key` / `jira_issue_url`.
 
-Pages use the new GraphQL hooks. Shared primitives: `AdminPageHeader`, `AdminDataTable` (TanStack table), `AdminDrawer`.
+## 5. Frontend polish
 
-## 5. Seed fixtures (`supabase/seed/admin-fixtures.sql`)
+- `src/lib/oauth-popup.ts` — refine error toasts:
+  - popup blocked → "Please allow popups for this site and try again"
+  - timeout (>5 min) → "OAuth timed out, please try again"
+  - explicit "denied" / "access_denied" → "You declined the request"
+- Status hook `useIntegrationStatus(workspaceId)` returning `{ github, jira }` with live updates via Supabase Realtime on `integration_connections`.
 
-Idempotent SQL (guarded with `ON CONFLICT DO NOTHING` and stable UUIDs):
-- 1 organization, 1 workspace, 1 project, 1 repository + 2 branches, 1 pull_request, 2 commits.
-- 1 requirement + 2 requirement_versions, 1 test_plan + 1 test_plan_version.
-- 1 defect with 1 comment, 1 link, 1 history entry, 1 SLA row.
-- 1 approval, 1 waiver.
-- 1 ai_job → 1 ai_output → 1 ai_audit_event.
+## Out of scope (ask if needed)
 
-Runner: `bun run seed:admin` (psql via `$SUPABASE_DB_URL`). Documented in README under "Local fixtures".
+- Writing back to Jira (creating issues from defects)
+- GitHub Issues sync (only workflow runs as requested)
+- Cron-scheduled sync (manual "Sync now" only this round; can add `schedules` rows next iteration)
+- Encryption-at-rest for `config.access_token` (relying on RLS + service-role isolation)
 
-## 6. End-to-end smoke for `/admin`
+## Order of execution
 
-Extend `tests/smoke/run.py` with the 5 admin routes (auth as seeded admin via existing storage-key injection), then add `tests/e2e/admin-crud.py` that exercises create/edit/delete on Repositories and Approvals pages and screenshots each state.
+1. Schema migration (single SQL)
+2. Edge functions (5 new + 1 callback-info)
+3. Hook + UI: `useIntegrationStatus`, new `/integrations/settings` page, defect chip, popup polish
+4. Smoke: `supabase--curl_edge_functions` against `integrations-callback-info` and `github-sync` (dry-run)
 
-## Technical details
-
-- pg_graphql respects RLS automatically — no extra auth shim needed.
-- Codegen runs offline against a saved `schema.graphql` snapshot (`bun run codegen:schema` first) so CI doesn't need DB access.
-- Admin theme tokens live in `src/admin/theme.css` (slate-950 bg, amber-400 accents, JetBrains Mono headings) — fully scoped under `.admin-shell` so it can't bleed into the main app.
-- Probe script uses `service_role` only to provision the two test users + workspaces; all assertions go through user-scoped anon JWTs.
-
-## Out of scope
-
-- No changes to existing pages, sidebar, or workflow nav.
-- No new background jobs.
-- No real AI calls in seed data — `ai_outputs.content` is static JSON.
-
-## Deliverables checklist
-
-- [ ] pg_graphql enabled + table comments migration
-- [ ] `tests/rls/probe.py` + CI job
-- [ ] codegen config + generated types + 5 operation files
-- [ ] `/admin` shell + 5 pages
-- [ ] `supabase/seed/admin-fixtures.sql` + `bun run seed:admin`
-- [ ] admin routes added to smoke + new `admin-crud.py`
-- [ ] README section: "Admin dashboard, GraphQL, seeds, RLS probe"
+Estimated diff: ~1,400 lines, mostly new files.
