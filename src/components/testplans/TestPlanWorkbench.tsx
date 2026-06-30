@@ -27,7 +27,7 @@ type OpenFile =
 
 interface Props { testPlanId: string; projectId: string }
 
-export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) {
+export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const qc = useQueryClient();
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
