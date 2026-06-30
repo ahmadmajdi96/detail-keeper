@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthShowcase } from "@/components/auth/AuthShowcase";
 import { Logo } from "@/components/Logo";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import {
   Eye, EyeOff, Loader2, ArrowRight, Mail, Lock, User, Check,
 } from "lucide-react";
@@ -182,6 +183,16 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+
+          {/* Divider + Google */}
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-[rgba(0,207,224,0.12)]" />
+            <span className="text-[10px] uppercase tracking-wider text-[#3a5870]">or</span>
+            <div className="h-px flex-1 bg-[rgba(0,207,224,0.12)]" />
+          </div>
+          <GoogleAuthButton label="Sign up with Google" />
+
+
 
           <p className="mt-10 text-center text-xs text-[#3a5870]">
             Already with us?{" "}

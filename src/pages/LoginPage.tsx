@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AuthShowcase } from "@/components/auth/AuthShowcase";
 import { Eye, EyeOff, Loader2, ArrowRight, Mail, Lock } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 
 type Tab = "email" | "sso" | "magic";
 
@@ -153,6 +154,16 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Divider + Google */}
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-[rgba(0,207,224,0.12)]" />
+            <span className="text-[10px] uppercase tracking-wider text-[#3a5870]">or</span>
+            <div className="h-px flex-1 bg-[rgba(0,207,224,0.12)]" />
+          </div>
+          <GoogleAuthButton label="Continue with Google" />
+
+
 
           {/* Tabs */}
           <div className="mt-10 flex items-center justify-center gap-7 text-xs">
