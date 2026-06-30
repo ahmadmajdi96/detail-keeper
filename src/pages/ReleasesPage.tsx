@@ -13,8 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Rocket, Calendar, Loader2 } from "lucide-react";
+import { Plus, Rocket, Calendar, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { ReleaseJudgeCard } from "@/components/sentinel/ReleaseJudgeCard";
+import { GateEvaluationsCard } from "@/components/sentinel/GateEvaluationsCard";
 
 const STATUS_LABELS: Record<string, string> = {
   planned: "Planned",
@@ -37,6 +39,7 @@ export default function ReleasesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", version: "", description: "", status: "planned", target_date: "" });
 
   const projectId = currentProject?.id ?? null;
@@ -117,33 +120,47 @@ export default function ReleasesPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {releases.map((r: any) => (
-            <Card key={r.id} className="border-border/50 hover:border-accent/40 transition-colors">
+            <Card key={r.id} className="border-border/50">
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Rocket className="h-4 w-4 text-accent" />
-                    {r.name}
-                  </CardTitle>
+                  <button className="flex items-start gap-2 text-left flex-1" onClick={() => setExpanded(expanded === r.id ? null : r.id)}>
+                    {expanded === r.id ? <ChevronDown className="h-4 w-4 mt-1" /> : <ChevronRight className="h-4 w-4 mt-1" />}
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Rocket className="h-4 w-4 text-accent" />
+                        {r.name}
+                      </CardTitle>
+                      {r.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{r.description}</p>}
+                    </div>
+                  </button>
                   <Badge variant="outline" className={STATUS_COLORS[r.status] || ""}>
                     {STATUS_LABELS[r.status] || r.status}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                {r.version && <div className="font-mono text-xs">{r.version}</div>}
-                {r.description && <p className="line-clamp-2">{r.description}</p>}
-                {r.target_date && (
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <Calendar className="h-3.5 w-3.5" />
-                    Target {new Date(r.target_date).toLocaleDateString()}
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4 text-xs">
+                  {r.version && <span className="font-mono">{r.version}</span>}
+                  {r.target_date && (
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" />
+                      Target {new Date(r.target_date).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                {expanded === r.id && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-2 border-t border-border/40">
+                    <GateEvaluationsCard releaseId={r.id} />
+                    <ReleaseJudgeCard releaseId={r.id} projectId={projectId} />
                   </div>
                 )}
               </CardContent>
             </Card>
           ))}
         </div>
+
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>

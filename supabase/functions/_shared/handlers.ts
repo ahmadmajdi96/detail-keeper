@@ -289,7 +289,159 @@ export async function handleIngestCiResults(sb: Sb, job: any) {
   return { framework: fw, total: tests.length, pass, fail, skip, run_id: run.id, cycle_id: cycleId };
 }
 
+// ---------------- evaluate_quality_gates ----------------
+export async function handleEvaluateQualityGates(sb: Sb, job: any) {
+  const { cycle_run_id, project_id } = job.payload || {};
+  if (!cycle_run_id || !project_id) throw new Error("cycle_run_id + project_id required");
+  await setProgress(sb, job.id, 10, "Loading run + gates");
+
+  const { data: run } = await sb.from("cycle_runs").select("*, test_cycles!inner(release_id, environment_id, build_id)").eq("id", cycle_run_id).single();
+  if (!run) throw new Error("cycle_run not found");
+  const releaseId = (run as any).test_cycles?.release_id;
+  const buildId = (run as any).test_cycles?.build_id;
+
+  const { data: items } = await sb.from("cycle_run_items").select("status,attempt_count").eq("run_id", cycle_run_id);
+  const total = items?.length || 0;
+  const passed = items?.filter((i: any) => i.status === "passed").length || 0;
+  const failed = items?.filter((i: any) => i.status === "failed").length || 0;
+  const flaky = items?.filter((i: any) => i.status === "passed" && (i.attempt_count || 1) > 1).length || 0;
+  const passRate = total ? passed / total : 0;
+  const flakyRate = total ? flaky / total : 0;
+
+  const { data: defectsList } = await sb.from("defects").select("severity,status").eq("cycle_run_id", cycle_run_id);
+  const critical = defectsList?.filter((d: any) => d.severity === "critical" && d.status !== "closed").length || 0;
+  const major = defectsList?.filter((d: any) => d.severity === "major" && d.status !== "closed").length || 0;
+
+  const metrics = { total, passed, failed, pass_rate: passRate, flaky_rate: flakyRate, critical_defects: critical, major_defects: major };
+
+  await setProgress(sb, job.id, 40, "Evaluating gates");
+  const { data: gates } = await sb.from("quality_gates").select("*").eq("project_id", project_id).eq("enabled", true);
+
+  let anyBlock = false;
+  for (const g of gates || []) {
+    const r = g.rules || {};
+    const results: any[] = [];
+    let status: "passed" | "failed" | "warning" = "passed";
+
+    const check = (name: string, ok: boolean, actual: any, expected: any) => {
+      results.push({ name, ok, actual, expected });
+      if (!ok) status = "failed";
+    };
+
+    if (typeof r.min_pass_rate === "number") check("min_pass_rate", passRate >= r.min_pass_rate, passRate, r.min_pass_rate);
+    if (typeof r.max_failed === "number") check("max_failed", failed <= r.max_failed, failed, r.max_failed);
+    if (typeof r.max_flaky_rate === "number") check("max_flaky_rate", flakyRate <= r.max_flaky_rate, flakyRate, r.max_flaky_rate);
+    if (typeof r.max_critical_defects === "number") check("max_critical_defects", critical <= r.max_critical_defects, critical, r.max_critical_defects);
+    if (typeof r.max_major_defects === "number") check("max_major_defects", major <= r.max_major_defects, major, r.max_major_defects);
+
+    const blocks = status === "failed" && g.blocks_release;
+    if (blocks) anyBlock = true;
+
+    await sb.from("gate_evaluations").insert({
+      gate_id: g.id, project_id, workspace_id: g.workspace_id,
+      release_id: releaseId || null, cycle_run_id, build_id: buildId || null,
+      status, blocks_release: blocks, metrics, rule_results: results,
+    });
+  }
+
+  // Auto block/approve release
+  if (releaseId) {
+    const newStatus = anyBlock ? "blocked" : "in_qa";
+    await sb.from("releases").update({ status: newStatus }).eq("id", releaseId);
+  }
+
+  await setProgress(sb, job.id, 100, `Evaluated ${gates?.length || 0} gates`);
+  return { gates: gates?.length || 0, blocks: anyBlock, metrics };
+}
+
+// ---------------- ai_release_judge ----------------
+export async function handleAiReleaseJudge(sb: Sb, job: any) {
+  const { cycle_run_id, project_id, release_id, deployment_id } = job.payload || {};
+  if (!cycle_run_id || !project_id) throw new Error("cycle_run_id + project_id required");
+  await setProgress(sb, job.id, 10, "Loading run context");
+
+  const { data: run } = await sb.from("cycle_runs").select("*, test_cycles(name, release_id, environment_id)").eq("id", cycle_run_id).single();
+  if (!run) throw new Error("cycle_run not found");
+  const resolvedRelease = release_id || (run as any).test_cycles?.release_id;
+
+  const { data: items } = await sb.from("cycle_run_items")
+    .select("status,attempt_count,test_cases(title)")
+    .eq("run_id", cycle_run_id);
+  const total = items?.length || 0;
+  const passed = items?.filter((i: any) => i.status === "passed").length || 0;
+  const failed = items?.filter((i: any) => i.status === "failed").length || 0;
+  const skipped = items?.filter((i: any) => i.status === "skipped").length || 0;
+  const flaky = items?.filter((i: any) => i.status === "passed" && (i.attempt_count || 1) > 1).length || 0;
+
+  const { data: failures } = await sb.from("cycle_attempts")
+    .select("error_signature,notes,run_item_id,cycle_run_items!inner(run_id,test_cases(title))")
+    .eq("status", "failed")
+    .eq("cycle_run_items.run_id", cycle_run_id)
+    .limit(40);
+
+  const failureLines = (failures || []).map((f: any) =>
+    `- ${f.cycle_run_items?.test_cases?.title || "test"}: ${(f.notes || f.error_signature || "(no message)").slice(0, 200)}`
+  ).join("\n");
+
+  const { data: gateEvals } = await sb.from("gate_evaluations")
+    .select("status,blocks_release,rule_results").eq("cycle_run_id", cycle_run_id);
+  const blockingGates = (gateEvals || []).filter((g: any) => g.blocks_release).length;
+
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+  await setProgress(sb, job.id, 50, "Calling AI judge");
+
+  const prompt = `You are a senior release-quality judge. Decide whether this release is safe to ship.
+
+Cycle run: ${(run as any).name || (run as any).test_cycles?.name}
+Totals: ${total} tests | ${passed} passed | ${failed} failed | ${skipped} skipped | ${flaky} flaky
+Blocking quality gates: ${blockingGates}
+
+Top failures:
+${failureLines || "(none)"}
+
+Return JSON with shape:
+{"verdict":"approve"|"block"|"warn","score":0-100,"summary":"2-3 sentence executive summary","failure_themes":[{"theme":"...","count":N,"examples":["..."]}],"next_actions":["actionable step","..."]}`;
+
+  const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+    }),
+  });
+  if (!aiRes.ok) {
+    const t = await aiRes.text();
+    throw new Error(`AI gateway ${aiRes.status}: ${t.slice(0, 300)}`);
+  }
+  const ai = await aiRes.json();
+  const parsed = safeParseJson(ai.choices?.[0]?.message?.content || "{}");
+
+  const { data: proj } = await sb.from("projects").select("workspace_id").eq("id", project_id).single();
+
+  await sb.from("release_evaluations").insert({
+    project_id, workspace_id: (proj as any)?.workspace_id,
+    release_id: resolvedRelease || null,
+    cycle_run_id, deployment_id: deployment_id || null,
+    verdict: parsed.verdict || "warn",
+    score: typeof parsed.score === "number" ? parsed.score : null,
+    summary: parsed.summary || null,
+    failure_themes: parsed.failure_themes || [],
+    next_actions: parsed.next_actions || [],
+    metrics: { total, passed, failed, skipped, flaky, blocking_gates: blockingGates },
+    model: "google/gemini-2.5-flash",
+  });
+
+  await setProgress(sb, job.id, 100, `Verdict: ${parsed.verdict}`);
+  return { verdict: parsed.verdict, score: parsed.score };
+}
+
 export const HANDLERS: Record<string, (sb: Sb, job: any) => Promise<any>> = {
   generate_test_plan_from_docs: handleGenerateTestPlanFromDocs,
   ingest_ci_results: handleIngestCiResults,
+  evaluate_quality_gates: handleEvaluateQualityGates,
+  ai_release_judge: handleAiReleaseJudge,
 };

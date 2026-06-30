@@ -818,13 +818,21 @@ export type Database = {
       defects: {
         Row: {
           assigned_to: string | null
+          build_id: string | null
+          closed_at: string | null
           created_at: string
+          cycle_attempt_id: string | null
+          cycle_run_id: string | null
+          cycle_run_item_id: string | null
+          dedup_signature: string | null
           description: string | null
           execution_id: string | null
           id: string
           priority: Database["public"]["Enums"]["defect_priority"]
           project_id: string | null
+          release_id: string | null
           reported_by: string | null
+          resolved_at: string | null
           severity: Database["public"]["Enums"]["defect_severity"]
           status: string
           step_result_id: string | null
@@ -835,13 +843,21 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          build_id?: string | null
+          closed_at?: string | null
           created_at?: string
+          cycle_attempt_id?: string | null
+          cycle_run_id?: string | null
+          cycle_run_item_id?: string | null
+          dedup_signature?: string | null
           description?: string | null
           execution_id?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["defect_priority"]
           project_id?: string | null
+          release_id?: string | null
           reported_by?: string | null
+          resolved_at?: string | null
           severity?: Database["public"]["Enums"]["defect_severity"]
           status?: string
           step_result_id?: string | null
@@ -852,13 +868,21 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          build_id?: string | null
+          closed_at?: string | null
           created_at?: string
+          cycle_attempt_id?: string | null
+          cycle_run_id?: string | null
+          cycle_run_item_id?: string | null
+          dedup_signature?: string | null
           description?: string | null
           execution_id?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["defect_priority"]
           project_id?: string | null
+          release_id?: string | null
           reported_by?: string | null
+          resolved_at?: string | null
           severity?: Database["public"]["Enums"]["defect_severity"]
           status?: string
           step_result_id?: string | null
@@ -876,6 +900,34 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "defects_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "builds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "defects_cycle_attempt_id_fkey"
+            columns: ["cycle_attempt_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "defects_cycle_run_id_fkey"
+            columns: ["cycle_run_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "defects_cycle_run_item_id_fkey"
+            columns: ["cycle_run_item_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_run_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "defects_execution_id_fkey"
             columns: ["execution_id"]
             isOneToOne: false
@@ -887,6 +939,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "defects_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
             referencedColumns: ["id"]
           },
           {
@@ -1252,6 +1311,9 @@ export type Database = {
       evidence: {
         Row: {
           captured_at: string
+          cycle_attempt_id: string | null
+          cycle_run_id: string | null
+          cycle_run_item_id: string | null
           defect_id: string | null
           description: string | null
           execution_id: string | null
@@ -1260,11 +1322,17 @@ export type Database = {
           file_url: string
           id: string
           project_id: string | null
+          size_bytes: number | null
           step_result_id: string | null
+          storage_path: string | null
+          uploaded_by: string | null
           workspace_id: string | null
         }
         Insert: {
           captured_at?: string
+          cycle_attempt_id?: string | null
+          cycle_run_id?: string | null
+          cycle_run_item_id?: string | null
           defect_id?: string | null
           description?: string | null
           execution_id?: string | null
@@ -1273,11 +1341,17 @@ export type Database = {
           file_url: string
           id?: string
           project_id?: string | null
+          size_bytes?: number | null
           step_result_id?: string | null
+          storage_path?: string | null
+          uploaded_by?: string | null
           workspace_id?: string | null
         }
         Update: {
           captured_at?: string
+          cycle_attempt_id?: string | null
+          cycle_run_id?: string | null
+          cycle_run_item_id?: string | null
           defect_id?: string | null
           description?: string | null
           execution_id?: string | null
@@ -1286,10 +1360,34 @@ export type Database = {
           file_url?: string
           id?: string
           project_id?: string | null
+          size_bytes?: number | null
           step_result_id?: string | null
+          storage_path?: string | null
+          uploaded_by?: string | null
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "evidence_cycle_attempt_id_fkey"
+            columns: ["cycle_attempt_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_cycle_run_id_fkey"
+            columns: ["cycle_run_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_cycle_run_item_id_fkey"
+            columns: ["cycle_run_item_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_run_items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "evidence_defect_id_fkey"
             columns: ["defect_id"]
@@ -1368,6 +1466,97 @@ export type Database = {
             columns: ["step_id"]
             isOneToOne: false
             referencedRelation: "test_case_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gate_evaluations: {
+        Row: {
+          blocks_release: boolean
+          build_id: string | null
+          created_at: string
+          cycle_run_id: string | null
+          evaluated_at: string
+          gate_id: string
+          id: string
+          metrics: Json
+          project_id: string
+          release_id: string | null
+          rule_results: Json
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          blocks_release?: boolean
+          build_id?: string | null
+          created_at?: string
+          cycle_run_id?: string | null
+          evaluated_at?: string
+          gate_id: string
+          id?: string
+          metrics?: Json
+          project_id: string
+          release_id?: string | null
+          rule_results?: Json
+          status: string
+          workspace_id: string
+        }
+        Update: {
+          blocks_release?: boolean
+          build_id?: string | null
+          created_at?: string
+          cycle_run_id?: string | null
+          evaluated_at?: string
+          gate_id?: string
+          id?: string
+          metrics?: Json
+          project_id?: string
+          release_id?: string | null
+          rule_results?: Json
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gate_evaluations_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "builds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_evaluations_cycle_run_id_fkey"
+            columns: ["cycle_run_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_evaluations_gate_id_fkey"
+            columns: ["gate_id"]
+            isOneToOne: false
+            referencedRelation: "quality_gates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_evaluations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_evaluations_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_evaluations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -1683,6 +1872,178 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "projects_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_gates: {
+        Row: {
+          blocks_release: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          enabled: boolean
+          environment_id: string | null
+          id: string
+          name: string
+          project_id: string
+          rules: Json
+          scope: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          blocks_release?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          environment_id?: string | null
+          id?: string
+          name: string
+          project_id: string
+          rules?: Json
+          scope?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          blocks_release?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          environment_id?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          rules?: Json
+          scope?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_gates_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_gates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_gates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      release_evaluations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          cycle_run_id: string | null
+          deployment_id: string | null
+          failure_themes: Json | null
+          feedback_by: string | null
+          feedback_note: string | null
+          feedback_score: number | null
+          id: string
+          metrics: Json | null
+          model: string | null
+          next_actions: Json | null
+          project_id: string
+          release_id: string | null
+          score: number | null
+          summary: string | null
+          updated_at: string
+          verdict: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          cycle_run_id?: string | null
+          deployment_id?: string | null
+          failure_themes?: Json | null
+          feedback_by?: string | null
+          feedback_note?: string | null
+          feedback_score?: number | null
+          id?: string
+          metrics?: Json | null
+          model?: string | null
+          next_actions?: Json | null
+          project_id: string
+          release_id?: string | null
+          score?: number | null
+          summary?: string | null
+          updated_at?: string
+          verdict?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          cycle_run_id?: string | null
+          deployment_id?: string | null
+          failure_themes?: Json | null
+          feedback_by?: string | null
+          feedback_note?: string | null
+          feedback_score?: number | null
+          id?: string
+          metrics?: Json | null
+          model?: string | null
+          next_actions?: Json | null
+          project_id?: string
+          release_id?: string | null
+          score?: number | null
+          summary?: string | null
+          updated_at?: string
+          verdict?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_evaluations_cycle_run_id_fkey"
+            columns: ["cycle_run_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_evaluations_deployment_id_fkey"
+            columns: ["deployment_id"]
+            isOneToOne: false
+            referencedRelation: "deployments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_evaluations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_evaluations_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_evaluations_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
