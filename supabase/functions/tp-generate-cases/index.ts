@@ -2,6 +2,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { callAiJson } from "../_shared/ai-gateway.ts";
+import { snapshotTestPlanVersion } from "../_shared/snapshot-version.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -77,7 +78,14 @@ Return STRICT JSON:
       }
     }
 
-    return j({ cases: created.length, items: created });
+    const v = created.length
+      ? await snapshotTestPlanVersion(
+          admin, test_plan_id,
+          `AI Workbench · generated ${created.length} test case(s)`,
+          userId, { stage: "test_cases" },
+        )
+      : null;
+    return j({ cases: created.length, items: created, version: v });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
