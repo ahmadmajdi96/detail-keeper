@@ -343,6 +343,264 @@ export type Database = {
           },
         ]
       }
+      builds: {
+        Row: {
+          artifact_url: string | null
+          branch: string | null
+          built_at: string | null
+          ci_provider: string | null
+          ci_run_url: string | null
+          commit_message: string | null
+          commit_sha: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json
+          name: string | null
+          project_id: string
+          release_id: string | null
+          status: Database["public"]["Enums"]["build_status"]
+          updated_at: string
+        }
+        Insert: {
+          artifact_url?: string | null
+          branch?: string | null
+          built_at?: string | null
+          ci_provider?: string | null
+          ci_run_url?: string | null
+          commit_message?: string | null
+          commit_sha?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          name?: string | null
+          project_id: string
+          release_id?: string | null
+          status?: Database["public"]["Enums"]["build_status"]
+          updated_at?: string
+        }
+        Update: {
+          artifact_url?: string | null
+          branch?: string | null
+          built_at?: string | null
+          ci_provider?: string | null
+          ci_run_url?: string | null
+          commit_message?: string | null
+          commit_sha?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          name?: string | null
+          project_id?: string
+          release_id?: string | null
+          status?: Database["public"]["Enums"]["build_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "builds_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "builds_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cycle_attempts: {
+        Row: {
+          attempt_no: number
+          created_at: string
+          duration_ms: number | null
+          error_signature: string | null
+          evidence: Json
+          executor_id: string | null
+          finished_at: string | null
+          id: string
+          logs_ref: string | null
+          notes: string | null
+          run_item_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["run_item_status"]
+        }
+        Insert: {
+          attempt_no: number
+          created_at?: string
+          duration_ms?: number | null
+          error_signature?: string | null
+          evidence?: Json
+          executor_id?: string | null
+          finished_at?: string | null
+          id?: string
+          logs_ref?: string | null
+          notes?: string | null
+          run_item_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["run_item_status"]
+        }
+        Update: {
+          attempt_no?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_signature?: string | null
+          evidence?: Json
+          executor_id?: string | null
+          finished_at?: string | null
+          id?: string
+          logs_ref?: string | null
+          notes?: string | null
+          run_item_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["run_item_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cycle_attempts_run_item_id_fkey"
+            columns: ["run_item_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_run_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cycle_run_items: {
+        Row: {
+          assignee_id: string | null
+          attempt_count: number
+          created_at: string
+          cycle_id: string
+          duration_ms: number | null
+          evidence: Json
+          id: string
+          last_executed_at: string | null
+          notes: string | null
+          run_id: string
+          status: Database["public"]["Enums"]["run_item_status"]
+          test_case_id: string
+          test_case_version: number | null
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          attempt_count?: number
+          created_at?: string
+          cycle_id: string
+          duration_ms?: number | null
+          evidence?: Json
+          id?: string
+          last_executed_at?: string | null
+          notes?: string | null
+          run_id: string
+          status?: Database["public"]["Enums"]["run_item_status"]
+          test_case_id: string
+          test_case_version?: number | null
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          attempt_count?: number
+          created_at?: string
+          cycle_id?: string
+          duration_ms?: number | null
+          evidence?: Json
+          id?: string
+          last_executed_at?: string | null
+          notes?: string | null
+          run_id?: string
+          status?: Database["public"]["Enums"]["run_item_status"]
+          test_case_id?: string
+          test_case_version?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cycle_run_items_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "test_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cycle_run_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "cycle_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cycle_run_items_test_case_id_fkey"
+            columns: ["test_case_id"]
+            isOneToOne: false
+            referencedRelation: "test_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cycle_runs: {
+        Row: {
+          created_at: string
+          cycle_id: string
+          executor_id: string | null
+          finished_at: string | null
+          id: string
+          name: string | null
+          notes: string | null
+          project_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["run_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_id: string
+          executor_id?: string | null
+          finished_at?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          project_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["run_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cycle_id?: string
+          executor_id?: string | null
+          finished_at?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          project_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["run_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cycle_runs_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "test_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cycle_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       defects: {
         Row: {
           assigned_to: string | null
@@ -443,6 +701,73 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deployments: {
+        Row: {
+          build_id: string
+          created_at: string
+          deployed_at: string | null
+          deployed_by: string | null
+          environment_id: string
+          id: string
+          metadata: Json
+          notes: string | null
+          project_id: string
+          status: Database["public"]["Enums"]["deployment_status"]
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          build_id: string
+          created_at?: string
+          deployed_at?: string | null
+          deployed_by?: string | null
+          environment_id: string
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          project_id: string
+          status?: Database["public"]["Enums"]["deployment_status"]
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          build_id?: string
+          created_at?: string
+          deployed_at?: string | null
+          deployed_by?: string | null
+          environment_id?: string
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          project_id?: string
+          status?: Database["public"]["Enums"]["deployment_status"]
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deployments_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "builds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deployments_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deployments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -656,6 +981,56 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      environments: {
+        Row: {
+          base_url: string | null
+          config: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          project_id: string
+          type: Database["public"]["Enums"]["environment_type"]
+          updated_at: string
+        }
+        Insert: {
+          base_url?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          project_id: string
+          type?: Database["public"]["Enums"]["environment_type"]
+          updated_at?: string
+        }
+        Update: {
+          base_url?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          project_id?: string
+          type?: Database["public"]["Enums"]["environment_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "environments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -945,6 +1320,104 @@ export type Database = {
           },
         ]
       }
+      releases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          metadata: Json
+          name: string
+          owner_id: string | null
+          project_id: string
+          released_at: string | null
+          status: Database["public"]["Enums"]["release_status"]
+          target_date: string | null
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json
+          name: string
+          owner_id?: string | null
+          project_id: string
+          released_at?: string | null
+          status?: Database["public"]["Enums"]["release_status"]
+          target_date?: string | null
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json
+          name?: string
+          owner_id?: string | null
+          project_id?: string
+          released_at?: string | null
+          status?: Database["public"]["Enums"]["release_status"]
+          target_date?: string | null
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "releases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suite_test_cases: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          id: string
+          position: number | null
+          suite_id: string
+          test_case_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          position?: number | null
+          suite_id: string
+          test_case_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          position?: number | null
+          suite_id?: string
+          test_case_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suite_test_cases_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "test_suites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suite_test_cases_test_case_id_fkey"
+            columns: ["test_case_id"]
+            isOneToOne: false
+            referencedRelation: "test_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           created_at: string
@@ -1134,6 +1607,109 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_cycles: {
+        Row: {
+          build_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_at: string | null
+          environment_id: string | null
+          id: string
+          metadata: Json
+          name: string
+          owner_id: string | null
+          project_id: string
+          release_id: string | null
+          start_at: string | null
+          status: Database["public"]["Enums"]["cycle_status"]
+          suite_id: string | null
+          test_plan_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          build_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_at?: string | null
+          environment_id?: string | null
+          id?: string
+          metadata?: Json
+          name: string
+          owner_id?: string | null
+          project_id: string
+          release_id?: string | null
+          start_at?: string | null
+          status?: Database["public"]["Enums"]["cycle_status"]
+          suite_id?: string | null
+          test_plan_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          build_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_at?: string | null
+          environment_id?: string | null
+          id?: string
+          metadata?: Json
+          name?: string
+          owner_id?: string | null
+          project_id?: string
+          release_id?: string | null
+          start_at?: string | null
+          status?: Database["public"]["Enums"]["cycle_status"]
+          suite_id?: string | null
+          test_plan_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_cycles_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "builds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cycles_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cycles_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cycles_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cycles_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "test_suites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cycles_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -1458,6 +2034,57 @@ export type Database = {
           },
         ]
       }
+      test_suites: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          project_id: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          project_id: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          project_id?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_suites_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "test_suites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_suites_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_invitations: {
         Row: {
           created_at: string
@@ -1610,6 +2237,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      workspace_of_project: { Args: { _project: string }; Returns: string }
       workspace_role_of: {
         Args: { _user: string; _workspace: string }
         Returns: Database["public"]["Enums"]["workspace_role"]
@@ -1617,8 +2245,30 @@ export type Database = {
     }
     Enums: {
       agent_status: "idle" | "learning" | "executing" | "paused" | "error"
+      build_status: "pending" | "building" | "success" | "failed" | "cancelled"
+      cycle_status:
+        | "planned"
+        | "in_progress"
+        | "paused"
+        | "completed"
+        | "cancelled"
       defect_priority: "urgent" | "high" | "medium" | "low"
       defect_severity: "critical" | "major" | "minor" | "trivial"
+      deployment_status:
+        | "pending"
+        | "deploying"
+        | "deployed"
+        | "failed"
+        | "rolled_back"
+      environment_type:
+        | "local"
+        | "dev"
+        | "qa"
+        | "uat"
+        | "staging"
+        | "production"
+        | "sandbox"
+        | "other"
       execution_status:
         | "pending"
         | "in_progress"
@@ -1629,6 +2279,21 @@ export type Database = {
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
       project_source: "documentation" | "zip" | "github"
       project_status: "pending" | "processing" | "ready" | "failed" | "archived"
+      release_status:
+        | "planned"
+        | "in_progress"
+        | "released"
+        | "blocked"
+        | "cancelled"
+      run_item_status:
+        | "not_run"
+        | "in_progress"
+        | "passed"
+        | "failed"
+        | "blocked"
+        | "skipped"
+        | "not_applicable"
+      run_status: "planned" | "in_progress" | "completed" | "cancelled"
       test_case_status: "draft" | "active" | "deprecated" | "archived"
       user_role: "admin" | "qa_manager" | "qa_engineer" | "viewer"
       user_status: "active" | "pending" | "inactive" | "suspended"
@@ -1761,8 +2426,33 @@ export const Constants = {
   public: {
     Enums: {
       agent_status: ["idle", "learning", "executing", "paused", "error"],
+      build_status: ["pending", "building", "success", "failed", "cancelled"],
+      cycle_status: [
+        "planned",
+        "in_progress",
+        "paused",
+        "completed",
+        "cancelled",
+      ],
       defect_priority: ["urgent", "high", "medium", "low"],
       defect_severity: ["critical", "major", "minor", "trivial"],
+      deployment_status: [
+        "pending",
+        "deploying",
+        "deployed",
+        "failed",
+        "rolled_back",
+      ],
+      environment_type: [
+        "local",
+        "dev",
+        "qa",
+        "uat",
+        "staging",
+        "production",
+        "sandbox",
+        "other",
+      ],
       execution_status: [
         "pending",
         "in_progress",
@@ -1774,6 +2464,23 @@ export const Constants = {
       invitation_status: ["pending", "accepted", "expired", "revoked"],
       project_source: ["documentation", "zip", "github"],
       project_status: ["pending", "processing", "ready", "failed", "archived"],
+      release_status: [
+        "planned",
+        "in_progress",
+        "released",
+        "blocked",
+        "cancelled",
+      ],
+      run_item_status: [
+        "not_run",
+        "in_progress",
+        "passed",
+        "failed",
+        "blocked",
+        "skipped",
+        "not_applicable",
+      ],
+      run_status: ["planned", "in_progress", "completed", "cancelled"],
       test_case_status: ["draft", "active", "deprecated", "archived"],
       user_role: ["admin", "qa_manager", "qa_engineer", "viewer"],
       user_status: ["active", "pending", "inactive", "suspended"],
