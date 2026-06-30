@@ -441,10 +441,10 @@ export default function LandingPage() {
         >
           <div className="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-8 items-center">
             <div>
-              <a href="#product" className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[hsl(187,92%,50%)/0.4] bg-[hsl(187,92%,50%)/0.05] backdrop-blur-xl mb-8 animate-fade-in-up group">
+              <a href="#workbench" className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[hsl(187,92%,50%)/0.4] bg-[hsl(187,92%,50%)/0.05] backdrop-blur-xl mb-8 animate-fade-in-up group">
                 <Sparkles className="h-4 w-4 text-[hsl(187,92%,50%)]" />
                 <span className="text-sm bg-gradient-to-r from-[hsl(187,92%,50%)] to-[hsl(262,83%,58%)] bg-clip-text text-transparent font-medium">
-                  AI Test Agents — Now Available
+                  New: AI Workbench with one-click Playwright runs
                 </span>
                 <ArrowRight className="h-3.5 w-3.5 text-[hsl(187,92%,50%)] group-hover:translate-x-1 transition-transform" />
               </a>
@@ -459,10 +459,10 @@ export default function LandingPage() {
 
               <ul className="mt-10 space-y-4 animate-fade-in-up animation-delay-400">
                 {[
-                  "Unify every test, run, and signal into one OS.",
-                  "Automate triage and reporting with Zero-Touch AI workflows.",
-                  "Govern your stack with a curated Integrations Hub.",
-                  "Know your product: Use Qualixa DNA to see exactly where it breaks.",
+                  "Generate 10 test plan docs, test cases, and Playwright code from one AI Workbench.",
+                  "Run entire suites on registered runners with inline browser, headless, and retry config.",
+                  "Stream per-case progress live and replay any past suite from its saved artifacts.",
+                  "Unify requirements, variables, benchmarks, and executions in a single Test Plan surface.",
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-3 text-white/70">
                     <span className="mt-1 h-5 w-5 rounded-full bg-[hsl(187,92%,50%)/0.15] border border-[hsl(187,92%,50%)/0.4] flex items-center justify-center shrink-0">
