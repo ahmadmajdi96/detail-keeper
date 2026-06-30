@@ -514,7 +514,7 @@ export default function TestPlanDetailPage() {
           <TabsTrigger value="variables"><Variable className="mr-2 h-4 w-4" />Variables ({vars.filter(v => v.key.trim()).length})</TabsTrigger>
           <TabsTrigger value="workbench"><Sparkles className="mr-2 h-4 w-4" />AI Workbench</TabsTrigger>
           <TabsTrigger value="cases"><ListChecks className="mr-2 h-4 w-4" />Test Cases ({testCases.length})</TabsTrigger>
-          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length})</TabsTrigger>
+          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length + suiteRuns.length})</TabsTrigger>
           <TabsTrigger value="ai"><Sparkles className="mr-2 h-4 w-4" />AI Generation</TabsTrigger>
           <TabsTrigger value="versions"><GitBranch className="mr-2 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
           <TabsTrigger value="runners"><Server className="mr-2 h-4 w-4" />Runners</TabsTrigger>
