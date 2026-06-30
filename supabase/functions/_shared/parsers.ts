@@ -23,7 +23,7 @@ function errSignature(msg?: string) {
 export function parseJUnitXml(xml: string): NormalizedTest[] {
   const tests: NormalizedTest[] = [];
   const suiteRe = /<testsuite\b[^>]*?name="([^"]*)"[^>]*>([\s\S]*?)<\/testsuite>/g;
-  const caseRe = /<testcase\b([^>]*)>([\s\S]*?)<\/testcase>|<testcase\b([^>]*)\/>/g;
+  const caseRe = /<testcase\b([^>]*?)\/>|<testcase\b([^>]*?)>([\s\S]*?)<\/testcase>/g;
   const attr = (s: string, n: string) => {
     const m = s.match(new RegExp(`${n}="([^"]*)"`));
     return m ? m[1] : "";
