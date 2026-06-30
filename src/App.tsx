@@ -32,6 +32,7 @@ import DefectsPage from "./pages/DefectsPage";
 import ReleasesPage from "./pages/ReleasesPage";
 import CyclesPage from "./pages/CyclesPage";
 import CycleDetailPage from "./pages/CycleDetailPage";
+import RequirementsPage from "./pages/RequirementsPage";
 import NotFound from "./pages/NotFound";
 
 
@@ -126,6 +127,12 @@ const App = () => (
                   <CycleDetailPage />
                 </ProtectedRoute>
               } />
+              <Route path="/requirements" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <RequirementsPage />
+                </ProtectedRoute>
+              } />
+
 
               <Route path="/defects" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
