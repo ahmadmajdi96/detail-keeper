@@ -29,6 +29,8 @@ import {
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
 import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
+import { PlanRunnersPanel, PlanDefectsPanel, PlanQualityGatesPanel, PlanReportsPanel, PlanLivePanel } from "@/components/testplans/TestPlanPanels";
+import { Server, Bug, ShieldCheck, BarChart3, Radio } from "lucide-react";
 
 const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
 type TestType = typeof TEST_TYPES[number];
