@@ -258,6 +258,9 @@ const days = [
 ];
 
 const faqs = [
+  { q: "What is the AI Workbench?", a: "A Monaco multi-tab editor inside every Test Plan. It runs the AI through generate-docs → generate-cases → generate-code, so you end up with up to 10 living docs and a Playwright .spec.ts per test case — all editable in place." },
+  { q: "How does one-click Run Suite work?", a: "Run Suite dispatches every generated spec to a registered runner with your chosen browser, headless mode, and retry count. A suite_run row tracks rollup status while per-spec progress streams back into the Workbench in real time." },
+  { q: "Can I reopen and rerun a past suite?", a: "Yes. Every spec_run archives a snapshot of the docs JSON and per-case Playwright files. The Artifact Viewer lets you browse, download, and rerun any historical suite with the exact original configuration." },
   { q: "What is Qualixa and who is it for?", a: "Qualixa is an AI-powered quality intelligence platform for engineering organizations that want one connected system for test management, execution, defects, and analytics." },
   { q: "Can Qualixa replace our existing test management tool?", a: "Yes. Qualixa consolidates planning, authoring, execution, defects, and reporting. Most teams migrate existing assets via our importers in days, not weeks." },
   { q: "Does Qualixa fit small teams as well as enterprises?", a: "Yes. The platform scales from a single squad to multi-org deployments with workspaces, projects, RBAC, and SSO." },
