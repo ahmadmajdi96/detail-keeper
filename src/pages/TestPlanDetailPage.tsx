@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
+import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
 
 const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
 type TestType = typeof TEST_TYPES[number];
@@ -839,6 +840,14 @@ export default function TestPlanDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="workbench">
+          {plan?.project_id && id ? (
+            <TestPlanWorkbench testPlanId={id} projectId={plan.project_id} />
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading workbench...</p>
+          )}
         </TabsContent>
       </Tabs>
 
