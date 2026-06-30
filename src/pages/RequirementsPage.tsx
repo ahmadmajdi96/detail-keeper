@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Target, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 type Req = { id: string; key: string | null; title: string; description: string | null; status: string; priority: number; project_id: string; created_at: string };
 
@@ -72,6 +73,7 @@ export default function RequirementsPage() {
   };
 
   return (
+    <AppLayout>
     <div className="space-y-6">
       <PageHeader
         title="Requirements"
@@ -160,5 +162,6 @@ export default function RequirementsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </AppLayout>
   );
 }

@@ -74,6 +74,19 @@ export function useRealtimeUpdates() {
       })
       .subscribe();
 
+    const runnerJobsChannel = supabase
+      .channel('runner-jobs-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'runner_jobs' }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ['runner-jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['runners'] });
+        if (payload.eventType === 'UPDATE') {
+          const n = payload.new as { status: string };
+          if (n.status === 'succeeded') toast.success('Runner job succeeded');
+          else if (n.status === 'failed') toast.error('Runner job failed');
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(defectsChannel);
       supabase.removeChannel(executionsChannel);
@@ -81,6 +94,7 @@ export function useRealtimeUpdates() {
       supabase.removeChannel(cycleRunsChannel);
       supabase.removeChannel(cycleItemsChannel);
       supabase.removeChannel(jobsChannel);
+      supabase.removeChannel(runnerJobsChannel);
     };
   }, [queryClient]);
 }

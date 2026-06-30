@@ -32,6 +32,7 @@ import {
   Repeat,
   Target,
   ShieldCheck,
+  Server,
 } from "lucide-react";
 
 import type { Database } from "@/integrations/supabase/types";
@@ -61,6 +62,7 @@ const mainNavItems: NavItem[] = [
   { title: "Releases", href: "/releases", icon: Rocket, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Test Cycles", href: "/cycles", icon: Repeat, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Executions", href: "/executions", icon: Play, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Runners", href: "/runners", icon: Server, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Defects", href: "/defects", icon: Bug, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Quality Gates", href: "/quality-gates", icon: ShieldCheck, roles: ["qa_manager", "admin"] },
 
