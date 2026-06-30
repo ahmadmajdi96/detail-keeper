@@ -59,22 +59,10 @@ export function ActiveTestPlanProvider({ children }: { children: ReactNode }) {
     if (planId) localStorage.setItem(lsKey(projectId), planId);
     else localStorage.removeItem(lsKey(projectId));
     setActivePlanIdState(planId);
-    // Reflect activation in DB: chosen plan -> active, previously active in this project -> draft
-    if (projectId) {
-      try {
-        await supabase
-          .from("test_plans")
-          .update({ status: "draft" })
-          .eq("project_id", projectId)
-          .eq("status", "active");
-        if (planId) {
-          await supabase.from("test_plans").update({ status: "active" }).eq("id", planId);
-        }
-      } catch {
-        /* non-fatal */
-      }
-    }
+    // NOTE: Test Plans are now strategy documents. Multiple plans can coexist; the
+    // operational scope is the Test Cycle. We no longer demote other plans here.
   };
+
 
   return (
     <Ctx.Provider value={{ activePlanId, activePlan, activeCaseIds, setActivePlan, loading: isLoading }}>
