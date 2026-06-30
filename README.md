@@ -71,3 +71,12 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Admin Console, GraphQL & Fixtures
+
+- **Admin console** lives at `/admin` with its own slate/amber shell, gated by `role = admin`. Pages: Overview, Repositories (CRUD), Requirement Versions, Defects, Approvals & Waivers, AI Jobs.
+- **GraphQL** is served by Supabase's built-in `pg_graphql` endpoint at `${VITE_SUPABASE_URL}/graphql/v1`. Admin pages use it through `src/admin/graphql/client.ts` + `operations.ts`. RLS is enforced server-side via the user's JWT.
+  - Regenerate types: `bun run codegen` (requires `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` in env).
+- **Seed fixtures**: `bun run seed:admin` runs `supabase/seed/admin-fixtures.sql` against `$SUPABASE_DB_URL`. Idempotent — safe to rerun.
+- **RLS probe**: `bun run probe:rls` (or `python3 tests/rls/probe.py`) asserts every new table blocks anonymous access. Output: `tests/rls/report.json`.
+- **Admin smoke**: `python3 tests/e2e/admin-crud.py` walks the 5 admin routes and captures screenshots under `/tmp/browser/admin/shots/`.

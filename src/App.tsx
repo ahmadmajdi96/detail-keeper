@@ -35,6 +35,13 @@ import CycleDetailPage from "./pages/CycleDetailPage";
 import RequirementsPage from "./pages/RequirementsPage";
 import QualityGatesPage from "./pages/QualityGatesPage";
 import RunnersPage from "./pages/RunnersPage";
+import { AdminLayout } from "./admin/AdminLayout";
+import AdminOverviewPage from "./admin/pages/AdminOverviewPage";
+import RepositoriesPage from "./admin/pages/RepositoriesPage";
+import RequirementVersionsPage from "./admin/pages/RequirementVersionsPage";
+import DefectsAdminPage from "./admin/pages/DefectsAdminPage";
+import ApprovalsPage from "./admin/pages/ApprovalsPage";
+import AIJobsPage from "./admin/pages/AIJobsPage";
 import NotFound from "./pages/NotFound";
 
 
@@ -181,6 +188,16 @@ const App = () => (
                 </ProtectedRoute>
               } />
               
+              {/* Isolated Admin Console */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminOverviewPage />} />
+                <Route path="repositories" element={<RepositoriesPage />} />
+                <Route path="requirement-versions" element={<RequirementVersionsPage />} />
+                <Route path="defects" element={<DefectsAdminPage />} />
+                <Route path="approvals" element={<ApprovalsPage />} />
+                <Route path="ai-jobs" element={<AIJobsPage />} />
+              </Route>
+
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
