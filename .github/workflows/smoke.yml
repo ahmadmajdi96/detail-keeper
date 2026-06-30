@@ -1,0 +1,78 @@
+name: Smoke Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+      SMOKE_BASE_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsgo --noEmit || bunx tsc --noEmit
+
+      - name: Build
+        run: bun run build
+
+      - name: Serve preview
+        run: |
+          bunx vite preview --port 8080 --host 127.0.0.1 &
+          echo $! > /tmp/preview.pid
+          for i in {1..30}; do
+            curl -sf http://localhost:8080 > /dev/null && break
+            sleep 1
+          done
+
+      - name: Setup Python + Playwright
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install playwright
+          python3 -m playwright install --with-deps chromium
+
+      - name: Run smoke suite
+        run: |
+          mkdir -p /tmp/browser/smoke
+          python3 tests/smoke/run.py
+
+      - name: Stop preview
+        if: always()
+        run: kill $(cat /tmp/preview.pid) || true
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: |
+            /tmp/browser/smoke/report.json
+            /tmp/browser/smoke/shots/**
+
+      - name: Fail on regressions
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          data = json.load(open('/tmp/browser/smoke/report.json'))
+          bad = [r for r in data if r.get('crashed') or r.get('console_errors') or r.get('failed_requests')]
+          if bad:
+              print('Regressions detected:')
+              print(json.dumps(bad, indent=2))
+              sys.exit(1)
+          print(f'All {len(data)} routes OK')
+          PY
