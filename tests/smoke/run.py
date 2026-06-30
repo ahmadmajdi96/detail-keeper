@@ -2,9 +2,11 @@ import asyncio, json, os
 from pathlib import Path
 from playwright.async_api import async_playwright
 
-SHOTS = Path(__file__).parent / "shots"
-SHOTS.mkdir(exist_ok=True)
-REPORT = Path(__file__).parent / "report.json"
+OUT = Path(os.environ.get("SMOKE_OUT_DIR", "/tmp/browser/smoke"))
+SHOTS = OUT / "shots"
+SHOTS.mkdir(parents=True, exist_ok=True)
+REPORT = OUT / "report.json"
+BASE = os.environ.get("SMOKE_BASE_URL", "http://localhost:8080")
 
 ROUTES = [
     "/dashboard", "/workspaces", "/projects", "/documents",
@@ -21,10 +23,11 @@ async def main():
         browser = await pw.chromium.launch(headless=True)
         ctx = await browser.new_context(viewport={"width": 1280, "height": 1800})
         init = await ctx.new_page()
-        await init.goto("http://localhost:8080", wait_until="domcontentloaded")
-        storage_key = os.environ["LOVABLE_BROWSER_SUPABASE_STORAGE_KEY"]
-        session_json = os.environ["LOVABLE_BROWSER_SUPABASE_SESSION_JSON"]
-        await init.evaluate(f"window.localStorage.setItem({json.dumps(storage_key)}, {json.dumps(session_json)})")
+        await init.goto(BASE, wait_until="domcontentloaded")
+        storage_key = os.environ.get("LOVABLE_BROWSER_SUPABASE_STORAGE_KEY")
+        session_json = os.environ.get("LOVABLE_BROWSER_SUPABASE_SESSION_JSON")
+        if storage_key and session_json:
+            await init.evaluate(f"window.localStorage.setItem({json.dumps(storage_key)}, {json.dumps(session_json)})")
         await init.close()
 
 
