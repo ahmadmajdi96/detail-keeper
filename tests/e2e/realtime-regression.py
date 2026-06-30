@@ -1,22 +1,16 @@
 """
-Realtime regression: dispatch a runner job, then watch the cycle detail page
-update cycle_run + cycle_run_items live via realtime without navigating away.
+Realtime regression — covers both success and failure transitions.
 
-Asserts:
-  1. runner_job inserted -> queued
-  2. cycle_run transitions queued/planned -> in_progress on `running` callback
-  3. cycle_run transitions -> completed on `succeeded` callback
-  4. Page never navigates (URL stable)
-  5. Screenshots captured at every stage
+Scenarios:
+ A. dispatch -> running -> succeeded  -> cycle_run completed
+ B. dispatch -> running -> failed     -> cycle_run failed
 
-Env required:
-  SMOKE_BASE_URL              http://localhost:8080
-  VITE_SUPABASE_URL
-  VITE_SUPABASE_PUBLISHABLE_KEY
-  LOVABLE_BROWSER_SUPABASE_STORAGE_KEY
-  LOVABLE_BROWSER_SUPABASE_SESSION_JSON
-  REGRESSION_CYCLE_ID         id of an existing cycle with one cycle_run
-  REGRESSION_RUNNER_ID        id of a registered runner
+After every transition:
+ - asserts the page DOM reflects the new state (realtime invalidation worked)
+ - re-reads cycle_run + runner_job via Supabase REST and verifies the DB
+   matches the UI (proves invalidateQueries fetched fresh data)
+ - asserts the URL has not changed
+ - screenshots each stage
 """
 import asyncio, json, os, time
 from pathlib import Path
@@ -52,98 +46,101 @@ async def call_fn(page, name, body):
     )
 
 
+async def db_get(page, table, filt):
+    return await page.evaluate(
+        """async ([url, anon, token, table, filt]) => {
+            const q = Object.entries(filt).map(([k,v]) => `${k}=eq.${v}`).join('&');
+            const r = await fetch(`${url}/rest/v1/${table}?${q}&select=*`, {
+                headers: { apikey: anon, Authorization: `Bearer ${token}` },
+            });
+            return await r.json();
+        }""",
+        [SUPA, ANON, ACCESS_TOKEN, table, filt],
+    )
+
+
 async def shot(page, label):
     await page.screenshot(path=str(SHOTS / f"{label}.png"))
-    print(f"  📸 {label}")
+
+
+async def expect_ui_contains(page, needle, timeout=8000):
+    deadline = time.time() + timeout / 1000
+    while time.time() < deadline:
+        body = (await page.locator("body").inner_text()).lower()
+        if needle.lower() in body:
+            return True
+        await page.wait_for_timeout(400)
+    return False
+
+
+async def run_scenario(page, scenario, final_callback_status, expected_cycle_status):
+    print(f"\n=== Scenario {scenario}: {final_callback_status} -> {expected_cycle_status} ===")
+    initial_url = page.url
+
+    # Dispatch
+    r = await call_fn(page, "runner-dispatch", {"cycle_id": CYCLE_ID, "runner_id": RUNNER_ID})
+    assert r["status"] in (200, 201), f"dispatch failed: {r}"
+    job = json.loads(r["body"])
+    job_id = job["runner_job_id"]
+    run_id = job["cycle_run_id"]
+    await page.wait_for_timeout(2500)
+    await shot(page, f"{scenario}_01_dispatched")
+
+    # running
+    await call_fn(page, "runner-callback", {"runner_job_id": job_id, "status": "running"})
+    ok = await expect_ui_contains(page, "in_progress") or await expect_ui_contains(page, "in progress")
+    assert ok, "UI never showed in_progress after running callback"
+    # Verify DB matches UI (invalidateQueries → fresh fetch)
+    rj = (await db_get(page, "runner_jobs", {"id": job_id}))[0]
+    cr = (await db_get(page, "cycle_runs", {"id": run_id}))[0]
+    assert rj["status"] == "running", f"runner_job DB mismatch: {rj['status']}"
+    assert cr["status"] == "in_progress", f"cycle_run DB mismatch: {cr['status']}"
+    await shot(page, f"{scenario}_02_running")
+
+    # final callback
+    payload = {"runner_job_id": job_id, "status": final_callback_status}
+    if final_callback_status == "succeeded":
+        payload["result"] = {"summary": {"passed": 3, "failed": 0}}
+    else:
+        payload["error"] = {"message": "regression: forced failure"}
+        payload["result"] = {"summary": {"passed": 1, "failed": 2}}
+    await call_fn(page, "runner-callback", payload)
+
+    needle = "completed" if expected_cycle_status == "completed" else "failed"
+    ok = await expect_ui_contains(page, needle)
+    assert ok, f"UI never showed {needle} after {final_callback_status} callback"
+    rj = (await db_get(page, "runner_jobs", {"id": job_id}))[0]
+    cr = (await db_get(page, "cycle_runs", {"id": run_id}))[0]
+    assert rj["status"] == final_callback_status, f"runner_job DB mismatch: {rj['status']}"
+    assert cr["status"] == expected_cycle_status, f"cycle_run DB mismatch: {cr['status']}"
+    await shot(page, f"{scenario}_03_{final_callback_status}")
+
+    assert page.url == initial_url, f"page navigated! {initial_url} -> {page.url}"
+    print(f"  ✅ scenario {scenario} passed")
+    return {"runner_job": rj, "cycle_run": cr}
 
 
 async def main():
-    transitions = {"cycle_run": [], "runner_job": []}
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
         ctx = await browser.new_context(viewport={"width": 1280, "height": 1800})
         page = await ctx.new_page()
-
-        # Restore session on app origin
         await page.goto(BASE, wait_until="domcontentloaded")
         await page.evaluate(
             f"window.localStorage.setItem({json.dumps(os.environ['LOVABLE_BROWSER_SUPABASE_STORAGE_KEY'])}, "
             f"{json.dumps(os.environ['LOVABLE_BROWSER_SUPABASE_SESSION_JSON'])})"
         )
-
-        # Navigate to cycle detail and pin URL
-        target = f"{BASE}/cycles/{CYCLE_ID}"
-        await page.goto(target, wait_until="domcontentloaded")
+        await page.goto(f"{BASE}/cycles/{CYCLE_ID}", wait_until="domcontentloaded")
         await page.wait_for_timeout(1500)
-        initial_url = page.url
-        await shot(page, "01_initial")
+        await shot(page, "00_initial")
 
-        # Stage 1: dispatch
-        print("→ dispatching runner job")
-        r = await call_fn(page, "runner-dispatch", {
-            "cycle_id": CYCLE_ID,
-            "runner_id": RUNNER_ID,
-        })
-        print("  dispatch:", r["status"], r["body"][:200])
-        assert r["status"] in (200, 201), f"dispatch failed: {r}"
-        job = json.loads(r["body"])
-        runner_job_id = job.get("runner_job_id") or job.get("id")
-        transitions["runner_job"].append(("queued", time.time()))
-        await page.wait_for_timeout(2500)
-        await shot(page, "02_dispatched")
+        success = await run_scenario(page, "A", "succeeded", "completed")
+        failure = await run_scenario(page, "B", "failed", "failed")
 
-        # Stage 2: running callback
-        print("→ callback: running")
-        r = await call_fn(page, "runner-callback", {
-            "runner_job_id": runner_job_id,
-            "status": "running",
-        })
-        print("  running:", r["status"])
-        transitions["runner_job"].append(("running", time.time()))
-        await page.wait_for_timeout(3000)
-        # Look for in_progress badge on the page (realtime invalidation)
-        body_text = (await page.locator("body").inner_text()).lower()
-        if "in_progress" in body_text or "in progress" in body_text:
-            transitions["cycle_run"].append(("in_progress", time.time()))
-            print("  ✅ saw in_progress in UI")
-        await shot(page, "03_running")
-
-        # Stage 3: succeeded callback
-        print("→ callback: succeeded")
-        r = await call_fn(page, "runner-callback", {
-            "runner_job_id": runner_job_id,
-            "status": "succeeded",
-            "summary": {"passed": 1, "failed": 0},
-        })
-        print("  succeeded:", r["status"])
-        transitions["runner_job"].append(("succeeded", time.time()))
-        await page.wait_for_timeout(3500)
-        body_text = (await page.locator("body").inner_text()).lower()
-        if "completed" in body_text:
-            transitions["cycle_run"].append(("completed", time.time()))
-            print("  ✅ saw completed in UI")
-        await shot(page, "04_completed")
-
-        # Stage 4: navigation guard
-        final_url = page.url
-        assert final_url == initial_url, f"page navigated! {initial_url} -> {final_url}"
-
+        report = {"scenario_A": success, "scenario_B": failure, "ok": True}
+        (OUT / "report.json").write_text(json.dumps(report, indent=2, default=str))
+        print("\n✅ All realtime regression scenarios passed")
         await browser.close()
-
-    report = {
-        "cycle_id": CYCLE_ID,
-        "runner_id": RUNNER_ID,
-        "transitions": transitions,
-        "ok": (
-            len(transitions["runner_job"]) == 3
-            and any(s == "in_progress" for s, _ in transitions["cycle_run"])
-            and any(s == "completed" for s, _ in transitions["cycle_run"])
-        ),
-    }
-    (OUT / "report.json").write_text(json.dumps(report, indent=2, default=str))
-    print(json.dumps(report, indent=2, default=str))
-    if not report["ok"]:
-        raise SystemExit("Realtime regression FAILED")
 
 
 asyncio.run(main())

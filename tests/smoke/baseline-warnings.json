@@ -1,0 +1,8 @@
+{
+  "_doc": "Console warning messages allowed in the smoke baseline. Any warning whose normalised text does not appear here causes the CI smoke job to fail. Match is substring/case-insensitive after collapsing whitespace.",
+  "allow": [
+    "react router future flag warning",
+    "v7_starttransition",
+    "v7_relativesplatpath"
+  ]
+}
