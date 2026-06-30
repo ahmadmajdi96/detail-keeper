@@ -2405,6 +2405,86 @@ export type Database = {
           },
         ]
       }
+      spec_runs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          finished_at: string | null
+          id: string
+          project_id: string
+          result_json: Json | null
+          runner_job_id: string | null
+          spec_id: string
+          started_at: string | null
+          status: string
+          stderr: string | null
+          stdout: string | null
+          test_plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          finished_at?: string | null
+          id?: string
+          project_id: string
+          result_json?: Json | null
+          runner_job_id?: string | null
+          spec_id: string
+          started_at?: string | null
+          status?: string
+          stderr?: string | null
+          stdout?: string | null
+          test_plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          finished_at?: string | null
+          id?: string
+          project_id?: string
+          result_json?: Json | null
+          runner_job_id?: string | null
+          spec_id?: string
+          started_at?: string | null
+          status?: string
+          stderr?: string | null
+          stdout?: string | null
+          test_plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spec_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spec_runs_runner_job_id_fkey"
+            columns: ["runner_job_id"]
+            isOneToOne: false
+            referencedRelation: "runner_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spec_runs_spec_id_fkey"
+            columns: ["spec_id"]
+            isOneToOne: false
+            referencedRelation: "test_plan_specs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spec_runs_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suite_test_cases: {
         Row: {
           added_by: string | null
@@ -2915,6 +2995,124 @@ export type Database = {
           },
           {
             foreignKeyName: "test_plan_documents_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_plan_documents_v2: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          project_id: string
+          slug: string
+          sort_order: number
+          test_plan_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          project_id: string
+          slug: string
+          sort_order?: number
+          test_plan_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          project_id?: string
+          slug?: string
+          sort_order?: number
+          test_plan_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_plan_documents_v2_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_plan_documents_v2_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_plan_specs: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          document_id: string | null
+          filename: string
+          id: string
+          language: string
+          project_id: string
+          test_plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          filename: string
+          id?: string
+          language?: string
+          project_id: string
+          test_plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          filename?: string
+          id?: string
+          language?: string
+          project_id?: string
+          test_plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_plan_specs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "test_plan_documents_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_plan_specs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_plan_specs_test_plan_id_fkey"
             columns: ["test_plan_id"]
             isOneToOne: false
             referencedRelation: "test_plans"

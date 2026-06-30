@@ -1,12 +1,15 @@
-import asyncio, json, os
+import asyncio, json, os, re
 from pathlib import Path
 from playwright.async_api import async_playwright
 
 OUT = Path(os.environ.get("SMOKE_OUT_DIR", "/tmp/browser/smoke"))
 SHOTS = OUT / "shots"
+TRACES = OUT / "traces"
 SHOTS.mkdir(parents=True, exist_ok=True)
+TRACES.mkdir(parents=True, exist_ok=True)
 REPORT = OUT / "report.json"
 BASE = os.environ.get("SMOKE_BASE_URL", "http://localhost:8080")
+BASELINE = json.loads(Path(__file__).with_name("baseline-warnings.json").read_text())["allow"]
 
 ROUTES = [
     "/dashboard", "/workspaces", "/projects", "/documents",
@@ -16,6 +19,16 @@ ROUTES = [
     "/automation", "/reporting", "/notifications", "/settings",
     "/users", "/integrations",
 ]
+
+
+def normalize(msg: str) -> str:
+    return re.sub(r"\s+", " ", msg.lower()).strip()
+
+
+def is_baseline(msg: str) -> bool:
+    n = normalize(msg)
+    return any(allowed in n for allowed in BASELINE)
+
 
 async def main():
     results = []
@@ -27,40 +40,72 @@ async def main():
         storage_key = os.environ.get("LOVABLE_BROWSER_SUPABASE_STORAGE_KEY")
         session_json = os.environ.get("LOVABLE_BROWSER_SUPABASE_SESSION_JSON")
         if storage_key and session_json:
-            await init.evaluate(f"window.localStorage.setItem({json.dumps(storage_key)}, {json.dumps(session_json)})")
+            await init.evaluate(
+                f"window.localStorage.setItem({json.dumps(storage_key)}, {json.dumps(session_json)})"
+            )
         await init.close()
-
 
         for route in ROUTES:
             page = await ctx.new_page()
-            errs, fails = [], []
+            errs, warns, fails = [], [], []
             page.on("pageerror", lambda e, b=errs: b.append(str(e)))
-            page.on("console", lambda m, b=errs: m.type == "error" and b.append(m.text))
+
+            def on_console(m, errs=errs, warns=warns):
+                if m.type == "error":
+                    errs.append(m.text)
+                elif m.type in ("warning", "warn"):
+                    warns.append(m.text)
+            page.on("console", on_console)
             page.on("requestfailed", lambda r, b=fails: b.append(f"{r.method} {r.url} -> {r.failure}"))
+
+            slug = route.strip("/").replace("/", "_") or "root"
+            trace_path = TRACES / f"{slug}.zip"
+            await ctx.tracing.start(screenshots=True, snapshots=True, sources=False)
             try:
-                resp = await page.goto(f"http://localhost:8080{route}", wait_until="domcontentloaded", timeout=15000)
+                resp = await page.goto(f"{BASE}{route}", wait_until="domcontentloaded", timeout=15000)
                 await page.wait_for_timeout(1200)
                 status = resp.status if resp else 0
-                # Crash detection
                 crashed = await page.locator("text=Page crashed").count() > 0
-                shot = SHOTS / f"{route.strip('/').replace('/', '_') or 'root'}.png"
+                shot = SHOTS / f"{slug}.png"
                 await page.screenshot(path=str(shot))
+                new_warns = [w for w in warns if not is_baseline(w)]
                 results.append({
-                    "route": route, "status": status, "crashed": crashed,
-                    "console_errors": errs[:5], "failed_requests": fails[:5],
-                    "screenshot": str(shot.name),
+                    "route": route,
+                    "status": status,
+                    "crashed": crashed,
+                    "console_errors": errs[:10],
+                    "console_warnings": warns[:10],
+                    "new_warnings": new_warns[:10],
+                    "failed_requests": fails[:10],
+                    "screenshot": shot.name,
+                    "trace": trace_path.name,
                 })
             except Exception as e:
-                results.append({"route": route, "error": str(e), "console_errors": errs[:5]})
-            
-            
-            
+                results.append({"route": route, "error": str(e),
+                                "console_errors": errs[:10], "console_warnings": warns[:10],
+                                "new_warnings": [w for w in warns if not is_baseline(w)][:10]})
+            finally:
+                await ctx.tracing.stop(path=str(trace_path))
+                await page.close()
 
         await browser.close()
-    REPORT.write_text(json.dumps(results, indent=2))
-    bad = [r for r in results if r.get("crashed") or r.get("error") or r.get("console_errors")]
-    print(f"Routes: {len(results)}, problematic: {len(bad)}")
-    for r in bad:
-        print(f"  {r['route']}: crashed={r.get('crashed')} err={r.get('error')} console={len(r.get('console_errors',[]))}")
+
+    summary = {
+        "total_routes": len(results),
+        "crashed": sum(1 for r in results if r.get("crashed") or r.get("error")),
+        "routes_with_errors": sum(1 for r in results if r.get("console_errors")),
+        "routes_with_new_warnings": sum(1 for r in results if r.get("new_warnings")),
+        "routes_with_failed_requests": sum(1 for r in results if r.get("failed_requests")),
+        "all_console_errors": [e for r in results for e in r.get("console_errors", [])],
+        "all_new_warnings": [w for r in results for w in r.get("new_warnings", [])],
+    }
+    REPORT.write_text(json.dumps({"summary": summary, "routes": results}, indent=2))
+
+    print(f"Routes: {summary['total_routes']}")
+    print(f"  crashes: {summary['crashed']}")
+    print(f"  errors:  {summary['routes_with_errors']}")
+    print(f"  new warnings: {summary['routes_with_new_warnings']}")
+    print(f"  failed reqs: {summary['routes_with_failed_requests']}")
+
 
 asyncio.run(main())

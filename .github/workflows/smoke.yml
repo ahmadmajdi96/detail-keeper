@@ -9,12 +9,13 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
       SMOKE_BASE_URL: http://localhost:8080
+      SMOKE_OUT_DIR: /tmp/browser/smoke
     steps:
       - uses: actions/checkout@v4
 
@@ -51,28 +52,47 @@ jobs:
           mkdir -p /tmp/browser/smoke
           python3 tests/smoke/run.py
 
+      - name: Render HTML report
+        if: always()
+        run: python3 tests/smoke/render_html_report.py
+
       - name: Stop preview
         if: always()
         run: kill $(cat /tmp/preview.pid) || true
 
-      - name: Upload smoke report
+      - name: Upload smoke artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-report
           path: |
             /tmp/browser/smoke/report.json
+            /tmp/browser/smoke/report.html
             /tmp/browser/smoke/shots/**
+            /tmp/browser/smoke/traces/**
 
       - name: Fail on regressions
         run: |
           python3 - <<'PY'
           import json, sys
           data = json.load(open('/tmp/browser/smoke/report.json'))
-          bad = [r for r in data if r.get('crashed') or r.get('console_errors') or r.get('failed_requests')]
+          s = data['summary']
+          bad = [
+              r for r in data['routes']
+              if r.get('crashed') or r.get('error')
+              or r.get('console_errors') or r.get('new_warnings')
+              or r.get('failed_requests')
+          ]
           if bad:
-              print('Regressions detected:')
-              print(json.dumps(bad, indent=2))
+              print(f"❌ Regressions on {len(bad)} routes")
+              for r in bad:
+                  print(f"  {r['route']}: errors={len(r.get('console_errors',[]))} new_warnings={len(r.get('new_warnings',[]))} fails={len(r.get('failed_requests',[]))}")
+              print("\\nAggregate console errors:")
+              for e in s['all_console_errors']:
+                  print(f"  - {e}")
+              print("\\nAggregate new warnings:")
+              for w in s['all_new_warnings']:
+                  print(f"  - {w}")
               sys.exit(1)
-          print(f'All {len(data)} routes OK')
+          print(f"✅ All {s['total_routes']} routes clean")
           PY

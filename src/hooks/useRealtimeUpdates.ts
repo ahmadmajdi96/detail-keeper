@@ -87,6 +87,32 @@ export function useRealtimeUpdates() {
       })
       .subscribe();
 
+    const specRunsChannel = supabase
+      .channel('spec-runs-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'spec_runs' }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ['spec-runs'] });
+        if (payload.eventType === 'UPDATE') {
+          const n = payload.new as { status: string };
+          if (n.status === 'succeeded') toast.success('Spec run passed');
+          else if (n.status === 'failed') toast.error('Spec run failed');
+        }
+      })
+      .subscribe();
+
+    const tpDocsChannel = supabase
+      .channel('tp-docs-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'test_plan_documents_v2' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['tp-docs'] });
+      })
+      .subscribe();
+
+    const tpSpecsChannel = supabase
+      .channel('tp-specs-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'test_plan_specs' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['tp-specs'] });
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(defectsChannel);
       supabase.removeChannel(executionsChannel);
@@ -95,6 +121,9 @@ export function useRealtimeUpdates() {
       supabase.removeChannel(cycleItemsChannel);
       supabase.removeChannel(jobsChannel);
       supabase.removeChannel(runnerJobsChannel);
+      supabase.removeChannel(specRunsChannel);
+      supabase.removeChannel(tpDocsChannel);
+      supabase.removeChannel(tpSpecsChannel);
     };
   }, [queryClient]);
 }
