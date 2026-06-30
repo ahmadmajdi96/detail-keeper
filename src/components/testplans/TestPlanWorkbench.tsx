@@ -230,11 +230,42 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             {busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
             3. Generate Playwright Code
           </Button>
-          <Button size="sm" disabled={busy !== null || specs.length === 0} onClick={runSuite}
-            className="bg-accent text-accent-foreground hover:bg-accent/90">
-            {busy === "suite" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1" />}
-            Run Suite ({specs.length})
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" disabled={busy !== null || specs.length === 0}
+                className="bg-accent text-accent-foreground hover:bg-accent/90">
+                {busy === "suite" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1" />}
+                Run Suite ({specs.length})
+                <Settings2 className="h-3 w-3 ml-1.5 opacity-70" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 space-y-3">
+              <div className="text-xs font-semibold flex items-center gap-1"><Settings2 className="h-3 w-3" /> Run configuration</div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Browser</Label>
+                <Select value={browser} onValueChange={setBrowser}>
+                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="chromium">Chromium</SelectItem>
+                    <SelectItem value="firefox">Firefox</SelectItem>
+                    <SelectItem value="webkit">WebKit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="hl" className="text-xs">Headless</Label>
+                <Switch id="hl" checked={headless} onCheckedChange={setHeadless} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Retries</Label>
+                <Input type="number" min={0} max={5} value={retries} className="h-8"
+                  onChange={(e) => setRetries(Math.max(0, Math.min(5, parseInt(e.target.value) || 0)))} />
+              </div>
+              <Button size="sm" className="w-full" onClick={runSuite} disabled={busy !== null}>
+                <Rocket className="h-3.5 w-3.5 mr-1" /> Dispatch suite
+              </Button>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
