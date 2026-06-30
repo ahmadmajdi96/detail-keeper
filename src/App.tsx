@@ -27,6 +27,7 @@ import AutomationPage from "./pages/AutomationPage";
 import ReportingPage from "./pages/ReportingPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
+import IntegrationSettingsPage from "./pages/IntegrationSettingsPage";
 import SettingsPage from "./pages/SettingsPage";
 import DefectsPage from "./pages/DefectsPage";
 import ReleasesPage from "./pages/ReleasesPage";
@@ -187,6 +188,12 @@ const App = () => (
                   <IntegrationsPage />
                 </ProtectedRoute>
               } />
+              <Route path="/integrations/settings" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <IntegrationSettingsPage />
+                </ProtectedRoute>
+              } />
+              
               
               {/* Isolated Admin Console */}
               <Route path="/admin" element={<AdminLayout />}>
