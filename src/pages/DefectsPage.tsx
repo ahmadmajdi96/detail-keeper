@@ -707,7 +707,25 @@ export default function DefectsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {cycleContext?.cycle_run_item_id && (
+              <div className="rounded border border-cyan-500/30 bg-cyan-500/5 p-2 text-xs text-cyan-300">
+                <Link2 className="inline h-3 w-3 mr-1" /> Linked to failed test in cycle run
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Evidence (screenshots, logs)</Label>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
+              />
+              {evidenceFiles.length > 0 && (
+                <p className="text-xs text-muted-foreground">{evidenceFiles.length} file(s) selected</p>
+              )}
+            </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
