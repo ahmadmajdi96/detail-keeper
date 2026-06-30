@@ -247,8 +247,10 @@ export default function NotificationsPage() {
               ) : recent.map((n, i) => {
                 const Icon = ICON_FOR_TYPE[n.type] ?? Bell;
                 return (
-                  <button key={n.id} onClick={() => handleOpen(n)}
-                    className="w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-[rgba(0,207,224,0.04)] transition-colors group sn-slide-up"
+                  <div key={n.id} role="button" tabIndex={0}
+                    onClick={() => handleOpen(n)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleOpen(n); }}
+                    className="w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-[rgba(0,207,224,0.04)] transition-colors group sn-slide-up cursor-pointer"
                     style={{ animationDelay: `${i * 0.03}s` }}>
                     <div className="h-8 w-8 rounded-md flex items-center justify-center shrink-0 mt-0.5"
                       style={{ background: "rgba(0,207,224,0.08)", border: "1px solid rgba(0,207,224,0.2)" }}>
@@ -272,7 +274,7 @@ export default function NotificationsPage() {
                       aria-label="delete">
                       <Trash2 size={12} />
                     </button>
-                  </button>
+                  </div>
                 );
               })}
             </div>

@@ -3423,7 +3423,13 @@ export type Database = {
         | "blocked"
         | "skipped"
         | "not_applicable"
-      run_status: "planned" | "in_progress" | "completed" | "cancelled"
+      run_status:
+        | "planned"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "queued"
+        | "failed"
       test_case_status: "draft" | "active" | "deprecated" | "archived"
       user_role: "admin" | "qa_manager" | "qa_engineer" | "viewer"
       user_status: "active" | "pending" | "inactive" | "suspended"
@@ -3623,7 +3629,14 @@ export const Constants = {
         "skipped",
         "not_applicable",
       ],
-      run_status: ["planned", "in_progress", "completed", "cancelled"],
+      run_status: [
+        "planned",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "queued",
+        "failed",
+      ],
       test_case_status: ["draft", "active", "deprecated", "archived"],
       user_role: ["admin", "qa_manager", "qa_engineer", "viewer"],
       user_status: ["active", "pending", "inactive", "suspended"],
