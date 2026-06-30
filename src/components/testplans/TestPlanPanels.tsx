@@ -303,9 +303,6 @@ export function PlanLivePanel({ testPlanId }: { testPlanId: string }) {
     const live = runs.find((r) => ["queued", "dispatched", "running"].includes(r.status));
     setActiveSpec(live?.spec_id || runs[0]?.spec_id || rows[0]?.id || null);
   };
-    const live = (runs || []).find((r: any) => ["queued", "dispatched", "running"].includes(r.status));
-    setActiveSpec(live?.spec_id || runs?.[0]?.spec_id || (rows || [])[0]?.id || null);
-  };
 
   useEffect(() => { refresh(); }, [testPlanId]);
 
