@@ -1,252 +1,54 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-// Tolerant JSON parser for LLM output: strips code fences, trims to outer
-// braces, and fixes common issues (control chars, bad backslash escapes,
-// trailing commas) that break JSON.parse.
-function safeParseJson(input: string): any {
-  let s = String(input ?? "").trim();
-  // strip ```json ... ``` fences
-  s = s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
-  // trim to outermost { ... } or [ ... ]
-  const start = s.search(/[\{\[]/);
-  if (start > 0) s = s.slice(start);
-  const open = s[0];
-  const close = open === "[" ? "]" : "}";
-  const end = s.lastIndexOf(close);
-  if (end !== -1) s = s.slice(0, end + 1);
-
-  const tryParse = (x: string) => { try { return JSON.parse(x); } catch { return undefined; } };
-  let out = tryParse(s);
-  if (out !== undefined) return out;
-
-  // Remove raw control characters inside strings (newlines, tabs, etc.)
-  let cleaned = s.replace(/[\u0000-\u001F\u007F]/g, (c) => {
-    if (c === "\n") return "\\n";
-    if (c === "\r") return "\\r";
-    if (c === "\t") return "\\t";
-    return "";
-  });
-  // Escape any backslash not already starting a valid JSON escape sequence
-  cleaned = cleaned.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
-  // Remove trailing commas
-  cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
-
-  out = tryParse(cleaned);
-  if (out !== undefined) return out;
-  throw new Error("Failed to parse AI JSON output");
-}
-
-async function runGeneration(test_plan_id: string) {
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
-  try {
-    await supabase
-      .from("test_plans")
-      .update({ ai_status: "running", ai_last_run_at: new Date().toISOString() })
-      .eq("id", test_plan_id);
-
-    const { data: plan } = await supabase
-      .from("test_plans")
-      .select("*")
-      .eq("id", test_plan_id)
-      .single();
-
-    if (!plan) throw new Error("Test plan not found");
-
-    const { data: planDocs } = await supabase
-      .from("test_plan_documents")
-      .select("document_id, documents:document_id(filename, content, summary)")
-      .eq("test_plan_id", test_plan_id);
-
-    const docsContext = (planDocs || [])
-      .map((d: any) => {
-        const doc = d.documents;
-        if (!doc) return "";
-        return `### ${doc.filename}\n${(doc.summary || "")}\n${(doc.content || "").slice(0, 6000)}`;
-      })
-      .filter(Boolean)
-      .join("\n\n---\n\n");
-
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
-    const systemPrompt = `You are a senior QA engineer. Generate a complete, structured test plan in JSON.
-Return ONLY valid JSON matching this shape:
-{
-  "objective": string,
-  "scope": string,
-  "coverage_areas": string[],
-  "test_cases": [
-    { "title": string, "description": string, "priority": "high"|"medium"|"low",
-      "type": "functional"|"integration"|"e2e"|"security"|"performance"|"regression",
-      "preconditions": string, "steps": string[], "expected_result": string,
-      "coverage_tags": string[] }
-  ]
-}
-Generate 8-15 high quality test cases covering happy paths, edge cases, negative cases, and security.`;
-
-    const userPrompt = `Test Plan: ${plan.name}
-Description: ${plan.description || "N/A"}
-Objective: ${plan.objective || "N/A"}
-Scope: ${plan.scope || "N/A"}
-
-Source Documents:
-${docsContext || "(no documents attached — infer from plan name/description)"}`;
-
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!aiRes.ok) {
-      const t = await aiRes.text();
-      console.error("AI gateway error", aiRes.status, t);
-      await supabase.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
-      return;
-    }
-
-    const aiJson = await aiRes.json();
-    const raw = aiJson.choices?.[0]?.message?.content || "{}";
-    const parsed = safeParseJson(raw);
-
-    await supabase
-      .from("test_plans")
-      .update({
-        objective: parsed.objective || plan.objective,
-        scope: parsed.scope || plan.scope,
-        ai_suggested: true,
-      })
-      .eq("id", test_plan_id);
-
-    const cases = Array.isArray(parsed.test_cases) ? parsed.test_cases : [];
-    let created = 0;
-    for (const tc of cases) {
-      const priorityNum =
-        tc.priority === "high" ? 1 : tc.priority === "low" ? 3 : 2;
-      const { data: inserted, error: tcErr } = await supabase
-        .from("test_cases")
-        .insert({
-          title: tc.title || "Untitled",
-          description: tc.description || null,
-          preconditions: tc.preconditions || null,
-          expected_result: tc.expected_result || null,
-          priority: priorityNum,
-          status: "draft",
-          ai_generated: true,
-          ai_confidence: 0.85,
-          coverage_tags: tc.coverage_tags || tc.type ? [tc.type, ...(tc.coverage_tags || [])] : null,
-          created_by: plan.created_by,
-          workspace_id: plan.workspace_id,
-          project_id: plan.project_id,
-        })
-        .select("id")
-        .single();
-
-      if (!tcErr && inserted) {
-        await supabase.from("test_plan_test_cases").insert({
-          test_plan_id,
-          test_case_id: inserted.id,
-          added_by: plan.created_by,
-        });
-        if (Array.isArray(tc.steps)) {
-          const stepRows = tc.steps.map((s: string, i: number) => ({
-            test_case_id: inserted.id,
-            step_number: i + 1,
-            action: s,
-            expected_result: i === tc.steps.length - 1 ? tc.expected_result || "" : "",
-          }));
-          if (stepRows.length) await supabase.from("test_case_steps").insert(stepRows);
-        }
-        created++;
-      }
-    }
-
-    const nextVersion = (plan.current_version || 1) + (created > 0 ? 1 : 0);
-    if (created > 0) {
-      await supabase.from("test_plan_versions").insert({
-        test_plan_id,
-        version: nextVersion,
-        snapshot: parsed,
-        change_summary: `AI generated ${created} test case(s)`,
-        created_by: plan.created_by,
-      });
-      await supabase
-        .from("test_plans")
-        .update({ ai_status: "ready", current_version: nextVersion })
-        .eq("id", test_plan_id);
-
-      const docIds = (planDocs || []).map((d: any) => d.document_id).filter(Boolean);
-      if (docIds.length) {
-        await supabase
-          .from("documents")
-          .update({ status: "requirements_extracted" })
-          .in("id", docIds);
-      }
-    } else {
-      await supabase
-        .from("test_plans")
-        .update({ ai_status: "ready" })
-        .eq("id", test_plan_id);
-    }
-  } catch (e) {
-    console.error("Generation error", e);
-    try {
-      await supabase
-        .from("test_plans")
-        .update({ ai_status: "failed" })
-        .eq("id", test_plan_id);
-    } catch (_) { /* ignore */ }
-  }
-}
-
+// Thin producer: enqueues a durable job and returns immediately. Worker runs
+// the actual AI generation. Navigation in the client never cancels generation.
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
   try {
     const { test_plan_id } = await req.json();
     if (!test_plan_id) {
       return new Response(JSON.stringify({ error: "test_plan_id required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: plan } = await sb.from("test_plans").select("workspace_id, project_id, created_by").eq("id", test_plan_id).single();
 
-    // Fire-and-forget: run generation in background so the client can navigate away.
-    // @ts-ignore EdgeRuntime is available in Supabase Edge Runtime
-    EdgeRuntime.waitUntil(runGeneration(test_plan_id));
+    await sb.from("test_plans").update({ ai_status: "queued" }).eq("id", test_plan_id);
 
-    return new Response(
-      JSON.stringify({ success: true, status: "queued" }),
-      { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (e) {
-    console.error(e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const idempotencyKey = `gen-plan:${test_plan_id}:${Date.now()}`;
+    const { data: job, error } = await sb.from("jobs").insert({
+      workspace_id: plan?.workspace_id || null,
+      project_id: plan?.project_id || null,
+      kind: "generate_test_plan_from_docs",
+      payload: { test_plan_id },
+      idempotency_key: idempotencyKey,
+      created_by: plan?.created_by || null,
+      max_attempts: 3,
+      priority: 50,
+    }).select("id").single();
+
+    if (error) throw error;
+
+    // Best-effort: kick the worker immediately so the user doesn't wait for cron.
+    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/job-worker`;
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    }).catch(() => {});
+
+    return new Response(JSON.stringify({ success: true, job_id: job.id, status: "queued" }), {
+      status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e?.message || "unknown" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
-

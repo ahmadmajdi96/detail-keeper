@@ -26,6 +26,7 @@ import {
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
   Plus, Edit3, Trash2, Layers, Variable, Download, Save,
 } from "lucide-react";
+import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
 
 const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
@@ -39,6 +40,7 @@ function inferType(tc: any): TestType {
 
 export default function TestPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { job: genJob } = useLatestJobForPlan(id || null);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -63,7 +65,10 @@ export default function TestPlanDetailPage() {
   const { data: plan, isLoading } = useQuery({
     queryKey: ["test-plan", id],
     enabled: !!id,
-    refetchInterval: (q) => (q.state.data as any)?.ai_status === "running" ? 4000 : false,
+    refetchInterval: (q) => {
+      const s = (q.state.data as any)?.ai_status;
+      return (s === "running" || s === "queued") ? 4000 : false;
+    },
     queryFn: async () => {
       const { data, error } = await supabase
         .from("test_plans")
@@ -348,6 +353,41 @@ export default function TestPlanDetailPage() {
           </Button>
         }
       />
+
+      {genJob && (genJob.status === "queued" || genJob.status === "running" || genJob.status === "retrying") && (
+        <Card className="mb-4 border-accent/40">
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                Generating test cases — {genJob.progress_message || genJob.status}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                attempt {genJob.attempt_count}/{genJob.max_attempts} · {genJob.progress}%
+              </span>
+            </div>
+            <Progress value={genJob.progress} />
+            <p className="text-[11px] text-muted-foreground mt-2">
+              You can safely navigate away — generation continues in the background.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+      {genJob && (genJob.status === "dead_letter" || genJob.status === "failed") && (
+        <Card className="mb-4 border-destructive/50">
+          <CardContent className="pt-5">
+            <div className="text-sm font-medium text-destructive">
+              Generation failed: {genJob.error?.message || "unknown error"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {genJob.status === "dead_letter"
+                ? `Exhausted ${genJob.max_attempts} attempts.`
+                : "Will retry automatically."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
 
       {/* KPI Strip */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}

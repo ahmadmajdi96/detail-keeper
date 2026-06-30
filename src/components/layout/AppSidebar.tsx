@@ -30,6 +30,7 @@ import {
   X,
   Rocket,
   Repeat,
+  Target,
 } from "lucide-react";
 
 import type { Database } from "@/integrations/supabase/types";
@@ -54,6 +55,7 @@ const mainNavItems: NavItem[] = [
   { title: "Projects", href: "/projects", icon: FolderOpen, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Documents", href: "/documents", icon: FileText, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Test Plans", href: "/test-plans", icon: ClipboardList, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Requirements", href: "/requirements", icon: Target, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Releases", href: "/releases", icon: Rocket, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Test Cycles", href: "/cycles", icon: Repeat, roles: ["qa_engineer", "qa_manager", "admin"] },
