@@ -51,6 +51,10 @@ export default function TestCaseEditorPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isEditing = !!id;
+  // Optional return-to-plan context (passed by Test Plan detail page)
+  const planId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("planId") : null;
+  const backHref = planId ? `/test-plans/${planId}` : "/test-cases";
+  const backLabel = planId ? "Back to Test Plan" : "Cancel";
 
   // Form state
   const [title, setTitle] = useState("");
@@ -198,7 +202,7 @@ export default function TestCaseEditorPage() {
       setIsSaving(false);
       queryClient.invalidateQueries({ queryKey: ["test-cases"] });
       toast.success(isEditing ? "Test case updated successfully" : "Test case created successfully");
-      navigate("/test-cases");
+      navigate(backHref);
     },
     onError: (error) => {
       setIsSaving(false);
@@ -257,9 +261,9 @@ export default function TestCaseEditorPage() {
           description="Define test steps, expected results, and preconditions"
           actions={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => navigate("/test-cases")}>
+              <Button variant="outline" onClick={() => navigate(backHref)}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Cancel
+                {backLabel}
               </Button>
               <Button
                 className="ai-gradient text-white"

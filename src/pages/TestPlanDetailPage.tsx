@@ -29,7 +29,7 @@ import {
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
 import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
-import { PlanRunnersPanel, PlanDefectsPanel, PlanQualityGatesPanel, PlanReportsPanel, PlanLivePanel } from "@/components/testplans/TestPlanPanels";
+import { PlanRunnersPanel, PlanDefectsPanel, PlanQualityGatesPanel, PlanReportsPanel, PlanLivePanel, PlanRequirementsPanel } from "@/components/testplans/TestPlanPanels";
 import { Server, Bug, ShieldCheck, BarChart3, Radio } from "lucide-react";
 
 const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
@@ -148,28 +148,17 @@ export default function TestPlanDetailPage() {
     },
   });
 
-  const { data: requirements = [] } = useQuery({
-    queryKey: ["test-plan-requirements", id, plan?.project_id],
-    enabled: !!id && !!plan?.project_id,
+  const { data: suiteRuns = [] } = useQuery({
+    queryKey: ["test-plan-suite-runs", id],
+    enabled: !!id,
     queryFn: async () => {
-      const caseIds = (testCases || []).map((r: any) => r.test_case?.id).filter(Boolean);
-      const { data: reqs } = await supabase
-        .from("requirements")
-        .select("id, key, title, status, priority, tags")
-        .eq("project_id", plan!.project_id)
-        .order("created_at", { ascending: false });
-      let linkedByReq: Record<string, number> = {};
-      if (caseIds.length) {
-        const { data: links } = await supabase
-          .from("requirement_links")
-          .select("requirement_id, linked_id")
-          .eq("linked_type", "test_case")
-          .in("linked_id", caseIds);
-        (links || []).forEach((l: any) => {
-          linkedByReq[l.requirement_id] = (linkedByReq[l.requirement_id] || 0) + 1;
-        });
-      }
-      return (reqs || []).map((r: any) => ({ ...r, covered_cases: linkedByReq[r.id] || 0 }));
+      const { data } = await (supabase as any)
+        .from("suite_runs")
+        .select("id, status, total_specs, passed_specs, failed_specs, completed_specs, created_at, started_at, finished_at")
+        .eq("test_plan_id", id!)
+        .order("created_at", { ascending: false })
+        .limit(25);
+      return data || [];
     },
   });
 
@@ -241,14 +230,34 @@ export default function TestPlanDetailPage() {
     onError: (e: any) => toast.error(e.message || "Generation failed to start"),
   });
 
-  // When ai_status transitions out of "running", refresh dependent queries.
+  // Realtime: keep versions, executions, suite runs fresh for this plan
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase.channel(`tp-detail-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "test_plan_versions", filter: `test_plan_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["test-plan-versions", id] });
+        qc.invalidateQueries({ queryKey: ["test-plan", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "test_executions", filter: `test_plan_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["test-plan-executions", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "suite_runs", filter: `test_plan_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["test-plan-suite-runs", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "defects", filter: `test_plan_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["plan-defects", id] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id, qc]);
+
+
   useEffect(() => {
     if (plan?.ai_status === "ready" || plan?.ai_status === "failed") {
       qc.invalidateQueries({ queryKey: ["test-plan-cases", id] });
       qc.invalidateQueries({ queryKey: ["test-plan-versions", id] });
     }
   }, [plan?.ai_status, id, qc]);
-
 
   const saveCase = useMutation({
     mutationFn: async () => {
@@ -480,7 +489,7 @@ export default function TestPlanDetailPage() {
           <TabsTrigger value="variables"><Variable className="mr-2 h-4 w-4" />Variables ({vars.filter(v => v.key.trim()).length})</TabsTrigger>
           <TabsTrigger value="workbench"><Sparkles className="mr-2 h-4 w-4" />AI Workbench</TabsTrigger>
           <TabsTrigger value="cases"><ListChecks className="mr-2 h-4 w-4" />Test Cases ({testCases.length})</TabsTrigger>
-          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length})</TabsTrigger>
+          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length + suiteRuns.length})</TabsTrigger>
           <TabsTrigger value="ai"><Sparkles className="mr-2 h-4 w-4" />AI Generation</TabsTrigger>
           <TabsTrigger value="versions"><GitBranch className="mr-2 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
           <TabsTrigger value="runners"><Server className="mr-2 h-4 w-4" />Runners</TabsTrigger>
@@ -576,57 +585,9 @@ export default function TestPlanDetailPage() {
         </TabsContent>
 
         <TabsContent value="requirements">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-accent" /> Requirements Coverage
-              </CardTitle>
-              <CardDescription>
-                Project requirements and how many test cases in this plan cover each.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {requirements.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">
-                  <BookOpen className="mx-auto h-10 w-10 mb-3 opacity-50" />
-                  <p className="text-sm">No requirements defined for this project yet.</p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/requirements")}>
-                    Manage Requirements
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {requirements.map((r: any) => (
-                    <div key={r.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {r.key && <Badge variant="outline" className="text-[10px] font-mono">{r.key}</Badge>}
-                          <p className="text-sm font-medium truncate">{r.title}</p>
-                        </div>
-                        {r.tags?.length > 0 && (
-                          <div className="flex gap-1 flex-wrap">
-                            {r.tags.slice(0, 4).map((t: string, i: number) => (
-                              <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant="outline" className="text-xs">P{r.priority}</Badge>
-                        <StatusBadge
-                          variant={r.covered_cases > 0 ? "success" : "warning"}
-                          size="sm"
-                        >
-                          {r.covered_cases} case{r.covered_cases === 1 ? "" : "s"}
-                        </StatusBadge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {plan?.project_id && <PlanRequirementsPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
         </TabsContent>
+
 
 
 
@@ -670,7 +631,7 @@ export default function TestPlanDetailPage() {
                             key={link.id}
                             className="group flex items-start justify-between gap-3 p-3 rounded-lg border bg-card hover:border-accent/40 transition-colors"
                           >
-                            <Link to={`/test-cases/${tc.id}/edit`} className="flex-1 min-w-0">
+                            <Link to={`/test-cases/${tc.id}/edit?planId=${id}`} className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <p className="text-sm font-medium truncate">{tc.title}</p>
                                 {tc.ai_generated && <Sparkles className="h-3 w-3 text-accent shrink-0" />}
@@ -886,17 +847,50 @@ export default function TestPlanDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="executions">
+        <TabsContent value="executions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4" />Recent Runs</CardTitle>
-              <CardDescription>Test executions for this plan</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-base"><Layers className="h-4 w-4" />Suite Runs</CardTitle>
+              <CardDescription>Live runs dispatched from the AI Workbench (Playwright suites)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {suiteRuns.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No suite runs yet — dispatch one from the AI Workbench tab.</p>
+              ) : (
+                <div className="space-y-2">
+                  {suiteRuns.map((s: any) => {
+                    const pct = s.total_specs ? Math.round(((s.completed_specs || 0) / s.total_specs) * 100) : 0;
+                    const variant = s.status === "succeeded" ? "success" : s.status === "failed" ? "destructive" : s.status === "running" ? "info" : "warning";
+                    return (
+                      <div key={s.id} className="p-3 rounded-lg border bg-card">
+                        <div className="flex items-center justify-between gap-3 mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <StatusBadge variant={variant as any} size="sm">{s.status}</StatusBadge>
+                            <span className="text-xs text-muted-foreground">{format(new Date(s.created_at), "MMM d, HH:mm")}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {s.passed_specs || 0}✓ · {s.failed_specs || 0}✗ · {s.total_specs || 0} total
+                          </span>
+                        </div>
+                        <Progress value={pct} className="h-1.5" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4" />Individual Test Executions</CardTitle>
+              <CardDescription>Manual or per-case runs for this plan</CardDescription>
             </CardHeader>
             <CardContent>
               {executions.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">
+                <div className="py-10 text-center text-muted-foreground">
                   <Play className="mx-auto h-10 w-10 mb-3 opacity-50" />
-                  <p className="text-sm">No executions yet</p>
+                  <p className="text-sm">No individual executions yet</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -925,6 +919,7 @@ export default function TestPlanDetailPage() {
           </Card>
         </TabsContent>
 
+
         <TabsContent value="workbench">
           {plan?.project_id && id ? (
             <TestPlanWorkbench testPlanId={id} projectId={plan.project_id} />
@@ -934,13 +929,13 @@ export default function TestPlanDetailPage() {
         </TabsContent>
 
         <TabsContent value="runners">
-          {plan?.project_id && <PlanRunnersPanel projectId={plan.project_id} />}
+          {plan?.project_id && <PlanRunnersPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
         </TabsContent>
         <TabsContent value="defects">
-          {id && <PlanDefectsPanel testPlanId={id} />}
+          {id && <PlanDefectsPanel testPlanId={id} projectId={plan.project_id} workspaceId={plan.workspace_id} />}
         </TabsContent>
         <TabsContent value="gates">
-          {plan?.project_id && <PlanQualityGatesPanel projectId={plan.project_id} />}
+          {plan?.project_id && <PlanQualityGatesPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
         </TabsContent>
         <TabsContent value="reports">
           {id && plan?.project_id && <PlanReportsPanel testPlanId={id} projectId={plan.project_id} />}
