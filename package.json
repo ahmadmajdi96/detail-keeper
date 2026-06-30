@@ -8,7 +8,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "codegen": "graphql-codegen --config codegen.ts",
+    "seed:admin": "psql \"$SUPABASE_DB_URL\" -f supabase/seed/admin-fixtures.sql",
+    "probe:rls": "python3 tests/rls/probe.py"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
