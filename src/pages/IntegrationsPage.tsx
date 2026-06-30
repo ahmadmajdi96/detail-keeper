@@ -35,6 +35,7 @@ import {
   RefreshCw,
   Loader2,
 } from "lucide-react";
+import { CIIntegrationsManager } from "@/components/integrations/CIIntegrationsManager";
 
 interface Integration {
   id: string;
@@ -236,6 +237,8 @@ export default function IntegrationsPage() {
             </Button>
           }
         />
+
+        <CIIntegrationsManager />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

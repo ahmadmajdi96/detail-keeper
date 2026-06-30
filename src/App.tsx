@@ -34,6 +34,7 @@ import CyclesPage from "./pages/CyclesPage";
 import CycleDetailPage from "./pages/CycleDetailPage";
 import RequirementsPage from "./pages/RequirementsPage";
 import QualityGatesPage from "./pages/QualityGatesPage";
+import RunnersPage from "./pages/RunnersPage";
 import NotFound from "./pages/NotFound";
 
 
@@ -136,6 +137,11 @@ const App = () => (
               <Route path="/quality-gates" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
                   <QualityGatesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/runners" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <RunnersPage />
                 </ProtectedRoute>
               } />
 
