@@ -399,7 +399,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </section>
       </div>
 
-      {activeSuiteRunId && <SuiteRunProgress suiteRunId={activeSuiteRunId} />}
+      {activeSuiteRunId && <SuiteRunProgress suiteRunId={activeSuiteRunId} projectId={projectId} />}
 
       <div className="p-3 border-t border-border/50">
         <ArtifactViewer testPlanId={testPlanId} />
