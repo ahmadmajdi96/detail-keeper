@@ -125,7 +125,12 @@ export function TestPlanWorkbench({ testPlanId, projectId: _projectId }: Props) 
     try {
       const { data, error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
-      toast.success(label + (data?.cases ? ` — ${data.cases} cases` : data?.specs ? ` — ${data.specs} specs` : data?.documents?.length ? ` — ${data.documents.length} docs` : ""));
+      const detail = data?.status === "queued"
+        ? ` — queued ${data.queued} (streaming in via realtime)`
+        : data?.cases ? ` — ${data.cases} cases`
+        : data?.specs ? ` — ${data.specs} specs`
+        : data?.documents?.length ? ` — ${data.documents.length} docs` : "";
+      toast.success(label + detail);
       qc.invalidateQueries({ queryKey: ["tp-docs", testPlanId] });
       qc.invalidateQueries({ queryKey: ["tp-specs", testPlanId] });
       qc.invalidateQueries({ queryKey: ["tp-wb-cases", testPlanId] });
