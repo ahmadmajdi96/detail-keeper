@@ -1,0 +1,36 @@
+/* Scoped admin theme — slate + amber, distinct from main app */
+.admin-shell {
+  --admin-bg: 222 47% 5%;
+  --admin-surface: 222 47% 9%;
+  --admin-border: 222 30% 18%;
+  --admin-text: 210 40% 96%;
+  --admin-muted: 215 20% 65%;
+  --admin-accent: 38 95% 55%;
+  --admin-accent-fg: 222 47% 5%;
+  --admin-danger: 0 75% 60%;
+  --admin-ok: 142 70% 45%;
+
+  background: hsl(var(--admin-bg));
+  color: hsl(var(--admin-text));
+  min-height: 100vh;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+.admin-shell .admin-surface { background: hsl(var(--admin-surface)); border: 1px solid hsl(var(--admin-border)); }
+.admin-shell .admin-accent { color: hsl(var(--admin-accent)); }
+.admin-shell .admin-accent-bg { background: hsl(var(--admin-accent)); color: hsl(var(--admin-accent-fg)); }
+.admin-shell h1, .admin-shell h2, .admin-shell h3 { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.01em; }
+.admin-shell a { color: hsl(var(--admin-accent)); }
+.admin-shell table { width: 100%; border-collapse: collapse; }
+.admin-shell th, .admin-shell td { padding: 10px 12px; border-bottom: 1px solid hsl(var(--admin-border)); text-align: left; font-size: 13px; }
+.admin-shell th { color: hsl(var(--admin-muted)); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
+.admin-shell input, .admin-shell select, .admin-shell textarea {
+  background: hsl(var(--admin-bg)); border: 1px solid hsl(var(--admin-border));
+  color: hsl(var(--admin-text)); padding: 8px 10px; border-radius: 4px; font: inherit; width: 100%;
+}
+.admin-shell button.btn {
+  background: hsl(var(--admin-accent)); color: hsl(var(--admin-accent-fg));
+  border: none; padding: 8px 14px; border-radius: 4px; font: inherit; font-weight: 600; cursor: pointer;
+}
+.admin-shell button.btn.ghost { background: transparent; color: hsl(var(--admin-text)); border: 1px solid hsl(var(--admin-border)); }
+.admin-shell button.btn.danger { background: hsl(var(--admin-danger)); color: white; }
+.admin-shell .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; border: 1px solid hsl(var(--admin-border)); }
