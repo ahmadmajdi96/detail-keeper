@@ -7,64 +7,80 @@ export function useRealtimeUpdates() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Subscribe to defects changes
     const defectsChannel = supabase
       .channel('defects-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'defects',
-        },
-        (payload) => {
-          // Invalidate defects queries
-          queryClient.invalidateQueries({ queryKey: ['defects'] });
-          queryClient.invalidateQueries({ queryKey: ['dashboard-defects'] });
-
-          if (payload.eventType === 'INSERT') {
-            toast.info('New Defect', {
-              description: `A new defect has been reported`,
-            });
-          }
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'defects' }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ['defects'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-defects'] });
+        if (payload.eventType === 'INSERT') toast.info('New Defect', { description: 'A new defect has been reported' });
+      })
       .subscribe();
 
-    // Subscribe to test executions changes
     const executionsChannel = supabase
       .channel('executions-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'test_executions',
-        },
-        (payload) => {
-          // Invalidate executions queries
-          queryClient.invalidateQueries({ queryKey: ['executions'] });
-          queryClient.invalidateQueries({ queryKey: ['dashboard-executions'] });
-
-          if (payload.eventType === 'UPDATE') {
-            const newData = payload.new as { status: string };
-            if (newData.status === 'passed') {
-              toast.success('Test Passed', {
-                description: 'A test execution has completed successfully',
-              });
-            } else if (newData.status === 'failed') {
-              toast.error('Test Failed', {
-                description: 'A test execution has failed',
-              });
-            }
-          }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'test_executions' }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ['executions'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-executions'] });
+        if (payload.eventType === 'UPDATE') {
+          const n = payload.new as { status: string };
+          if (n.status === 'passed') toast.success('Test Passed');
+          else if (n.status === 'failed') toast.error('Test Failed');
         }
-      )
+      })
+      .subscribe();
+
+    const buildsChannel = supabase
+      .channel('builds-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'builds' }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ['builds'] });
+        queryClient.invalidateQueries({ queryKey: ['releases'] });
+        if (payload.eventType === 'UPDATE') {
+          const n = payload.new as { status: string; name?: string };
+          if (n.status === 'success') toast.success(`Build succeeded${n.name ? ': ' + n.name : ''}`);
+          else if (n.status === 'failed') toast.error(`Build failed${n.name ? ': ' + n.name : ''}`);
+        }
+      })
+      .subscribe();
+
+    const cycleRunsChannel = supabase
+      .channel('cycle-runs-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cycle_runs' }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ['cycle-runs'] });
+        queryClient.invalidateQueries({ queryKey: ['cycles'] });
+        if (payload.eventType === 'UPDATE') {
+          const n = payload.new as { status: string; name?: string };
+          if (n.status === 'completed') toast.success(`Run completed${n.name ? ': ' + n.name : ''}`);
+        }
+      })
+      .subscribe();
+
+    const cycleItemsChannel = supabase
+      .channel('cycle-run-items-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cycle_run_items' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['cycle-run-items'] });
+        queryClient.invalidateQueries({ queryKey: ['cycle-runs'] });
+      })
+      .subscribe();
+
+    const jobsChannel = supabase
+      .channel('jobs-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        if (payload.eventType === 'UPDATE') {
+          const n = payload.new as { status: string; kind: string };
+          if (n.status === 'completed') toast.success(`Job done: ${n.kind}`);
+          else if (n.status === 'dead_letter') toast.error(`Job failed permanently: ${n.kind}`);
+        }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(defectsChannel);
       supabase.removeChannel(executionsChannel);
+      supabase.removeChannel(buildsChannel);
+      supabase.removeChannel(cycleRunsChannel);
+      supabase.removeChannel(cycleItemsChannel);
+      supabase.removeChannel(jobsChannel);
     };
   }, [queryClient]);
 }
