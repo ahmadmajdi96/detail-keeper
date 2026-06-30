@@ -404,6 +404,7 @@ export default function LandingPage() {
               <div className="hidden md:flex items-center gap-8">
                 {[
                   { label: "Product", href: "#product" },
+                  { label: "Workbench", href: "#workbench" },
                   { label: "DNA", href: "#dna" },
                   { label: "Pricing", href: "#pricing" },
                   { label: "Resources", href: "#faq" },
