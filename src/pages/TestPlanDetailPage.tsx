@@ -255,13 +255,26 @@ export default function TestPlanDetailPage() {
     onError: (e: any) => toast.error(e.message || "Generation failed to start"),
   });
 
-  // When ai_status transitions out of "running", refresh dependent queries.
+  // Realtime: keep versions, executions, suite runs fresh for this plan
   useEffect(() => {
-    if (plan?.ai_status === "ready" || plan?.ai_status === "failed") {
-      qc.invalidateQueries({ queryKey: ["test-plan-cases", id] });
-      qc.invalidateQueries({ queryKey: ["test-plan-versions", id] });
-    }
-  }, [plan?.ai_status, id, qc]);
+    if (!id) return;
+    const ch = supabase.channel(`tp-detail-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "test_plan_versions", filter: `test_plan_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["test-plan-versions", id] });
+        qc.invalidateQueries({ queryKey: ["test-plan", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "test_executions", filter: `test_plan_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["test-plan-executions", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "suite_runs", filter: `test_plan_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["test-plan-suite-runs", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "defects", filter: `test_plan_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["plan-defects", id] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id, qc]);
 
 
   const saveCase = useMutation({
