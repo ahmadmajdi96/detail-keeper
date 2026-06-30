@@ -920,17 +920,50 @@ export default function TestPlanDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="executions">
+        <TabsContent value="executions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4" />Recent Runs</CardTitle>
-              <CardDescription>Test executions for this plan</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-base"><Layers className="h-4 w-4" />Suite Runs</CardTitle>
+              <CardDescription>Live runs dispatched from the AI Workbench (Playwright suites)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {suiteRuns.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No suite runs yet — dispatch one from the AI Workbench tab.</p>
+              ) : (
+                <div className="space-y-2">
+                  {suiteRuns.map((s: any) => {
+                    const pct = s.total_specs ? Math.round(((s.completed_specs || 0) / s.total_specs) * 100) : 0;
+                    const variant = s.status === "succeeded" ? "success" : s.status === "failed" ? "destructive" : s.status === "running" ? "info" : "warning";
+                    return (
+                      <div key={s.id} className="p-3 rounded-lg border bg-card">
+                        <div className="flex items-center justify-between gap-3 mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <StatusBadge variant={variant as any} size="sm">{s.status}</StatusBadge>
+                            <span className="text-xs text-muted-foreground">{format(new Date(s.created_at), "MMM d, HH:mm")}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {s.passed_specs || 0}✓ · {s.failed_specs || 0}✗ · {s.total_specs || 0} total
+                          </span>
+                        </div>
+                        <Progress value={pct} className="h-1.5" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4" />Individual Test Executions</CardTitle>
+              <CardDescription>Manual or per-case runs for this plan</CardDescription>
             </CardHeader>
             <CardContent>
               {executions.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">
+                <div className="py-10 text-center text-muted-foreground">
                   <Play className="mx-auto h-10 w-10 mb-3 opacity-50" />
-                  <p className="text-sm">No executions yet</p>
+                  <p className="text-sm">No individual executions yet</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -958,6 +991,7 @@ export default function TestPlanDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
 
         <TabsContent value="workbench">
           {plan?.project_id && id ? (
