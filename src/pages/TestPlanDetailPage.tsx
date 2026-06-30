@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
-  Plus, Edit3, Trash2, Layers, Variable, Download, Save,
+  Plus, Edit3, Trash2, Layers, Variable, Download, Save, BookOpen,
 } from "lucide-react";
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
@@ -343,14 +343,9 @@ export default function TestPlanDetailPage() {
         actions={
           <Button
             className="ai-gradient text-white"
-            onClick={() => generate.mutate()}
-            disabled={generate.isPending || plan.ai_status === "running"}
+            onClick={() => setTab("workbench")}
           >
-            {generate.isPending || plan.ai_status === "running" ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating…</>
-            ) : (
-              <><Sparkles className="mr-2 h-4 w-4" /> Generate with AI</>
-            )}
+            <Sparkles className="mr-2 h-4 w-4" /> Generate with AI
           </Button>
         }
       />
@@ -452,14 +447,15 @@ export default function TestPlanDetailPage() {
       </motion.div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex-wrap h-auto">
           <TabsTrigger value="overview"><FileText className="mr-2 h-4 w-4" />Overview</TabsTrigger>
-          <TabsTrigger value="cases"><ListChecks className="mr-2 h-4 w-4" />Test Cases ({testCases.length})</TabsTrigger>
+          <TabsTrigger value="requirements"><BookOpen className="mr-2 h-4 w-4" />Requirements</TabsTrigger>
           <TabsTrigger value="variables"><Variable className="mr-2 h-4 w-4" />Variables ({vars.filter(v => v.key.trim()).length})</TabsTrigger>
+          <TabsTrigger value="workbench"><Sparkles className="mr-2 h-4 w-4" />AI Workbench</TabsTrigger>
+          <TabsTrigger value="cases"><ListChecks className="mr-2 h-4 w-4" />Test Cases ({testCases.length})</TabsTrigger>
+          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length})</TabsTrigger>
           <TabsTrigger value="ai"><Sparkles className="mr-2 h-4 w-4" />AI Generation</TabsTrigger>
           <TabsTrigger value="versions"><GitBranch className="mr-2 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
-          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length})</TabsTrigger>
-          <TabsTrigger value="workbench"><Sparkles className="mr-2 h-4 w-4" />Workbench</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
