@@ -2708,6 +2708,38 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_jobs: {
+        Args: { _limit?: number; _visibility_sec?: number; _worker: string }
+        Returns: {
+          attempt_count: number
+          checkpoint: Json | null
+          created_at: string
+          created_by: string | null
+          error: Json | null
+          id: string
+          idempotency_key: string | null
+          kind: string
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          progress: number
+          progress_message: string | null
+          project_id: string | null
+          result: Json | null
+          run_after: string
+          status: Database["public"]["Enums"]["job_status"]
+          updated_at: string
+          workspace_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       is_workspace_member: {
         Args: { _user: string; _workspace: string }
         Returns: boolean
