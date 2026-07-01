@@ -188,6 +188,41 @@ export default function TestPlanDetailPage() {
     setVarsLoaded(true);
   }, [plan, varsLoaded]);
 
+  useEffect(() => {
+    if (!plan || planDocsLoaded) return;
+    const arr = Array.isArray((plan as any).plan_documents) ? (plan as any).plan_documents : [];
+    setPlanDocs(arr.map((d: any) => ({
+      id: d?.id || (crypto?.randomUUID?.() ?? String(Math.random())),
+      name: String(d?.name ?? ""),
+      url: String(d?.url ?? ""),
+      description: String(d?.description ?? ""),
+    })));
+    setPlanDocsLoaded(true);
+  }, [plan, planDocsLoaded]);
+
+  const savePlanDocs = useMutation({
+    mutationFn: async (next: PlanDoc[]) => {
+      const clean = next.filter((d) => d.name.trim() || d.url.trim());
+      const { error } = await supabase
+        .from("test_plans")
+        .update({ plan_documents: clean as any } as any)
+        .eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["test-plan", id] });
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to save documents"),
+  });
+
+  const updatePlanDocs = (updater: (prev: PlanDoc[]) => PlanDoc[]) => {
+    setPlanDocs((prev) => {
+      const next = updater(prev);
+      savePlanDocs.mutate(next);
+      return next;
+    });
+  };
+
 
 
   const saveVars = useMutation({
