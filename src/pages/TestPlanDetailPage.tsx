@@ -25,12 +25,15 @@ import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
   Plus, Edit3, Trash2, Layers, Variable, Download, Save, BookOpen,
+  ChevronDown, ExternalLink, FolderOpen, Settings2, Zap, Gauge,
 } from "lucide-react";
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
 import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
 import { PlanRunnersPanel, PlanDefectsPanel, PlanQualityGatesPanel, PlanReportsPanel, PlanLivePanel, PlanRequirementsPanel } from "@/components/testplans/TestPlanPanels";
 import { Server, Bug, ShieldCheck, BarChart3, Radio } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AnimatePresence } from "framer-motion";
 
 const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
 type TestType = typeof TEST_TYPES[number];
@@ -64,6 +67,21 @@ export default function TestPlanDetailPage() {
   const [impWs, setImpWs] = useState("");
   const [impProj, setImpProj] = useState("");
   const [impPlan, setImpPlan] = useState("");
+
+  // Plan-level documents (dynamic list stored in test_plans.plan_documents jsonb)
+  type PlanDoc = { id: string; name: string; url: string; description: string };
+  const [planDocs, setPlanDocs] = useState<PlanDoc[]>([]);
+  const [planDocsLoaded, setPlanDocsLoaded] = useState(false);
+
+  // Overview collapsible open state
+  const [openReq, setOpenReq] = useState(false);
+  const [openVars, setOpenVars] = useState(false);
+  const [openDocs, setOpenDocs] = useState(false);
+
+  // Sub-tab state for grouped tabs
+  const [workbenchSub, setWorkbenchSub] = useState("workbench");
+  const [insightsSub, setInsightsSub] = useState("versions");
+  const [opsSub, setOpsSub] = useState("defects");
 
   const { data: plan, isLoading } = useQuery({
     queryKey: ["test-plan", id],
@@ -169,6 +187,41 @@ export default function TestPlanDetailPage() {
     setVars(arr.map((v: any) => ({ key: String(v?.key ?? ""), value: String(v?.value ?? "") })));
     setVarsLoaded(true);
   }, [plan, varsLoaded]);
+
+  useEffect(() => {
+    if (!plan || planDocsLoaded) return;
+    const arr = Array.isArray((plan as any).plan_documents) ? (plan as any).plan_documents : [];
+    setPlanDocs(arr.map((d: any) => ({
+      id: d?.id || (crypto?.randomUUID?.() ?? String(Math.random())),
+      name: String(d?.name ?? ""),
+      url: String(d?.url ?? ""),
+      description: String(d?.description ?? ""),
+    })));
+    setPlanDocsLoaded(true);
+  }, [plan, planDocsLoaded]);
+
+  const savePlanDocs = useMutation({
+    mutationFn: async (next: PlanDoc[]) => {
+      const clean = next.filter((d) => d.name.trim() || d.url.trim());
+      const { error } = await supabase
+        .from("test_plans")
+        .update({ plan_documents: clean as any } as any)
+        .eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["test-plan", id] });
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to save documents"),
+  });
+
+  const updatePlanDocs = (updater: (prev: PlanDoc[]) => PlanDoc[]) => {
+    setPlanDocs((prev) => {
+      const next = updater(prev);
+      savePlanDocs.mutate(next);
+      return next;
+    });
+  };
 
 
 
@@ -482,24 +535,33 @@ export default function TestPlanDetailPage() {
         </Card>
       </motion.div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 flex-wrap h-auto">
-          <TabsTrigger value="overview"><FileText className="mr-2 h-4 w-4" />Overview</TabsTrigger>
-          <TabsTrigger value="requirements"><BookOpen className="mr-2 h-4 w-4" />Requirements</TabsTrigger>
-          <TabsTrigger value="variables"><Variable className="mr-2 h-4 w-4" />Variables ({vars.filter(v => v.key.trim()).length})</TabsTrigger>
-          <TabsTrigger value="workbench"><Sparkles className="mr-2 h-4 w-4" />AI Workbench</TabsTrigger>
-          <TabsTrigger value="cases"><ListChecks className="mr-2 h-4 w-4" />Test Cases ({testCases.length})</TabsTrigger>
-          <TabsTrigger value="executions"><Play className="mr-2 h-4 w-4" />Executions ({executions.length + suiteRuns.length})</TabsTrigger>
-          <TabsTrigger value="ai"><Sparkles className="mr-2 h-4 w-4" />AI Generation</TabsTrigger>
-          <TabsTrigger value="versions"><GitBranch className="mr-2 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
-          <TabsTrigger value="runners"><Server className="mr-2 h-4 w-4" />Runners</TabsTrigger>
-          <TabsTrigger value="defects"><Bug className="mr-2 h-4 w-4" />Defects</TabsTrigger>
-          <TabsTrigger value="gates"><ShieldCheck className="mr-2 h-4 w-4" />Quality Gates</TabsTrigger>
-          <TabsTrigger value="reports"><BarChart3 className="mr-2 h-4 w-4" />Reports</TabsTrigger>
-          <TabsTrigger value="live"><Radio className="mr-2 h-4 w-4" />Live</TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <div className="mb-6 flex justify-center sm:justify-start">
+          <TabsList className="relative inline-flex h-auto flex-wrap items-center gap-1 rounded-2xl border border-accent/20 bg-gradient-to-br from-card/80 via-card/50 to-background/40 p-1.5 backdrop-blur-xl shadow-[0_8px_40px_-12px_rgba(0,207,224,0.35)]">
+            {[
+              { v: "overview", l: "Overview", i: FileText },
+              { v: "workbench", l: "AI Workbench", i: Sparkles },
+              { v: "insights", l: "Insights", i: Gauge },
+              { v: "operations", l: "Operations", i: Zap },
+            ].map((t) => (
+              <TabsTrigger
+                key={t.v}
+                value={t.v}
+                className="group relative overflow-hidden rounded-xl px-5 py-2.5 text-sm font-medium text-muted-foreground transition-all duration-300 hover:text-foreground data-[state=active]:text-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:shadow-[0_4px_24px_-4px_hsl(var(--accent)/0.55)] data-[state=active]:scale-[1.03]"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  <t.i className="h-4 w-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-data-[state=active]:drop-shadow-[0_0_6px_rgba(255,255,255,0.7)]" />
+                  {t.l}
+                </span>
+                <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-accent/0 via-accent/10 to-primary/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-data-[state=active]:opacity-0" />
+                <span className="pointer-events-none absolute -bottom-8 left-1/2 h-8 w-8 -translate-x-1/2 rounded-full bg-accent/40 opacity-0 blur-2xl transition-opacity duration-500 group-data-[state=active]:opacity-100" />
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
-        <TabsContent value="overview" className="space-y-4">
+        {/* ============== OVERVIEW ============== */}
+        <TabsContent value="overview" className="space-y-4 animate-fade-in">
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="md:col-span-2">
               <CardHeader><CardTitle>Plan Details</CardTitle></CardHeader>
@@ -582,366 +644,501 @@ export default function TestPlanDetailPage() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="requirements">
-          {plan?.project_id && <PlanRequirementsPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
-        </TabsContent>
+          {/* Collapsible: Requirements */}
+          <Collapsible open={openReq} onOpenChange={setOpenReq}>
+            <Card className="overflow-hidden transition-all hover:border-accent/40">
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="flex flex-row items-center justify-between cursor-pointer hover:bg-accent/5 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                      <BookOpen className="h-4 w-4" />
+                    </div>
+                    <div className="text-left">
+                      <CardTitle className="text-base">Requirements</CardTitle>
+                      <CardDescription>Traceability from requirements to this plan</CardDescription>
+                    </div>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${openReq ? "rotate-180" : ""}`} />
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
+                <CardContent className="pt-0">
+                  {plan?.project_id && <PlanRequirementsPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
-
-
-
-        <TabsContent value="cases">
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-accent" /> Test Cases by Type
-                </CardTitle>
-                <CardDescription>
-                  {testCases.length} cases · {groupedTypes.length} type{groupedTypes.length === 1 ? "" : "s"}
-                </CardDescription>
-              </div>
-              <Button size="sm" onClick={openCreate}>
-                <Plus className="mr-1.5 h-4 w-4" /> New Test Case
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {testCases.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">
-                  <ListChecks className="mx-auto h-10 w-10 mb-3 opacity-50" />
-                  <p className="text-sm mb-3">No test cases yet. Generate with AI or add manually.</p>
-                  <Button variant="outline" size="sm" onClick={openCreate}>
-                    <Plus className="mr-1.5 h-4 w-4" /> Add first case
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {groupedTypes.map((type) => (
-                    <div key={type}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="h-2 w-2 rounded-full bg-accent" />
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{type}</h3>
-                        <span className="text-xs text-muted-foreground">({groups[type].length})</span>
-                        <div className="flex-1 h-px bg-border ml-2" />
+          {/* Collapsible: Variables */}
+          <Collapsible open={openVars} onOpenChange={setOpenVars}>
+            <Card className="overflow-hidden transition-all hover:border-accent/40">
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="flex flex-row items-center justify-between cursor-pointer hover:bg-accent/5 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                      <Variable className="h-4 w-4" />
+                    </div>
+                    <div className="text-left">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        Variables
+                        <Badge variant="secondary" className="text-[10px]">{vars.filter((v) => v.key.trim()).length}</Badge>
+                      </CardTitle>
+                      <CardDescription>Dynamic key/value pairs available to every case & execution</CardDescription>
+                    </div>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${openVars ? "rotate-180" : ""}`} />
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
+                <CardContent className="pt-0 space-y-4">
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    <Button variant="outline" size="sm" onClick={() => setImportOpen((v) => !v)} className="gap-1.5">
+                      <Download className="h-4 w-4" /> Import
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setVars((p) => [...p, { key: "", value: "" }])} className="gap-1.5">
+                      <Plus className="h-4 w-4" /> Add
+                    </Button>
+                    <Button size="sm" onClick={() => saveVars.mutate()} disabled={saveVars.isPending} className="gap-1.5">
+                      {saveVars.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      Save
+                    </Button>
+                  </div>
+                  {importOpen && (
+                    <div className="rounded-lg border border-accent/40 bg-accent/5 p-4 space-y-3">
+                      <p className="text-xs font-mono tracking-wider text-accent uppercase">Import variables from another plan</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <Select value={impWs} onValueChange={(v) => { setImpWs(v); setImpProj(""); setImpPlan(""); }}>
+                          <SelectTrigger><SelectValue placeholder="Workspace…" /></SelectTrigger>
+                          <SelectContent>{impWorkspaces.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={impProj} onValueChange={(v) => { setImpProj(v); setImpPlan(""); }} disabled={!impWs}>
+                          <SelectTrigger><SelectValue placeholder="Project…" /></SelectTrigger>
+                          <SelectContent>{impProjects.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={impPlan} onValueChange={setImpPlan} disabled={!impProj}>
+                          <SelectTrigger><SelectValue placeholder="Test Plan…" /></SelectTrigger>
+                          <SelectContent>{impPlans.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name} ({Array.isArray(p.variables) ? p.variables.length : 0})</SelectItem>)}</SelectContent>
+                        </Select>
                       </div>
-                      <div className="space-y-2">
-                        {groups[type].map(({ link, tc }) => (
-                          <div
-                            key={link.id}
-                            className="group flex items-start justify-between gap-3 p-3 rounded-lg border bg-card hover:border-accent/40 transition-colors"
-                          >
-                            <Link to={`/test-cases/${tc.id}/edit?planId=${id}`} className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="text-sm font-medium truncate">{tc.title}</p>
-                                {tc.ai_generated && <Sparkles className="h-3 w-3 text-accent shrink-0" />}
-                              </div>
-                              {tc.description && (
-                                <p className="text-xs text-muted-foreground line-clamp-2">{tc.description}</p>
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setImportOpen(false)}>Cancel</Button>
+                        <Button size="sm" onClick={doImport} disabled={!impPlan}>Import Variables</Button>
+                      </div>
+                    </div>
+                  )}
+                  {vars.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">No variables yet — click "Add" or import from another plan.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs uppercase tracking-wider text-muted-foreground">
+                        <span>Key</span><span>Value</span><span className="w-9" />
+                      </div>
+                      {vars.map((v, i) => (
+                        <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                          <Input value={v.key} placeholder="BASE_URL"
+                            onChange={(e) => setVars((p) => p.map((x, idx) => idx === i ? { ...x, key: e.target.value } : x))} />
+                          <Input value={v.value} placeholder="https://api.example.com"
+                            onChange={(e) => setVars((p) => p.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x))} />
+                          <Button variant="ghost" size="icon" onClick={() => setVars((p) => p.filter((_, idx) => idx !== i))}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          {/* Collapsible: Plan-level Documents (dynamic list) */}
+          <Collapsible open={openDocs} onOpenChange={setOpenDocs}>
+            <Card className="overflow-hidden transition-all hover:border-accent/40">
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="flex flex-row items-center justify-between cursor-pointer hover:bg-accent/5 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                      <FolderOpen className="h-4 w-4" />
+                    </div>
+                    <div className="text-left">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        Plan Documents
+                        <Badge variant="secondary" className="text-[10px]">{planDocs.length}</Badge>
+                      </CardTitle>
+                      <CardDescription>Reference docs, links, and specs owned by this test plan</CardDescription>
+                    </div>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${openDocs ? "rotate-180" : ""}`} />
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
+                <CardContent className="pt-0 space-y-3">
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updatePlanDocs((prev) => [
+                          ...prev,
+                          { id: (crypto?.randomUUID?.() ?? String(Math.random())), name: "", url: "", description: "" },
+                        ]);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" /> Add Document
+                    </Button>
+                  </div>
+                  {planDocs.length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      <FolderOpen className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                      <p className="text-sm">No plan-level documents yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {planDocs.map((d) => (
+                        <div key={d.id} className="rounded-lg border bg-card/60 p-3 space-y-2 hover:border-accent/40 transition-colors">
+                          <div className="grid gap-2 md:grid-cols-[1fr_1.4fr_auto]">
+                            <Input
+                              placeholder="Name (e.g. API Spec)"
+                              value={d.name}
+                              onChange={(e) => updatePlanDocs((prev) => prev.map((x) => x.id === d.id ? { ...x, name: e.target.value } : x))}
+                            />
+                            <Input
+                              placeholder="https://…"
+                              value={d.url}
+                              onChange={(e) => updatePlanDocs((prev) => prev.map((x) => x.id === d.id ? { ...x, url: e.target.value } : x))}
+                            />
+                            <div className="flex items-center gap-1">
+                              {d.url && (
+                                <Button asChild variant="ghost" size="icon" className="h-9 w-9">
+                                  <a href={d.url} target="_blank" rel="noreferrer" aria-label="Open">
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
                               )}
-                              {tc.coverage_tags?.length > 1 && (
-                                <div className="flex gap-1 mt-1.5 flex-wrap">
-                                  {tc.coverage_tags.slice(1, 5).map((t: string, i: number) => (
-                                    <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </Link>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <StatusBadge
-                                variant={tc.status === "approved" ? "success" : tc.status === "draft" ? "warning" : "muted"}
-                                size="sm"
-                              >
-                                {tc.status}
-                              </StatusBadge>
-                              <Badge variant="outline" className="text-xs">P{tc.priority}</Badge>
                               <Button
-                                size="icon"
                                 variant="ghost"
-                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => openEdit(tc)}
-                                aria-label="Edit"
-                              >
-                                <Edit3 className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
                                 size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                                onClick={() => setDeletingCase({ linkId: link.id, caseId: tc.id, title: tc.title })}
-                                aria-label="Delete"
+                                className="h-9 w-9"
+                                onClick={() => updatePlanDocs((prev) => prev.filter((x) => x.id !== d.id))}
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                          <Textarea
+                            rows={2}
+                            placeholder="Notes (optional)"
+                            value={d.description}
+                            onChange={(e) => updatePlanDocs((prev) => prev.map((x) => x.id === d.id ? { ...x, description: e.target.value } : x))}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  )}
+                  {savePlanDocs.isPending && (
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+                    </p>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         </TabsContent>
 
+        {/* ============== AI WORKBENCH ============== */}
+        <TabsContent value="workbench" className="animate-fade-in">
+          <Tabs value={workbenchSub} onValueChange={setWorkbenchSub}>
+            <TabsList className="mb-4 bg-secondary/40 backdrop-blur-sm border border-border/50">
+              <TabsTrigger value="workbench" className="gap-2"><Sparkles className="h-4 w-4" />Workbench</TabsTrigger>
+              <TabsTrigger value="cases" className="gap-2"><ListChecks className="h-4 w-4" />Test Cases ({testCases.length})</TabsTrigger>
+              <TabsTrigger value="executions" className="gap-2"><Play className="h-4 w-4" />Executions ({executions.length + suiteRuns.length})</TabsTrigger>
+              <TabsTrigger value="ai" className="gap-2"><Sparkles className="h-4 w-4" />AI Generation</TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="variables">
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2"><Variable className="h-4 w-4" />Plan Variables</CardTitle>
-                <CardDescription>Dynamic key/value pairs available to every test case and execution in this plan.</CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setImportOpen((v) => !v)} className="gap-1.5">
-                  <Download className="h-4 w-4" /> Import
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setVars((p) => [...p, { key: "", value: "" }])} className="gap-1.5">
-                  <Plus className="h-4 w-4" /> Add
-                </Button>
-                <Button size="sm" onClick={() => saveVars.mutate()} disabled={saveVars.isPending} className="gap-1.5">
-                  {saveVars.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {importOpen && (
-                <div className="rounded-lg border border-accent/40 bg-accent/5 p-4 space-y-3">
-                  <p className="text-xs font-mono tracking-wider text-accent uppercase">Import variables from another plan</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <Select value={impWs} onValueChange={(v) => { setImpWs(v); setImpProj(""); setImpPlan(""); }}>
-                      <SelectTrigger><SelectValue placeholder="Workspace…" /></SelectTrigger>
-                      <SelectContent>{impWorkspaces.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={impProj} onValueChange={(v) => { setImpProj(v); setImpPlan(""); }} disabled={!impWs}>
-                      <SelectTrigger><SelectValue placeholder="Project…" /></SelectTrigger>
-                      <SelectContent>{impProjects.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={impPlan} onValueChange={setImpPlan} disabled={!impProj}>
-                      <SelectTrigger><SelectValue placeholder="Test Plan…" /></SelectTrigger>
-                      <SelectContent>{impPlans.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name} ({Array.isArray(p.variables) ? p.variables.length : 0})</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => setImportOpen(false)}>Cancel</Button>
-                    <Button size="sm" onClick={doImport} disabled={!impPlan}>Import Variables</Button>
-                  </div>
-                </div>
-              )}
-
-              {vars.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No variables yet — click "Add" or import from another plan.</p>
+            <TabsContent value="workbench" className="animate-fade-in">
+              {plan?.project_id && id ? (
+                <TestPlanWorkbench testPlanId={id} projectId={plan.project_id} />
               ) : (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs uppercase tracking-wider text-muted-foreground">
-                    <span>Key</span><span>Value</span><span className="w-9" />
+                <p className="text-sm text-muted-foreground">Loading workbench...</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="cases" className="animate-fade-in">
+              <Card>
+                <CardHeader className="flex flex-row items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-accent" /> Test Cases by Type
+                    </CardTitle>
+                    <CardDescription>
+                      {testCases.length} cases · {groupedTypes.length} type{groupedTypes.length === 1 ? "" : "s"}
+                    </CardDescription>
                   </div>
-                  {vars.map((v, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                      <Input value={v.key} placeholder="BASE_URL"
-                        onChange={(e) => setVars((p) => p.map((x, idx) => idx === i ? { ...x, key: e.target.value } : x))} />
-                      <Input value={v.value} placeholder="https://api.example.com"
-                        onChange={(e) => setVars((p) => p.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x))} />
-                      <Button variant="ghost" size="icon" onClick={() => setVars((p) => p.filter((_, idx) => idx !== i))}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                  <Button size="sm" onClick={openCreate}>
+                    <Plus className="mr-1.5 h-4 w-4" /> New Test Case
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {testCases.length === 0 ? (
+                    <div className="py-12 text-center text-muted-foreground">
+                      <ListChecks className="mx-auto h-10 w-10 mb-3 opacity-50" />
+                      <p className="text-sm mb-3">No test cases yet. Generate with AI or add manually.</p>
+                      <Button variant="outline" size="sm" onClick={openCreate}>
+                        <Plus className="mr-1.5 h-4 w-4" /> Add first case
                       </Button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="ai">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Sparkles className="h-4 w-4 text-accent" /> AI Generation
-                </CardTitle>
-                <CardDescription>
-                  Generate test cases automatically from the attached documents using Lovable AI.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-lg border bg-secondary/30 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs uppercase tracking-wide text-muted-foreground">Pipeline Status</span>
-                    <StatusBadge variant={aiStatusVariant as any}>{plan.ai_status || "idle"}</StatusBadge>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <p className="text-xl font-bold">{documents.length}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Sources</p>
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold">{testCases.filter((c: any) => c.test_case?.ai_generated).length}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">AI Cases</p>
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold">v{plan.current_version}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Version</p>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  className="ai-gradient text-white w-full"
-                  onClick={() => generate.mutate()}
-                  disabled={generate.isPending || plan.ai_status === "running"}
-                >
-                  {generate.isPending || plan.ai_status === "running" ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running…</>
                   ) : (
-                    <><Sparkles className="mr-2 h-4 w-4" /> {testCases.length > 0 ? "Regenerate" : "Generate"} Test Cases</>
-                  )}
-                </Button>
-                {documents.length === 0 && (
-                  <p className="text-xs text-amber-400">No documents attached — AI will infer from name/description only.</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-base">How it works</CardTitle></CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground">
-                <div className="flex gap-2"><span className="text-accent font-mono">1.</span> Reads attached documents.</div>
-                <div className="flex gap-2"><span className="text-accent font-mono">2.</span> Extracts requirements & scenarios.</div>
-                <div className="flex gap-2"><span className="text-accent font-mono">3.</span> Generates structured test cases.</div>
-                <div className="flex gap-2"><span className="text-accent font-mono">4.</span> Snapshots a new version.</div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="versions">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4" />Version History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {versions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No versions recorded yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {versions.map((v: any) => (
-                    <div key={v.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-accent text-xs font-bold shrink-0">
-                        v{v.version}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{v.change_summary || "Snapshot"}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {v.creator?.name || "system"} · {format(new Date(v.created_at), "MMM d, yyyy HH:mm")}
-                        </p>
-                      </div>
-                      {v.version === plan.current_version && (
-                        <Badge variant="default" className="text-xs">current</Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="executions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><Layers className="h-4 w-4" />Suite Runs</CardTitle>
-              <CardDescription>Live runs dispatched from the AI Workbench (Playwright suites)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {suiteRuns.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No suite runs yet — dispatch one from the AI Workbench tab.</p>
-              ) : (
-                <div className="space-y-2">
-                  {suiteRuns.map((s: any) => {
-                    const pct = s.total_specs ? Math.round(((s.completed_specs || 0) / s.total_specs) * 100) : 0;
-                    const variant = s.status === "succeeded" ? "success" : s.status === "failed" ? "destructive" : s.status === "running" ? "info" : "warning";
-                    return (
-                      <div key={s.id} className="p-3 rounded-lg border bg-card">
-                        <div className="flex items-center justify-between gap-3 mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <StatusBadge variant={variant as any} size="sm">{s.status}</StatusBadge>
-                            <span className="text-xs text-muted-foreground">{format(new Date(s.created_at), "MMM d, HH:mm")}</span>
+                    <div className="space-y-6">
+                      {groupedTypes.map((type) => (
+                        <div key={type}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="h-2 w-2 rounded-full bg-accent" />
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{type}</h3>
+                            <span className="text-xs text-muted-foreground">({groups[type].length})</span>
+                            <div className="flex-1 h-px bg-border ml-2" />
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {s.passed_specs || 0}✓ · {s.failed_specs || 0}✗ · {s.total_specs || 0} total
-                          </span>
+                          <div className="space-y-2">
+                            {groups[type].map(({ link, tc }) => (
+                              <div key={link.id} className="group flex items-start justify-between gap-3 p-3 rounded-lg border bg-card hover:border-accent/40 transition-colors">
+                                <Link to={`/test-cases/${tc.id}/edit?planId=${id}`} className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-sm font-medium truncate">{tc.title}</p>
+                                    {tc.ai_generated && <Sparkles className="h-3 w-3 text-accent shrink-0" />}
+                                  </div>
+                                  {tc.description && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2">{tc.description}</p>
+                                  )}
+                                  {tc.coverage_tags?.length > 1 && (
+                                    <div className="flex gap-1 mt-1.5 flex-wrap">
+                                      {tc.coverage_tags.slice(1, 5).map((t: string, i: number) => (
+                                        <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                </Link>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <StatusBadge variant={tc.status === "approved" ? "success" : tc.status === "draft" ? "warning" : "muted"} size="sm">
+                                    {tc.status}
+                                  </StatusBadge>
+                                  <Badge variant="outline" className="text-xs">P{tc.priority}</Badge>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(tc)} aria-label="Edit">
+                                    <Edit3 className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive" onClick={() => setDeletingCase({ linkId: link.id, caseId: tc.id, title: tc.title })} aria-label="Delete">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <Progress value={pct} className="h-1.5" />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4" />Individual Test Executions</CardTitle>
-              <CardDescription>Manual or per-case runs for this plan</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {executions.length === 0 ? (
-                <div className="py-10 text-center text-muted-foreground">
-                  <Play className="mx-auto h-10 w-10 mb-3 opacity-50" />
-                  <p className="text-sm">No individual executions yet</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {executions.map((e: any) => (
-                    <div key={e.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <StatusBadge variant={e.status === "passed" ? "success" : e.status === "failed" ? "destructive" : "warning"} size="sm">
-                          {e.status}
-                        </StatusBadge>
-                        <div className="min-w-0">
-                          <p className="text-sm truncate">{e.case?.title || "—"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {e.environment || "default"} · {e.executor?.name || "unknown"}
-                          </p>
+            <TabsContent value="executions" className="space-y-4 animate-fade-in">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base"><Layers className="h-4 w-4" />Suite Runs</CardTitle>
+                  <CardDescription>Live runs dispatched from the Workbench (Playwright suites)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {suiteRuns.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">No suite runs yet — dispatch one from the Workbench sub-tab.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {suiteRuns.map((s: any) => {
+                        const pct = s.total_specs ? Math.round(((s.completed_specs || 0) / s.total_specs) * 100) : 0;
+                        const variant = s.status === "succeeded" ? "success" : s.status === "failed" ? "destructive" : s.status === "running" ? "info" : "warning";
+                        return (
+                          <div key={s.id} className="p-3 rounded-lg border bg-card">
+                            <div className="flex items-center justify-between gap-3 mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <StatusBadge variant={variant as any} size="sm">{s.status}</StatusBadge>
+                                <span className="text-xs text-muted-foreground">{format(new Date(s.created_at), "MMM d, HH:mm")}</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {s.passed_specs || 0}✓ · {s.failed_specs || 0}✗ · {s.total_specs || 0} total
+                              </span>
+                            </div>
+                            <Progress value={pct} className="h-1.5" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-4 w-4" />Individual Test Executions</CardTitle>
+                  <CardDescription>Manual or per-case runs for this plan</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {executions.length === 0 ? (
+                    <div className="py-10 text-center text-muted-foreground">
+                      <Play className="mx-auto h-10 w-10 mb-3 opacity-50" />
+                      <p className="text-sm">No individual executions yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {executions.map((e: any) => (
+                        <div key={e.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <StatusBadge variant={e.status === "passed" ? "success" : e.status === "failed" ? "destructive" : "warning"} size="sm">
+                              {e.status}
+                            </StatusBadge>
+                            <div className="min-w-0">
+                              <p className="text-sm truncate">{e.case?.title || "—"}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {e.environment || "default"} · {e.executor?.name || "unknown"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
+                            <Clock className="h-3 w-3" />
+                            {e.started_at ? format(new Date(e.started_at), "MMM d, HH:mm") : "—"}
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="ai" className="animate-fade-in">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card className="md:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Sparkles className="h-4 w-4 text-accent" /> AI Generation
+                    </CardTitle>
+                    <CardDescription>
+                      Generate test cases automatically from the attached documents using Lovable AI.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="rounded-lg border bg-secondary/30 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Pipeline Status</span>
+                        <StatusBadge variant={aiStatusVariant as any}>{plan.ai_status || "idle"}</StatusBadge>
                       </div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
-                        <Clock className="h-3 w-3" />
-                        {e.started_at ? format(new Date(e.started_at), "MMM d, HH:mm") : "—"}
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div>
+                          <p className="text-xl font-bold">{documents.length}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Sources</p>
+                        </div>
+                        <div>
+                          <p className="text-xl font-bold">{testCases.filter((c: any) => c.test_case?.ai_generated).length}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">AI Cases</p>
+                        </div>
+                        <div>
+                          <p className="text-xl font-bold">v{plan.current_version}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Version</p>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <Button className="ai-gradient text-white w-full" onClick={() => generate.mutate()} disabled={generate.isPending || plan.ai_status === "running"}>
+                      {generate.isPending || plan.ai_status === "running" ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running…</>
+                      ) : (
+                        <><Sparkles className="mr-2 h-4 w-4" /> {testCases.length > 0 ? "Regenerate" : "Generate"} Test Cases</>
+                      )}
+                    </Button>
+                    {documents.length === 0 && (
+                      <p className="text-xs text-amber-400">No documents attached — AI will infer from name/description only.</p>
+                    )}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader><CardTitle className="text-base">How it works</CardTitle></CardHeader>
+                  <CardContent className="space-y-3 text-sm text-muted-foreground">
+                    <div className="flex gap-2"><span className="text-accent font-mono">1.</span> Reads attached documents.</div>
+                    <div className="flex gap-2"><span className="text-accent font-mono">2.</span> Extracts requirements & scenarios.</div>
+                    <div className="flex gap-2"><span className="text-accent font-mono">3.</span> Generates structured test cases.</div>
+                    <div className="flex gap-2"><span className="text-accent font-mono">4.</span> Snapshots a new version.</div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
-
-        <TabsContent value="workbench">
-          {plan?.project_id && id ? (
-            <TestPlanWorkbench testPlanId={id} projectId={plan.project_id} />
-          ) : (
-            <p className="text-sm text-muted-foreground">Loading workbench...</p>
-          )}
+        {/* ============== INSIGHTS ============== */}
+        <TabsContent value="insights" className="animate-fade-in">
+          <Tabs value={insightsSub} onValueChange={setInsightsSub}>
+            <TabsList className="mb-4 bg-secondary/40 backdrop-blur-sm border border-border/50">
+              <TabsTrigger value="versions" className="gap-2"><GitBranch className="h-4 w-4" />Versions ({versions.length})</TabsTrigger>
+              <TabsTrigger value="runners" className="gap-2"><Server className="h-4 w-4" />Runners</TabsTrigger>
+              <TabsTrigger value="reports" className="gap-2"><BarChart3 className="h-4 w-4" />Reports</TabsTrigger>
+            </TabsList>
+            <TabsContent value="versions" className="animate-fade-in">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4" />Version History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {versions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No versions recorded yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {versions.map((v: any) => (
+                        <div key={v.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-accent text-xs font-bold shrink-0">
+                            v{v.version}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{v.change_summary || "Snapshot"}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {v.creator?.name || "system"} · {format(new Date(v.created_at), "MMM d, yyyy HH:mm")}
+                            </p>
+                          </div>
+                          {v.version === plan.current_version && (
+                            <Badge variant="default" className="text-xs">current</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="runners" className="animate-fade-in">
+              {plan?.project_id && <PlanRunnersPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
+            </TabsContent>
+            <TabsContent value="reports" className="animate-fade-in">
+              {id && plan?.project_id && <PlanReportsPanel testPlanId={id} projectId={plan.project_id} />}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
-        <TabsContent value="runners">
-          {plan?.project_id && <PlanRunnersPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
-        </TabsContent>
-        <TabsContent value="defects">
-          {id && <PlanDefectsPanel testPlanId={id} projectId={plan.project_id} workspaceId={plan.workspace_id} />}
-        </TabsContent>
-        <TabsContent value="gates">
-          {plan?.project_id && <PlanQualityGatesPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
-        </TabsContent>
-        <TabsContent value="reports">
-          {id && plan?.project_id && <PlanReportsPanel testPlanId={id} projectId={plan.project_id} />}
-        </TabsContent>
-        <TabsContent value="live">
-          {id && <PlanLivePanel testPlanId={id} />}
+        {/* ============== OPERATIONS ============== */}
+        <TabsContent value="operations" className="animate-fade-in">
+          <Tabs value={opsSub} onValueChange={setOpsSub}>
+            <TabsList className="mb-4 bg-secondary/40 backdrop-blur-sm border border-border/50">
+              <TabsTrigger value="defects" className="gap-2"><Bug className="h-4 w-4" />Defects</TabsTrigger>
+              <TabsTrigger value="gates" className="gap-2"><ShieldCheck className="h-4 w-4" />Quality Gates</TabsTrigger>
+              <TabsTrigger value="live" className="gap-2"><Radio className="h-4 w-4" />Live</TabsTrigger>
+            </TabsList>
+            <TabsContent value="defects" className="animate-fade-in">
+              {id && <PlanDefectsPanel testPlanId={id} projectId={plan.project_id} workspaceId={plan.workspace_id} />}
+            </TabsContent>
+            <TabsContent value="gates" className="animate-fade-in">
+              {plan?.project_id && <PlanQualityGatesPanel projectId={plan.project_id} workspaceId={plan.workspace_id} />}
+            </TabsContent>
+            <TabsContent value="live" className="animate-fade-in">
+              {id && <PlanLivePanel testPlanId={id} />}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 

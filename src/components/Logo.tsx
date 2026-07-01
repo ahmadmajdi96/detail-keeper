@@ -8,7 +8,7 @@ interface LogoProps {
 export function Logo({ className, size = 44 }: LogoProps) {
   return (
     <img
-      src="/qualixa-logo.svg"
+      src="/qualixa-logo.png"
       alt="Qualixa"
       width={size}
       height={size}

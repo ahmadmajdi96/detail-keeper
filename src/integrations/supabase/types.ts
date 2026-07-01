@@ -4938,6 +4938,7 @@ export type Database = {
           id: string
           name: string
           objective: string | null
+          plan_documents: Json
           progress: number | null
           project_id: string | null
           runs_count: number | null
@@ -4958,6 +4959,7 @@ export type Database = {
           id?: string
           name: string
           objective?: string | null
+          plan_documents?: Json
           progress?: number | null
           project_id?: string | null
           runs_count?: number | null
@@ -4978,6 +4980,7 @@ export type Database = {
           id?: string
           name?: string
           objective?: string | null
+          plan_documents?: Json
           progress?: number | null
           project_id?: string | null
           runs_count?: number | null
