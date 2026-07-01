@@ -25,12 +25,15 @@ import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
   CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
   Plus, Edit3, Trash2, Layers, Variable, Download, Save, BookOpen,
+  ChevronDown, ExternalLink, FolderOpen, Settings2, Zap, Gauge,
 } from "lucide-react";
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
 import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
 import { PlanRunnersPanel, PlanDefectsPanel, PlanQualityGatesPanel, PlanReportsPanel, PlanLivePanel, PlanRequirementsPanel } from "@/components/testplans/TestPlanPanels";
 import { Server, Bug, ShieldCheck, BarChart3, Radio } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AnimatePresence } from "framer-motion";
 
 const TEST_TYPES = ["functional", "integration", "e2e", "security", "performance", "regression", "ui", "api", "other"] as const;
 type TestType = typeof TEST_TYPES[number];
