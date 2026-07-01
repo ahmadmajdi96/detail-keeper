@@ -58,12 +58,6 @@ export default function RegisterPage() {
             <Logo size={48} />
             <span className="font-semibold text-[#dde8f0] tracking-tight">Qualixa</span>
           </Link>
-          <Link
-            to="/login"
-            className="text-xs text-[#4a6a88] hover:text-[#00cfe0] transition-colors"
-          >
-            Have an account? <span className="text-[#00cfe0] font-medium">Log in</span>
-          </Link>
         </div>
 
         <motion.div
