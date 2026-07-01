@@ -1,4 +1,3 @@
-import logoAsset from "@/assets/qualixa-logo.png.asset.json";
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
@@ -9,7 +8,7 @@ interface LogoProps {
 export function Logo({ className, size = 44 }: LogoProps) {
   return (
     <img
-      src={logoAsset.url}
+      src="/qualixa-logo.svg"
       alt="Qualixa"
       width={size}
       height={size}
