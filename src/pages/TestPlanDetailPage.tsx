@@ -68,6 +68,21 @@ export default function TestPlanDetailPage() {
   const [impProj, setImpProj] = useState("");
   const [impPlan, setImpPlan] = useState("");
 
+  // Plan-level documents (dynamic list stored in test_plans.plan_documents jsonb)
+  type PlanDoc = { id: string; name: string; url: string; description: string };
+  const [planDocs, setPlanDocs] = useState<PlanDoc[]>([]);
+  const [planDocsLoaded, setPlanDocsLoaded] = useState(false);
+
+  // Overview collapsible open state
+  const [openReq, setOpenReq] = useState(false);
+  const [openVars, setOpenVars] = useState(false);
+  const [openDocs, setOpenDocs] = useState(false);
+
+  // Sub-tab state for grouped tabs
+  const [workbenchSub, setWorkbenchSub] = useState("workbench");
+  const [insightsSub, setInsightsSub] = useState("versions");
+  const [opsSub, setOpsSub] = useState("defects");
+
   const { data: plan, isLoading } = useQuery({
     queryKey: ["test-plan", id],
     enabled: !!id,
