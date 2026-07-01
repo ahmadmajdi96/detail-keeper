@@ -1,0 +1,1 @@
+ALTER TABLE public.test_plans ADD COLUMN IF NOT EXISTS plan_documents jsonb NOT NULL DEFAULT '[]'::jsonb;
