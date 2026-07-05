@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { safeNext } from "@/lib/oauth-consent";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthShowcase } from "@/components/auth/AuthShowcase";
@@ -19,6 +20,8 @@ export default function LoginPage() {
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = safeNext(searchParams.get("next"));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +33,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await login(email, password);
-      navigate("/dashboard");
+      if (nextPath) window.location.href = nextPath;
+      else navigate("/dashboard");
     } catch (err: any) {
       setError(err?.message || "Invalid credentials. Please try again.");
     } finally {
@@ -155,7 +159,7 @@ export default function LoginPage() {
             <span className="text-[10px] uppercase tracking-wider text-[#3a5870]">or</span>
             <div className="h-px flex-1 bg-[rgba(0,207,224,0.12)]" />
           </div>
-          <GoogleAuthButton label="Continue with Google" />
+          <GoogleAuthButton label="Continue with Google" nextPath={nextPath} />
 
 
 

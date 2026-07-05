@@ -7,20 +7,25 @@ interface GoogleAuthButtonProps {
   label?: string;
   className?: string;
   onSuccess?: () => void;
+  nextPath?: string | null;
 }
 
 export function GoogleAuthButton({
   label = "Continue with Google",
   className,
   onSuccess,
+  nextPath,
 }: GoogleAuthButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
     setLoading(true);
     try {
+      const redirect = nextPath
+        ? `${window.location.origin}${nextPath}`
+        : window.location.origin;
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: redirect,
       });
       if (result.error) {
         toast.error(result.error.message || "Google sign-in failed");
