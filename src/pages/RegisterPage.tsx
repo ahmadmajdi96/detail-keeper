@@ -188,7 +188,7 @@ export default function RegisterPage() {
             <span className="text-[10px] uppercase tracking-wider text-[#3a5870]">or</span>
             <div className="h-px flex-1 bg-[rgba(0,207,224,0.12)]" />
           </div>
-          <GoogleAuthButton label="Sign up with Google" />
+          <GoogleAuthButton label="Sign up with Google" nextPath={nextPath} />
 
 
 
