@@ -44,6 +44,7 @@ import DefectsAdminPage from "./admin/pages/DefectsAdminPage";
 import ApprovalsPage from "./admin/pages/ApprovalsPage";
 import AIJobsPage from "./admin/pages/AIJobsPage";
 import NotFound from "./pages/NotFound";
+import OAuthConsentPage from "./pages/OAuthConsentPage";
 
 
 const queryClient = new QueryClient();
@@ -65,6 +66,8 @@ const App = () => (
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
+              
               
               {/* Protected Routes - All authenticated users */}
               <Route path="/dashboard" element={<DashboardPage />} />
