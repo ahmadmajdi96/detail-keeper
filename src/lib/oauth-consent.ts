@@ -10,8 +10,7 @@ interface OAuthApi {
 }
 
 export function supabaseOAuth(): OAuthApi {
-  // @ts-expect-error - beta namespace
-  return supabase.auth.oauth as OAuthApi;
+  return (supabase.auth as unknown as { oauth: OAuthApi }).oauth;
 }
 
 /** Validate a `next` param as a same-origin relative path. */
