@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { safeNext } from "@/lib/oauth-consent";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthShowcase } from "@/components/auth/AuthShowcase";
@@ -19,6 +20,8 @@ export default function RegisterPage() {
 
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = safeNext(searchParams.get("next"));
 
   const reqs = [
     { label: "At least 8 characters", met: password.length >= 8 },
@@ -41,7 +44,8 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       await register(email, name, password);
-      navigate("/dashboard");
+      if (nextPath) window.location.href = nextPath;
+      else navigate("/dashboard");
     } catch (err: any) {
       setError(err?.message || "Registration failed. Please try again.");
     } finally {
