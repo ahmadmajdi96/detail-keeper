@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import OrganizationPage from "./pages/OrganizationPage";
+import BillingPage from "./pages/BillingPage";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ActiveTestPlanProvider } from "@/contexts/ActiveTestPlanContext";
 import DefectDetailPage from "./pages/DefectDetailPage";
