@@ -318,6 +318,11 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
+          {/* ========== NOTIFICATIONS ========== */}
+          <TabsContent value="notifications" className="space-y-6">
+            <NotificationPrefsPanel />
+          </TabsContent>
+
           {/* ========== SECURITY ========== */}
           <TabsContent value="security" className="space-y-6">
             <Card className="border-border/50">
