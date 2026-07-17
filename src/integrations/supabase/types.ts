@@ -564,6 +564,66 @@ export type Database = {
           },
         ]
       }
+      api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          org_id: string
+          revoked_at: string | null
+          scopes: string[]
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          org_id: string
+          revoked_at?: string | null
+          scopes?: string[]
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          org_id?: string
+          revoked_at?: string | null
+          scopes?: string[]
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_test_executions: {
         Row: {
           assertion_results: Json | null
@@ -5445,6 +5505,113 @@ export type Database = {
           },
         ]
       }
+      webhook_deliveries: {
+        Row: {
+          attempts: number
+          created_at: string
+          endpoint_id: string
+          event_type: string
+          id: string
+          last_attempt_at: string | null
+          next_retry_at: string | null
+          payload: Json
+          response_body: string | null
+          response_code: number | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          endpoint_id: string
+          event_type: string
+          id?: string
+          last_attempt_at?: string | null
+          next_retry_at?: string | null
+          payload?: Json
+          response_body?: string | null
+          response_code?: number | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          endpoint_id?: string
+          event_type?: string
+          id?: string
+          last_attempt_at?: string | null
+          next_retry_at?: string | null
+          payload?: Json
+          response_body?: string | null
+          response_code?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_endpoints: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          event_types: string[]
+          id: string
+          name: string
+          org_id: string
+          secret: string
+          updated_at: string
+          url: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          event_types?: string[]
+          id?: string
+          name?: string
+          org_id: string
+          secret: string
+          updated_at?: string
+          url: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          event_types?: string[]
+          id?: string
+          name?: string
+          org_id?: string
+          secret?: string
+          updated_at?: string
+          url?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_endpoints_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_events: {
         Row: {
           connection_id: string | null
@@ -5741,6 +5908,15 @@ export type Database = {
         }
       }
       current_user_org_ids: { Args: never; Returns: string[] }
+      emit_webhook: {
+        Args: {
+          _event: string
+          _org_id: string
+          _payload: Json
+          _workspace_id: string
+        }
+        Returns: undefined
+      }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
       is_project_member: { Args: { _project_id: string }; Returns: boolean }
       is_workspace_member: {
