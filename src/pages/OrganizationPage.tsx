@@ -265,6 +265,19 @@ export default function OrganizationPage() {
             onSaved={refresh}
           />
         </TabsContent>
+
+        <TabsContent value="sso" className="mt-4">
+          <SsoTabBody orgId={currentOrganization.id} canManage={currentOrgRole === "owner" || currentOrgRole === "security_admin"} />
+        </TabsContent>
+
+        <TabsContent value="data" className="mt-4">
+          <OrgDangerZone
+            orgId={currentOrganization.id}
+            orgName={currentOrganization.name}
+            orgSlug={currentOrganization.slug}
+            isOwner={isOwner}
+          />
+        </TabsContent>
       </Tabs>
     </AppLayout>
   );
