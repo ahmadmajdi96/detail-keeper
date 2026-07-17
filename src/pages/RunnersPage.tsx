@@ -120,6 +120,8 @@ export default function RunnersPage() {
     const config: any = {};
     if (form.kind === "webhook") config.webhook_url = form.webhook_url;
     if (form.kind === "github_actions") config.dispatch_ref = form.dispatch_ref;
+    const rawToken = generateRunnerToken();
+    const token_hash = await sha256Hex(rawToken);
     const { error } = await supabase.from("runners").insert({
       workspace_id: workspaceId,
       project_id: projectId,
@@ -127,14 +129,27 @@ export default function RunnersPage() {
       name: form.name,
       kind: form.kind,
       config,
+      token_hash,
       created_by: user?.id,
     } as any);
     if (error) return toast.error(error.message);
     toast.success("Runner registered");
     setCreateOpen(false);
+    setTokenDialog({ open: true, token: rawToken, name: form.name });
     setForm({ name: "", kind: "webhook", environment_id: "", webhook_url: "", dispatch_ref: "main" });
     load();
   };
+
+  const rotateToken = async (runner: any) => {
+    if (!confirm(`Rotate token for "${runner.name}"? The existing token will stop working immediately.`)) return;
+    const rawToken = generateRunnerToken();
+    const token_hash = await sha256Hex(rawToken);
+    const { error } = await supabase.from("runners").update({ token_hash }).eq("id", runner.id);
+    if (error) return toast.error(error.message);
+    setTokenDialog({ open: true, token: rawToken, name: runner.name });
+    load();
+  };
+
 
   const remove = async (id: string) => {
     if (!confirm("Delete this runner?")) return;
