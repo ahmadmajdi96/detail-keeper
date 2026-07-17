@@ -82,6 +82,8 @@ const adminNavItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   { title: "Notifications", href: "/notifications", icon: Bell },
+  { title: "Organization", href: "/organization", icon: Building2 },
+  { title: "Billing & Plan", href: "/billing", icon: CreditCard },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 
