@@ -15,8 +15,25 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Server, Trash2, PlayCircle, Activity, Loader2 } from "lucide-react";
+import { Plus, Server, Trash2, PlayCircle, Activity, Loader2, Copy, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+
+async function sha256Hex(text: string) {
+  const buf = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function generateRunnerToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return "qxr_" + btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function heartbeatStatus(lastSeen: string | null): "online" | "stale" | "offline" {
+  if (!lastSeen) return "offline";
+  const age = Date.now() - new Date(lastSeen).getTime();
+  if (age < 90_000) return "online";
+  if (age < 5 * 60_000) return "stale";
+  return "offline";
+}
 
 const KIND_LABELS: Record<string, string> = {
   webhook: "Webhook",
