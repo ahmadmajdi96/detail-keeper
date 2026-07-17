@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "./AppSidebar";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { WorkspaceSwitcher, ProjectSwitcher } from "./WorkspaceSwitcher";
+import { OrgSwitcher } from "./OrgSwitcher";
 import { WorkflowNav } from "./WorkflowNav";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { Loader2 } from "lucide-react";
