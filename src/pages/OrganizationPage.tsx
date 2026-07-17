@@ -313,3 +313,9 @@ function OrgSecurityPanel({ orgId, canManage, initial, onSaved }: { orgId: strin
     </Card>
   );
 }
+
+function SsoTabBody({ orgId, canManage }: { orgId: string; canManage: boolean }) {
+  const { can, loading } = useEntitlements();
+  if (loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
+  return <OrgSsoPanel orgId={orgId} canManage={canManage} ssoEnabled={can("sso")} />;
+}
