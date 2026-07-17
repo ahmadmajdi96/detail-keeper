@@ -30,6 +30,7 @@ import {
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
 import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
+import { PlanPeoplePanel } from "@/components/testplans/PlanPeoplePanel";
 import { PlanRunnersPanel, PlanDefectsPanel, PlanQualityGatesPanel, PlanReportsPanel, PlanLivePanel, PlanRequirementsPanel } from "@/components/testplans/TestPlanPanels";
 import { Server, Bug, ShieldCheck, BarChart3, Radio } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
