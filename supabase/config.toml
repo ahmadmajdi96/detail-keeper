@@ -44,3 +44,9 @@ verify_jwt = false
 
 [functions.stripe-mode]
 verify_jwt = false
+
+[functions.runner-heartbeat]
+verify_jwt = false
+
+[functions.dispatch-notification]
+verify_jwt = false

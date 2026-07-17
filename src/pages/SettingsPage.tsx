@@ -20,10 +20,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { TIMEZONES } from "@/lib/user-tz";
 import {
-  User, Shield, Palette, Globe, Key, Save, Camera, Moon, Sun, Monitor, Lock, Mail, Loader2,
+  User, Shield, Palette, Globe, Key, Save, Camera, Moon, Sun, Monitor, Lock, Mail, Loader2, Bell,
 } from "lucide-react";
 import { MfaPanel } from "@/components/security/MfaPanel";
 import { AccountDeletionPanel } from "@/components/security/AccountDeletionPanel";
+import { NotificationPrefsPanel } from "@/components/settings/NotificationPrefsPanel";
 
 type Theme = "light" | "dark" | "system";
 
@@ -188,6 +189,7 @@ export default function SettingsPage() {
           <TabsList>
             <TabsTrigger value="profile" className="flex items-center gap-2"><User className="h-4 w-4" />Profile</TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-2"><Palette className="h-4 w-4" />Appearance</TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2"><Bell className="h-4 w-4" />Notifications</TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2"><Shield className="h-4 w-4" />Security</TabsTrigger>
           </TabsList>
 
@@ -314,6 +316,11 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ========== NOTIFICATIONS ========== */}
+          <TabsContent value="notifications" className="space-y-6">
+            <NotificationPrefsPanel />
           </TabsContent>
 
           {/* ========== SECURITY ========== */}

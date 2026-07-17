@@ -15,8 +15,25 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Server, Trash2, PlayCircle, Activity, Loader2 } from "lucide-react";
+import { Plus, Server, Trash2, PlayCircle, Activity, Loader2, Copy, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+
+async function sha256Hex(text: string) {
+  const buf = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function generateRunnerToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return "qxr_" + btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function heartbeatStatus(lastSeen: string | null): "online" | "stale" | "offline" {
+  if (!lastSeen) return "offline";
+  const age = Date.now() - new Date(lastSeen).getTime();
+  if (age < 90_000) return "online";
+  if (age < 5 * 60_000) return "stale";
+  return "offline";
+}
 
 const KIND_LABELS: Record<string, string> = {
   webhook: "Webhook",
@@ -60,6 +77,7 @@ export default function RunnersPage() {
   const [form, setForm] = useState({
     name: "", kind: "webhook", environment_id: "", webhook_url: "", dispatch_ref: "main",
   });
+  const [tokenDialog, setTokenDialog] = useState<{ open: boolean; token: string; name: string } | null>(null);
 
   const [dispatchOpen, setDispatchOpen] = useState(false);
   const [dispatchRunner, setDispatchRunner] = useState<any>(null);
@@ -102,6 +120,8 @@ export default function RunnersPage() {
     const config: any = {};
     if (form.kind === "webhook") config.webhook_url = form.webhook_url;
     if (form.kind === "github_actions") config.dispatch_ref = form.dispatch_ref;
+    const rawToken = generateRunnerToken();
+    const token_hash = await sha256Hex(rawToken);
     const { error } = await supabase.from("runners").insert({
       workspace_id: workspaceId,
       project_id: projectId,
@@ -109,14 +129,27 @@ export default function RunnersPage() {
       name: form.name,
       kind: form.kind,
       config,
+      token_hash,
       created_by: user?.id,
     } as any);
     if (error) return toast.error(error.message);
     toast.success("Runner registered");
     setCreateOpen(false);
+    setTokenDialog({ open: true, token: rawToken, name: form.name });
     setForm({ name: "", kind: "webhook", environment_id: "", webhook_url: "", dispatch_ref: "main" });
     load();
   };
+
+  const rotateToken = async (runner: any) => {
+    if (!confirm(`Rotate token for "${runner.name}"? The existing token will stop working immediately.`)) return;
+    const rawToken = generateRunnerToken();
+    const token_hash = await sha256Hex(rawToken);
+    const { error } = await supabase.from("runners").update({ token_hash }).eq("id", runner.id);
+    if (error) return toast.error(error.message);
+    setTokenDialog({ open: true, token: rawToken, name: runner.name });
+    load();
+  };
+
 
   const remove = async (id: string) => {
     if (!confirm("Delete this runner?")) return;
@@ -198,23 +231,36 @@ export default function RunnersPage() {
                 <Button className="mt-4" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" /> Register your first runner</Button>
               </CardContent></Card>
             ) : (
-              runners.map((r) => (
+              runners.map((r) => {
+                const hb = heartbeatStatus(r.last_seen_at);
+                const hbCls =
+                  hb === "online" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" :
+                  hb === "stale" ? "bg-amber-500/15 text-amber-300 border-amber-500/30" :
+                  "bg-muted text-muted-foreground";
+                return (
                 <Card key={r.id}>
                   <CardHeader className="flex flex-row items-start justify-between space-y-0">
                     <div>
                       <CardTitle className="text-base flex items-center gap-2">
                         <Server className="h-4 w-4 text-accent" /> {r.name}
+                        <Badge variant="outline" className={hbCls}>
+                          {hb === "offline" ? <WifiOff className="h-3 w-3 mr-1" /> : <Wifi className="h-3 w-3 mr-1" />}
+                          {hb}
+                        </Badge>
                         <Badge variant="outline" className={STATUS_COLORS[r.status] || ""}>{r.status}</Badge>
                       </CardTitle>
                       <div className="text-xs text-muted-foreground mt-1">
                         {KIND_LABELS[r.kind] || r.kind}
                         {r.environment_id && ` · env: ${envs.find(e => e.id === r.environment_id)?.name || "—"}`}
-                        {r.last_seen_at && ` · last seen ${new Date(r.last_seen_at).toLocaleString()}`}
+                        {r.last_seen_at ? ` · last seen ${new Date(r.last_seen_at).toLocaleString()}` : " · never seen"}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => openDispatch(r)} disabled={r.status === "disabled"}>
                         <PlayCircle className="mr-1 h-3.5 w-3.5" /> Dispatch
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => rotateToken(r)} title="Rotate token">
+                        <RefreshCw className="h-3.5 w-3.5" />
                       </Button>
                       <Select value={r.status} onValueChange={(v) => setRunnerStatus(r.id, v)}>
                         <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
@@ -222,14 +268,18 @@ export default function RunnersPage() {
                           <SelectItem value="idle">Idle</SelectItem>
                           <SelectItem value="busy">Busy</SelectItem>
                           <SelectItem value="offline">Offline</SelectItem>
+                          <SelectItem value="draining">Draining</SelectItem>
                           <SelectItem value="disabled">Disabled</SelectItem>
                         </SelectContent>
                       </Select>
+
                       <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </CardHeader>
                 </Card>
-              ))
+                );
+              })
+
             )}
           </TabsContent>
 
@@ -333,6 +383,60 @@ export default function RunnersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Token / setup dialog */}
+      <Dialog open={!!tokenDialog?.open} onOpenChange={(v) => !v && setTokenDialog(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Runner token — copy it now</DialogTitle>
+            <DialogDescription>
+              This is the only time the full token for <span className="font-medium">{tokenDialog?.name}</span> will
+              be shown. Paste it into your runner's environment.
+            </DialogDescription>
+          </DialogHeader>
+          {tokenDialog && (() => {
+            const heartbeatUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/runner-heartbeat`;
+            const callbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/runner-callback`;
+            const dockerCmd =
+`docker run -d --restart=always \\
+  -e QUALIXA_RUNNER_TOKEN="${tokenDialog.token}" \\
+  -e QUALIXA_HEARTBEAT_URL="${heartbeatUrl}" \\
+  -e QUALIXA_CALLBACK_URL="${callbackUrl}" \\
+  ghcr.io/qualixa/runner:latest`;
+            return (
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs uppercase text-muted-foreground mb-1">Token</div>
+                  <div className="flex gap-2">
+                    <code className="flex-1 rounded-md border bg-muted p-2 font-mono text-xs break-all">{tokenDialog.token}</code>
+                    <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(tokenDialog.token); toast.success("Copied"); }}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-muted-foreground mb-1">Docker one-liner</div>
+                  <div className="flex gap-2">
+                    <pre className="flex-1 rounded-md border bg-muted p-3 font-mono text-xs overflow-x-auto whitespace-pre">{dockerCmd}</pre>
+                    <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(dockerCmd); toast.success("Copied"); }}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Runner must POST heartbeats to <code>{heartbeatUrl}</code> every ~30s with
+                  <code className="mx-1">Authorization: Bearer &lt;token&gt;</code>. Job callbacks go to
+                  <code className="mx-1">{callbackUrl}</code>.
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button onClick={() => setTokenDialog(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
+
   );
 }

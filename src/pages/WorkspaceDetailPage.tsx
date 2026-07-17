@@ -228,10 +228,12 @@ export default function WorkspaceDetailPage() {
   // settings local state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
   useEffect(() => {
     if (workspace) {
       setName(workspace.name);
       setDescription(workspace.description || "");
+      setSlackWebhookUrl((workspace as any).slack_webhook_url || "");
     }
   }, [workspace]);
 
@@ -464,7 +466,23 @@ export default function WorkspaceDetailPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2"><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></div>
-                <Button onClick={() => updateWs.mutate({ name, description })} className="ai-gradient text-white">
+                <div className="space-y-2">
+                  <Label>Slack incoming-webhook URL (workspace fallback)</Label>
+                  <Input
+                    value={slackWebhookUrl}
+                    onChange={(e) => setSlackWebhookUrl(e.target.value)}
+                    placeholder="https://hooks.slack.com/services/…"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for members who enable Slack notifications but haven't set a personal webhook.
+                  </p>
+                </div>
+                <Button
+                  onClick={() =>
+                    updateWs.mutate({ name, description, slack_webhook_url: slackWebhookUrl.trim() || null })
+                  }
+                  className="ai-gradient text-white"
+                >
                   <Save className="mr-2 h-4 w-4" /> Save changes
                 </Button>
               </CardContent>
