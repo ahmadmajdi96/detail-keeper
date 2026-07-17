@@ -167,6 +167,14 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
       if (!wsId) throw new Error("No workspace selected");
       const sourceType = locator === "github" ? "github" : locator === "zip" ? "zip" : "documentation";
 
+      // Quota check via organization_id of the workspace
+      const { data: wsRow } = await supabase.from("workspaces").select("organization_id").eq("id", wsId).maybeSingle();
+      if (wsRow?.organization_id) {
+        const { data: ok } = await supabase.rpc("within_quota", { _org_id: wsRow.organization_id, _kind: "projects", _additional: 1 });
+        if (ok === false) throw new Error("quota_exceeded:projects");
+      }
+
+
       const projectInsert: any = {
         workspace_id: wsId,
         name: projectName,
