@@ -89,6 +89,11 @@ const App = () => (
                   <OrganizationPage />
                 </ProtectedRoute>
               } />
+              <Route path="/billing" element={
+                <ProtectedRoute>
+                  <BillingPage />
+                </ProtectedRoute>
+              } />
               
               
               {/* Protected Routes - QA Engineer and above */}
