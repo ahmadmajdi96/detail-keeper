@@ -15,6 +15,27 @@ import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+function StripeModeBadge({ onConfigured }: { onConfigured: (v: boolean) => void }) {
+  const { data } = useQuery({
+    queryKey: ["stripe-mode"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stripe-mode", { method: "GET" as any });
+      if (error) throw error;
+      return data as { configured: boolean; mode: "test" | "live" | "unknown"; webhook_configured: boolean };
+    },
+    staleTime: 60_000,
+  });
+  useEffect(() => { if (data) onConfigured(data.configured); }, [data, onConfigured]);
+  if (!data?.configured) return null;
+  const isTest = data.mode === "test";
+  return (
+    <Badge variant="outline" className={isTest ? "border-amber-500/60 text-amber-500" : "border-emerald-500/60 text-emerald-500"}>
+      {isTest ? "Stripe: Test mode" : data.mode === "live" ? "Stripe: Live" : "Stripe"}
+      {!data.webhook_configured && " · webhook missing"}
+    </Badge>
+  );
+}
+
 const FEATURE_ROWS: Array<{ key: string; label: string }> = [
   { key: "sso", label: "SSO / SAML" },
   { key: "audit_log", label: "Audit log" },
@@ -137,7 +158,10 @@ export default function BillingPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Billing & Plan" description="Manage your organization's plan, usage, and limits." />
+      <div className="flex items-center justify-between mt-2">
+        <PageHeader title="Billing & Plan" description="Manage your organization's plan, usage, and limits." />
+        <StripeModeBadge onConfigured={setBillingConfigured} />
+      </div>
 
       {billingConfigured === false && (
         <Alert className="mt-4 border-amber-500/40">
