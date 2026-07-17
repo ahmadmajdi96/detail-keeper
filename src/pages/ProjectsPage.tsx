@@ -334,6 +334,12 @@ export default function ProjectsPage() {
                           >
                             Open <ArrowRight className="h-3 w-3 ml-1" />
                           </Button>
+                          <Button
+                            size="sm" variant="ghost" className="h-7"
+                            onClick={() => navigate(`/projects/${p.id}`)}
+                          >
+                            Manage
+                          </Button>
                           {(p.source_type === "github" || p.source_type === "zip") && (
                             <Button
                               size="sm" variant="ghost" className="h-7 w-7 p-0"
