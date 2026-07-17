@@ -175,9 +175,26 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            <label className="flex items-start gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                disabled={isLoading}
+                required
+                className="mt-0.5 h-4 w-4 rounded border-[rgba(0,207,224,0.3)] bg-[#070e1c] accent-[#00cfe0] cursor-pointer"
+              />
+              <span className="text-xs text-[#7a96b0] leading-relaxed">
+                I agree to the{" "}
+                <Link to="/terms" target="_blank" className="text-[#00cfe0] hover:text-[#7dd3fc] underline">Terms</Link>
+                {" "}and{" "}
+                <Link to="/privacy" target="_blank" className="text-[#00cfe0] hover:text-[#7dd3fc] underline">Privacy Policy</Link>.
+              </span>
+            </label>
+
             <button
-              type="submit" disabled={isLoading}
-              className="w-full h-11 rounded-lg flex items-center justify-center gap-2 text-sm font-medium text-[#04070f] transition-all disabled:opacity-70"
+              type="submit" disabled={isLoading || !agreed}
+              className="w-full h-11 rounded-lg flex items-center justify-center gap-2 text-sm font-medium text-[#04070f] transition-all disabled:opacity-50"
               style={{
                 background: "linear-gradient(135deg, #00cfe0, #38bdf8)",
                 boxShadow: "0 8px 24px -8px rgba(0,207,224,0.6)",
