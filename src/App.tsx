@@ -45,6 +45,7 @@ import ApprovalsPage from "./admin/pages/ApprovalsPage";
 import AIJobsPage from "./admin/pages/AIJobsPage";
 import NotFound from "./pages/NotFound";
 import OAuthConsentPage from "./pages/OAuthConsentPage";
+import AcceptInvitationPage from "./pages/AcceptInvitationPage";
 
 
 const queryClient = new QueryClient();
