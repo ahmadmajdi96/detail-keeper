@@ -390,6 +390,8 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <AccountDeletionPanel />
           </TabsContent>
         </Tabs>
       </div>
