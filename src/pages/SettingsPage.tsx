@@ -80,7 +80,7 @@ export default function SettingsPage() {
   // --- Save profile ---
   const saveProfile = useMutation({
     mutationFn: async (patch: Record<string, any>) => {
-      const { error } = await supabase.from("profiles").update(patch).eq("id", user!.id);
+      const { error } = await (supabase as any).from("profiles").update(patch).eq("id", user!.id);
       if (error) throw error;
     },
     onSuccess: async () => {
