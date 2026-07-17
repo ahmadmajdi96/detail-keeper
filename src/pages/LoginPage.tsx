@@ -7,6 +7,7 @@ import { AuthShowcase } from "@/components/auth/AuthShowcase";
 import { Eye, EyeOff, Loader2, ArrowRight, Mail, Lock } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
+import { SsoSignInBox } from "@/components/auth/SsoSignInBox";
 
 type Tab = "email" | "sso" | "magic";
 
