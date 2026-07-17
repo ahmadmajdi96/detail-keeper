@@ -30,6 +30,7 @@ import {
 import { useLatestJobForPlan } from "@/hooks/useJob";
 import { format } from "date-fns";
 import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
+import { PlanPeoplePanel } from "@/components/testplans/PlanPeoplePanel";
 import { PlanRunnersPanel, PlanDefectsPanel, PlanQualityGatesPanel, PlanReportsPanel, PlanLivePanel, PlanRequirementsPanel } from "@/components/testplans/TestPlanPanels";
 import { Server, Bug, ShieldCheck, BarChart3, Radio } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -541,6 +542,7 @@ export default function TestPlanDetailPage() {
             {[
               { v: "overview", l: "Overview", i: FileText },
               { v: "workbench", l: "AI Workbench", i: Sparkles },
+              { v: "people", l: "People", i: Users },
               { v: "insights", l: "Insights", i: Gauge },
               { v: "operations", l: "Operations", i: Zap },
             ].map((t) => (
@@ -1071,6 +1073,15 @@ export default function TestPlanDetailPage() {
               </div>
             </TabsContent>
           </Tabs>
+        </TabsContent>
+
+        {/* ============== PEOPLE ============== */}
+        <TabsContent value="people" className="animate-fade-in">
+          <PlanPeoplePanel
+            planId={id!}
+            projectId={(plan as any).project_id ?? null}
+            workspaceId={(plan as any).workspace_id ?? null}
+          />
         </TabsContent>
 
         {/* ============== INSIGHTS ============== */}
