@@ -409,7 +409,7 @@ export default function LandingPage() {
                   { label: "Product", href: "#product" },
                   { label: "Workbench", href: "#workbench" },
                   { label: "DNA", href: "#dna" },
-                  { label: "Pricing", href: "#pricing" },
+                  { label: "Pricing", href: "/pricing" },
                   { label: "Resources", href: "#faq" },
                 ].map((item) => (
                   <a key={item.label} href={item.href}
