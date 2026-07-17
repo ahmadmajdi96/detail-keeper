@@ -9,6 +9,7 @@ export interface OrganizationLite {
   name: string;
   slug: string | null;
   owner_id: string | null;
+  require_mfa?: boolean;
 }
 
 interface OrganizationContextValue {
