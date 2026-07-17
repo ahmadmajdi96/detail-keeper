@@ -2874,21 +2874,21 @@ export type Database = {
           created_at: string
           id: string
           project_id: string
-          role: string
+          role: Database["public"]["Enums"]["project_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           project_id: string
-          role?: string
+          role?: Database["public"]["Enums"]["project_role"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           project_id?: string
-          role?: string
+          role?: Database["public"]["Enums"]["project_role"]
           user_id?: string
         }
         Relationships: [
@@ -2920,6 +2920,7 @@ export type Database = {
           status: Database["public"]["Enums"]["project_status"]
           test_cases_count: number | null
           updated_at: string
+          visibility: Database["public"]["Enums"]["project_visibility"]
           workspace_id: string
           zip_storage_path: string | null
         }
@@ -2941,6 +2942,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["project_status"]
           test_cases_count?: number | null
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["project_visibility"]
           workspace_id: string
           zip_storage_path?: string | null
         }
@@ -2962,6 +2964,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["project_status"]
           test_cases_count?: number | null
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["project_visibility"]
           workspace_id?: string
           zip_storage_path?: string | null
         }
@@ -4655,7 +4658,7 @@ export type Database = {
           assigned_by: string | null
           created_at: string
           id: string
-          role: string
+          role: Database["public"]["Enums"]["plan_role"]
           test_plan_id: string
           user_id: string
         }
@@ -4663,7 +4666,7 @@ export type Database = {
           assigned_by?: string | null
           created_at?: string
           id?: string
-          role?: string
+          role?: Database["public"]["Enums"]["plan_role"]
           test_plan_id: string
           user_id: string
         }
@@ -4671,7 +4674,7 @@ export type Database = {
           assigned_by?: string | null
           created_at?: string
           id?: string
-          role?: string
+          role?: Database["public"]["Enums"]["plan_role"]
           test_plan_id?: string
           user_id?: string
         }
@@ -5335,6 +5338,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_project: { Args: { _project_id: string }; Returns: boolean }
       claim_jobs: {
         Args: { _limit?: number; _visibility_sec?: number; _worker: string }
         Returns: {
@@ -5403,6 +5407,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      is_project_member: { Args: { _project_id: string }; Returns: boolean }
       is_workspace_member: {
         Args: { _user: string; _workspace: string }
         Returns: boolean
@@ -5417,6 +5422,10 @@ export type Database = {
           _workspace: string
         }
         Returns: undefined
+      }
+      project_role_of: {
+        Args: { _project_id: string }
+        Returns: Database["public"]["Enums"]["project_role"]
       }
       workspace_of_project: { Args: { _project: string }; Returns: string }
       workspace_role_of: {
@@ -5468,8 +5477,11 @@ export type Database = {
         | "failed"
         | "cancelled"
         | "dead_letter"
+      plan_role: "owner" | "assignee" | "reviewer" | "viewer"
+      project_role: "lead" | "contributor" | "viewer"
       project_source: "documentation" | "zip" | "github"
       project_status: "pending" | "processing" | "ready" | "failed" | "archived"
+      project_visibility: "inherited" | "restricted"
       release_status:
         | "planned"
         | "in_progress"
@@ -5672,8 +5684,11 @@ export const Constants = {
         "cancelled",
         "dead_letter",
       ],
+      plan_role: ["owner", "assignee", "reviewer", "viewer"],
+      project_role: ["lead", "contributor", "viewer"],
       project_source: ["documentation", "zip", "github"],
       project_status: ["pending", "processing", "ready", "failed", "archived"],
+      project_visibility: ["inherited", "restricted"],
       release_status: [
         "planned",
         "in_progress",
