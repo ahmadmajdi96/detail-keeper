@@ -259,6 +259,7 @@ const App = () => (
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </MfaGate>
           </BrowserRouter>
         </TooltipProvider>
         </ActiveTestPlanProvider>
