@@ -2857,6 +2857,42 @@ export type Database = {
         }
         Relationships: []
       }
+      plans: {
+        Row: {
+          created_at: string
+          entitlements: Json
+          id: string
+          is_active: boolean
+          key: string
+          monthly_price_cents: number
+          name: string
+          updated_at: string
+          yearly_price_cents: number
+        }
+        Insert: {
+          created_at?: string
+          entitlements?: Json
+          id?: string
+          is_active?: boolean
+          key: string
+          monthly_price_cents?: number
+          name: string
+          updated_at?: string
+          yearly_price_cents?: number
+        }
+        Update: {
+          created_at?: string
+          entitlements?: Json
+          id?: string
+          is_active?: boolean
+          key?: string
+          monthly_price_cents?: number
+          name?: string
+          updated_at?: string
+          yearly_price_cents?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar: string | null
@@ -3995,6 +4031,66 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          org_id: string
+          plan_key: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          org_id: string
+          plan_key: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          org_id?: string
+          plan_key?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_key_fkey"
+            columns: ["plan_key"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       suite_runs: {
         Row: {
           browser: string
@@ -5118,6 +5214,44 @@ export type Database = {
           },
         ]
       }
+      usage_events: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          occurred_at: string
+          org_id: string
+          quantity: number
+          ref: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          occurred_at?: string
+          org_id: string
+          quantity?: number
+          ref?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          occurred_at?: string
+          org_id?: string
+          quantity?: number
+          ref?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       waivers: {
         Row: {
           created_at: string
@@ -5394,6 +5528,10 @@ export type Database = {
         Returns: boolean
       }
       can_signoff_plan: { Args: { _plan_id: string }; Returns: boolean }
+      can_use_feature: {
+        Args: { _feature: string; _org_id: string }
+        Returns: boolean
+      }
       claim_jobs: {
         Args: { _limit?: number; _visibility_sec?: number; _worker: string }
         Returns: {
@@ -5480,13 +5618,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      org_entitlements: { Args: { _org_id: string }; Returns: Json }
       org_role_of: {
         Args: { _org_id: string }
         Returns: Database["public"]["Enums"]["org_role"]
       }
+      org_usage_this_period: {
+        Args: { _kind: string; _org_id: string }
+        Returns: number
+      }
       project_role_of: {
         Args: { _project_id: string }
         Returns: Database["public"]["Enums"]["project_role"]
+      }
+      within_quota: {
+        Args: { _additional?: number; _kind: string; _org_id: string }
+        Returns: boolean
       }
       workspace_of_project: { Args: { _project: string }; Returns: string }
       workspace_role_of: {
@@ -5567,6 +5714,7 @@ export type Database = {
         | "cancelled"
         | "queued"
         | "failed"
+      subscription_status: "trialing" | "active" | "past_due" | "canceled"
       test_case_status: "draft" | "active" | "deprecated" | "archived"
       user_role: "admin" | "qa_manager" | "qa_engineer" | "viewer"
       user_status: "active" | "pending" | "inactive" | "suspended"
@@ -5778,6 +5926,7 @@ export const Constants = {
         "queued",
         "failed",
       ],
+      subscription_status: ["trialing", "active", "past_due", "canceled"],
       test_case_status: ["draft", "active", "deprecated", "archived"],
       user_role: ["admin", "qa_manager", "qa_engineer", "viewer"],
       user_status: ["active", "pending", "inactive", "suspended"],
