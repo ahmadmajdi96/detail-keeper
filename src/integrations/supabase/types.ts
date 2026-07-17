@@ -733,6 +733,8 @@ export type Database = {
           entity_kind: string | null
           id: string
           ip_address: string | null
+          meta: Json
+          org_id: string | null
           project_id: string | null
           user_agent: string | null
           workspace_id: string | null
@@ -747,6 +749,8 @@ export type Database = {
           entity_kind?: string | null
           id?: string
           ip_address?: string | null
+          meta?: Json
+          org_id?: string | null
           project_id?: string | null
           user_agent?: string | null
           workspace_id?: string | null
@@ -761,11 +765,20 @@ export type Database = {
           entity_kind?: string | null
           id?: string
           ip_address?: string | null
+          meta?: Json
+          org_id?: string | null
           project_id?: string | null
           user_agent?: string | null
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "audit_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "audit_logs_project_id_fkey"
             columns: ["project_id"]
@@ -2694,6 +2707,30 @@ export type Database = {
           },
         ]
       }
+      mfa_recovery_codes: {
+        Row: {
+          code_hash: string
+          created_at: string
+          id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string
+          id?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string
+          id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       milestones: {
         Row: {
           created_at: string
@@ -2831,6 +2868,7 @@ export type Database = {
           id: string
           name: string
           owner_id: string | null
+          require_mfa: boolean
           settings: Json
           slug: string | null
           updated_at: string
@@ -2841,6 +2879,7 @@ export type Database = {
           id?: string
           name: string
           owner_id?: string | null
+          require_mfa?: boolean
           settings?: Json
           slug?: string | null
           updated_at?: string
@@ -2851,6 +2890,7 @@ export type Database = {
           id?: string
           name?: string
           owner_id?: string | null
+          require_mfa?: boolean
           settings?: Json
           slug?: string | null
           updated_at?: string
@@ -5613,6 +5653,17 @@ export type Database = {
         Args: { _user: string; _workspace: string }
         Returns: boolean
       }
+      log_audit: {
+        Args: {
+          _action: string
+          _entity_id?: string
+          _entity_kind?: string
+          _meta?: Json
+          _org_id: string
+          _workspace_id: string
+        }
+        Returns: string
+      }
       notify_workspace_managers: {
         Args: {
           _data: Json
@@ -5625,6 +5676,7 @@ export type Database = {
         Returns: undefined
       }
       org_entitlements: { Args: { _org_id: string }; Returns: Json }
+      org_of_workspace: { Args: { _ws: string }; Returns: string }
       org_role_of: {
         Args: { _org_id: string }
         Returns: Database["public"]["Enums"]["org_role"]

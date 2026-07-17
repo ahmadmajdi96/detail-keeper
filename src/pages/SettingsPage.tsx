@@ -22,6 +22,7 @@ import { TIMEZONES } from "@/lib/user-tz";
 import {
   User, Shield, Palette, Globe, Key, Save, Camera, Moon, Sun, Monitor, Lock, Mail, Loader2,
 } from "lucide-react";
+import { MfaPanel } from "@/components/security/MfaPanel";
 
 type Theme = "light" | "dark" | "system";
 
@@ -352,31 +353,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" />Two-Factor Authentication</CardTitle>
-                <CardDescription>Add an extra layer of security to your account</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 opacity-70">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Shield className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">TOTP Authenticator App</p>
-                        <Badge variant="outline" className="text-[10px]">Coming soon</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        We're rolling out TOTP-based 2FA in a future release. Not yet active on your account.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch checked={false} disabled />
-                </div>
-              </CardContent>
-            </Card>
+            <MfaPanel />
 
             <Card className="border-border/50">
               <CardHeader>

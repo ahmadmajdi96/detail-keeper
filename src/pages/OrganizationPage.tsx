@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import { useOrganization, type OrgRole } from "@/contexts/OrganizationContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -140,6 +141,7 @@ export default function OrganizationPage() {
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="mt-4">
@@ -249,7 +251,47 @@ export default function OrganizationPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="security" className="mt-4">
+          <OrgSecurityPanel
+            orgId={currentOrganization.id}
+            canManage={currentOrgRole === "owner" || currentOrgRole === "security_admin"}
+            initial={!!(currentOrganization as any).require_mfa}
+            onSaved={refresh}
+          />
+        </TabsContent>
       </Tabs>
     </AppLayout>
+  );
+}
+
+function OrgSecurityPanel({ orgId, canManage, initial, onSaved }: { orgId: string; canManage: boolean; initial: boolean; onSaved: () => void }) {
+  const [required, setRequired] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const save = async (v: boolean) => {
+    setSaving(true);
+    const { error } = await supabase.from("organizations").update({ require_mfa: v } as any).eq("id", orgId);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    setRequired(v);
+    onSaved();
+    toast.success(v ? "MFA now required for all members" : "MFA requirement disabled");
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Two-factor authentication policy</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 max-w-xl">
+        <div className="flex items-center justify-between rounded-md border border-border/50 p-4">
+          <div>
+            <div className="font-medium">Require MFA for all members</div>
+            <div className="text-sm text-muted-foreground">Members without a verified authenticator app will be prompted to enroll before they can use the app.</div>
+          </div>
+          <Switch checked={required} disabled={!canManage || saving} onCheckedChange={save} />
+        </div>
+        {!canManage && <p className="text-xs text-muted-foreground">Only the org owner or a security admin can change this policy.</p>}
+      </CardContent>
+    </Card>
   );
 }

@@ -113,6 +113,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       throw error;
     }
+    // Fire-and-forget audit log
+    try {
+      const { data: prof } = await supabase.from("profiles").select("last_organization_id").eq("email", email).maybeSingle();
+      if (prof?.last_organization_id) {
+        await (supabase as any).rpc("log_audit", {
+          _org_id: prof.last_organization_id, _workspace_id: null,
+          _action: "auth.login", _entity_kind: "user", _entity_id: null,
+          _meta: { email, at: new Date().toISOString() },
+        });
+      }
+    } catch { /* ignore */ }
     // Auth state change will handle the rest
   };
 

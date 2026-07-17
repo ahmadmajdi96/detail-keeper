@@ -9,6 +9,7 @@ export interface OrganizationLite {
   name: string;
   slug: string | null;
   owner_id: string | null;
+  require_mfa?: boolean;
 }
 
 interface OrganizationContextValue {
@@ -61,7 +62,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from("organizations")
       .insert({ name: `${nameBase}'s Organization`, slug, owner_id: user.id })
-      .select("id,name,slug,owner_id")
+      .select("id,name,slug,owner_id,require_mfa")
       .single();
     if (error) return null;
     return data as OrganizationLite;
@@ -78,7 +79,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     try {
       let { data: orgs } = await supabase
         .from("organizations")
-        .select("id,name,slug,owner_id")
+        .select("id,name,slug,owner_id,require_mfa")
         .order("created_at", { ascending: true });
       let list = (orgs || []) as OrganizationLite[];
 

@@ -58,6 +58,8 @@ import DocsPage from "./pages/DocsPage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SecurityPage from "./pages/SecurityPage";
+import AuditLogPage from "./pages/AuditLogPage";
+import { MfaGate } from "@/components/security/MfaGate";
 
 
 const queryClient = new QueryClient();
@@ -73,6 +75,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <MfaGate>
               <Routes>
               {/* Landing Page - Main Route */}
               <Route path="/" element={<LandingPage />} />
@@ -100,6 +103,11 @@ const App = () => (
               <Route path="/organization" element={
                 <ProtectedRoute>
                   <OrganizationPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/organization/audit" element={
+                <ProtectedRoute>
+                  <AuditLogPage />
                 </ProtectedRoute>
               } />
               <Route path="/billing" element={
@@ -251,6 +259,7 @@ const App = () => (
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </MfaGate>
           </BrowserRouter>
         </TooltipProvider>
         </ActiveTestPlanProvider>
