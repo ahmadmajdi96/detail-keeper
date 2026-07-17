@@ -304,6 +304,9 @@ export default function WorkspaceDetailPage() {
                         <Button size="sm" variant="outline" className="flex-1" onClick={() => { setCurrentWorkspaceId(p.workspace_id); setCurrentProjectId(p.id); navigate("/documents"); }}>
                           Open <ArrowRight className="ml-2 h-3 w-3" />
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => navigate(`/projects/${p.id}`)}>
+                          Manage
+                        </Button>
                         {canManage && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
