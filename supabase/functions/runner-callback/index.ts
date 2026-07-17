@@ -36,6 +36,30 @@ Deno.serve(async (req) => {
       }).eq("id", data.runner_id);
     }
 
+    // Meter runner minutes on terminal states
+    if (["succeeded", "failed", "timeout", "cancelled"].includes(status) && data.started_at && data.project_id) {
+      try {
+        const startedAt = new Date(data.started_at).getTime();
+        const finishedAt = Date.now();
+        const minutes = Math.max(0, (finishedAt - startedAt) / 60000);
+        if (minutes > 0) {
+          const { data: proj } = await admin.from("projects").select("workspace_id").eq("id", data.project_id).maybeSingle();
+          if (proj?.workspace_id) {
+            const { data: ws } = await admin.from("workspaces").select("organization_id").eq("id", proj.workspace_id).maybeSingle();
+            if (ws?.organization_id) {
+              await admin.from("usage_events").insert({
+                org_id: ws.organization_id, kind: "runner_minutes", quantity: minutes,
+                ref: { runner_job_id, status },
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error("runner minutes meter error", e);
+      }
+    }
+
+
     return json({ ok: true });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
