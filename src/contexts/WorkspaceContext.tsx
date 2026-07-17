@@ -44,30 +44,45 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     () => localStorage.getItem(LS_PROJ)
   );
   const [loading, setLoading] = useState(false);
+  const [profileHydrated, setProfileHydrated] = useState(false);
+
+  const persistToProfile = useCallback(
+    async (patch: { last_workspace_id?: string | null; last_project_id?: string | null }) => {
+      if (!user?.id) return;
+      try {
+        await supabase.from("profiles").update(patch).eq("id", user.id);
+      } catch {
+        /* non-blocking */
+      }
+    },
+    [user?.id],
+  );
 
   const setCurrentWorkspaceId = useCallback((id: string | null) => {
     setCurrentWorkspaceIdState(id);
     if (id) localStorage.setItem(LS_WS, id);
     else localStorage.removeItem(LS_WS);
-    // reset project on workspace change
     setCurrentProjectIdState(null);
     localStorage.removeItem(LS_PROJ);
-  }, []);
+    persistToProfile({ last_workspace_id: id, last_project_id: null });
+  }, [persistToProfile]);
 
   const setCurrentProjectId = useCallback((id: string | null) => {
     setCurrentProjectIdState(id);
     if (id) localStorage.setItem(LS_PROJ, id);
     else localStorage.removeItem(LS_PROJ);
-  }, []);
+    persistToProfile({ last_project_id: id });
+  }, [persistToProfile]);
 
   const refresh = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user?.id) {
       setWorkspaces([]);
       setProjects([]);
       return;
     }
     setLoading(true);
     try {
+      // RLS on workspaces already restricts rows to member/owner
       const { data: ws } = await supabase
         .from("workspaces")
         .select("id,name,status,owner_id")
@@ -75,14 +90,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const list = (ws || []) as WorkspaceLite[];
       setWorkspaces(list);
 
-      let activeWs = currentWorkspaceId;
+      // Prefer profile.last_* on first hydration
+      let preferredWs = currentWorkspaceId;
+      let preferredProj = currentProjectId;
+      if (!profileHydrated) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("last_workspace_id,last_project_id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (prof?.last_workspace_id) preferredWs = prof.last_workspace_id;
+        if (prof?.last_project_id) preferredProj = prof.last_project_id;
+        setProfileHydrated(true);
+      }
+
+      let activeWs = preferredWs;
       if (!activeWs || !list.find((w) => w.id === activeWs)) {
         activeWs = list[0]?.id || null;
-        if (activeWs) {
-          setCurrentWorkspaceIdState(activeWs);
-          localStorage.setItem(LS_WS, activeWs);
-        }
       }
+      setCurrentWorkspaceIdState(activeWs);
+      if (activeWs) localStorage.setItem(LS_WS, activeWs);
+      else localStorage.removeItem(LS_WS);
 
       if (activeWs) {
         const { data: pr } = await supabase
@@ -92,19 +120,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           .order("created_at", { ascending: false });
         const plist = (pr || []) as ProjectLite[];
         setProjects(plist);
-        if (currentProjectId && !plist.find((p) => p.id === currentProjectId)) {
-          setCurrentProjectIdState(plist[0]?.id || null);
-        }
+        const nextProj = preferredProj && plist.find((p) => p.id === preferredProj)
+          ? preferredProj
+          : (plist[0]?.id || null);
+        setCurrentProjectIdState(nextProj);
+        if (nextProj) localStorage.setItem(LS_PROJ, nextProj);
+        else localStorage.removeItem(LS_PROJ);
       } else {
         setProjects([]);
       }
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, currentWorkspaceId, currentProjectId]);
+  }, [isAuthenticated, user?.id, currentWorkspaceId, currentProjectId, profileHydrated]);
 
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id]);
 
   // when workspace changes, fetch its projects

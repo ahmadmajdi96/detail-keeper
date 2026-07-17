@@ -2828,11 +2828,15 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          language: string
           last_login: string | null
+          last_project_id: string | null
+          last_workspace_id: string | null
           name: string
           role: Database["public"]["Enums"]["user_role"]
           status: Database["public"]["Enums"]["user_status"]
           team_id: string | null
+          timezone: string | null
           updated_at: string
         }
         Insert: {
@@ -2840,11 +2844,15 @@ export type Database = {
           created_at?: string
           email: string
           id: string
+          language?: string
           last_login?: string | null
+          last_project_id?: string | null
+          last_workspace_id?: string | null
           name: string
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["user_status"]
           team_id?: string | null
+          timezone?: string | null
           updated_at?: string
         }
         Update: {
@@ -2852,11 +2860,15 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          language?: string
           last_login?: string | null
+          last_project_id?: string | null
+          last_workspace_id?: string | null
           name?: string
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["user_status"]
           team_id?: string | null
+          timezone?: string | null
           updated_at?: string
         }
         Relationships: [
