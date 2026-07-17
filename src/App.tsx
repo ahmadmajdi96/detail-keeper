@@ -59,6 +59,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SecurityPage from "./pages/SecurityPage";
 import AuditLogPage from "./pages/AuditLogPage";
+import SharePage from "./pages/SharePage";
 import { MfaGate } from "@/components/security/MfaGate";
 
 
