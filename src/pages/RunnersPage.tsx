@@ -383,6 +383,60 @@ export default function RunnersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Token / setup dialog */}
+      <Dialog open={!!tokenDialog?.open} onOpenChange={(v) => !v && setTokenDialog(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Runner token — copy it now</DialogTitle>
+            <DialogDescription>
+              This is the only time the full token for <span className="font-medium">{tokenDialog?.name}</span> will
+              be shown. Paste it into your runner's environment.
+            </DialogDescription>
+          </DialogHeader>
+          {tokenDialog && (() => {
+            const heartbeatUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/runner-heartbeat`;
+            const callbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/runner-callback`;
+            const dockerCmd =
+`docker run -d --restart=always \\
+  -e QUALIXA_RUNNER_TOKEN="${tokenDialog.token}" \\
+  -e QUALIXA_HEARTBEAT_URL="${heartbeatUrl}" \\
+  -e QUALIXA_CALLBACK_URL="${callbackUrl}" \\
+  ghcr.io/qualixa/runner:latest`;
+            return (
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs uppercase text-muted-foreground mb-1">Token</div>
+                  <div className="flex gap-2">
+                    <code className="flex-1 rounded-md border bg-muted p-2 font-mono text-xs break-all">{tokenDialog.token}</code>
+                    <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(tokenDialog.token); toast.success("Copied"); }}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-muted-foreground mb-1">Docker one-liner</div>
+                  <div className="flex gap-2">
+                    <pre className="flex-1 rounded-md border bg-muted p-3 font-mono text-xs overflow-x-auto whitespace-pre">{dockerCmd}</pre>
+                    <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(dockerCmd); toast.success("Copied"); }}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Runner must POST heartbeats to <code>{heartbeatUrl}</code> every ~30s with
+                  <code className="mx-1">Authorization: Bearer &lt;token&gt;</code>. Job callbacks go to
+                  <code className="mx-1">{callbackUrl}</code>.
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button onClick={() => setTokenDialog(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
+
   );
 }
