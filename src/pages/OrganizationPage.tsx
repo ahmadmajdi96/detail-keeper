@@ -19,6 +19,8 @@ import { Building2, Trash2, UserPlus, Loader2 } from "lucide-react";
 import { OrgSsoPanel } from "@/components/organization/OrgSsoPanel";
 import { OrgDangerZone } from "@/components/organization/OrgDangerZone";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { ApiKeysPanel } from "@/components/organization/ApiKeysPanel";
+import { WebhooksPanel } from "@/components/organization/WebhooksPanel";
 
 const ROLES: OrgRole[] = ["owner", "billing_admin", "security_admin", "member"];
 
