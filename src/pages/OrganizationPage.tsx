@@ -19,6 +19,8 @@ import { Building2, Trash2, UserPlus, Loader2 } from "lucide-react";
 import { OrgSsoPanel } from "@/components/organization/OrgSsoPanel";
 import { OrgDangerZone } from "@/components/organization/OrgDangerZone";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { ApiKeysPanel } from "@/components/organization/ApiKeysPanel";
+import { WebhooksPanel } from "@/components/organization/WebhooksPanel";
 
 const ROLES: OrgRole[] = ["owner", "billing_admin", "security_admin", "member"];
 
@@ -146,6 +148,8 @@ export default function OrganizationPage() {
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="sso">SSO</TabsTrigger>
+          <TabsTrigger value="api-keys">API Keys</TabsTrigger>
+          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
@@ -269,6 +273,15 @@ export default function OrganizationPage() {
         <TabsContent value="sso" className="mt-4">
           <SsoTabBody orgId={currentOrganization.id} canManage={currentOrgRole === "owner" || currentOrgRole === "security_admin"} />
         </TabsContent>
+
+        <TabsContent value="api-keys" className="mt-4">
+          <ApiKeysPanel orgId={currentOrganization.id} canManage={isOwner || currentOrgRole === "billing_admin" || currentOrgRole === "security_admin"} />
+        </TabsContent>
+
+        <TabsContent value="webhooks" className="mt-4">
+          <WebhooksPanel orgId={currentOrganization.id} canManage={isOwner || currentOrgRole === "billing_admin" || currentOrgRole === "security_admin"} />
+        </TabsContent>
+
 
         <TabsContent value="data" className="mt-4">
           <OrgDangerZone
