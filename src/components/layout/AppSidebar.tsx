@@ -20,6 +20,8 @@ import {
   Bell,
   Plug,
   Settings,
+  CreditCard,
+  Building2,
   ChevronLeft,
   ChevronRight,
   Sparkles,
