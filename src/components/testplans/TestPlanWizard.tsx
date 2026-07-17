@@ -171,7 +171,7 @@ export function TestPlanWizard({ open, onOpenChange, onCreated }: Props) {
       if (assignees.length) {
         await supabase.from("test_plan_assignees").insert(
           assignees.map((uid) => ({
-            test_plan_id: plan.id, user_id: uid, role: "tester", assigned_by: user?.id,
+            test_plan_id: plan.id, user_id: uid, role: "assignee" as const, assigned_by: user?.id,
           }))
         );
       }
