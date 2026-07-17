@@ -2789,6 +2789,41 @@ export type Database = {
           },
         ]
       }
+      organization_members: {
+        Row: {
+          created_at: string
+          id: string
+          org_id: string
+          role: Database["public"]["Enums"]["org_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          org_id: string
+          role?: Database["public"]["Enums"]["org_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["org_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -2830,6 +2865,7 @@ export type Database = {
           id: string
           language: string
           last_login: string | null
+          last_organization_id: string | null
           last_project_id: string | null
           last_workspace_id: string | null
           name: string
@@ -2846,6 +2882,7 @@ export type Database = {
           id: string
           language?: string
           last_login?: string | null
+          last_organization_id?: string | null
           last_project_id?: string | null
           last_workspace_id?: string | null
           name: string
@@ -2862,6 +2899,7 @@ export type Database = {
           id?: string
           language?: string
           last_login?: string | null
+          last_organization_id?: string | null
           last_project_id?: string | null
           last_workspace_id?: string | null
           name?: string
@@ -5424,6 +5462,8 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      current_user_org_ids: { Args: never; Returns: string[] }
+      is_org_member: { Args: { _org_id: string }; Returns: boolean }
       is_project_member: { Args: { _project_id: string }; Returns: boolean }
       is_workspace_member: {
         Args: { _user: string; _workspace: string }
@@ -5439,6 +5479,10 @@ export type Database = {
           _workspace: string
         }
         Returns: undefined
+      }
+      org_role_of: {
+        Args: { _org_id: string }
+        Returns: Database["public"]["Enums"]["org_role"]
       }
       project_role_of: {
         Args: { _project_id: string }
@@ -5494,6 +5538,7 @@ export type Database = {
         | "failed"
         | "cancelled"
         | "dead_letter"
+      org_role: "owner" | "billing_admin" | "security_admin" | "member"
       plan_role: "owner" | "assignee" | "reviewer" | "viewer"
       project_role: "lead" | "contributor" | "viewer"
       project_source: "documentation" | "zip" | "github"
@@ -5701,6 +5746,7 @@ export const Constants = {
         "cancelled",
         "dead_letter",
       ],
+      org_role: ["owner", "billing_admin", "security_admin", "member"],
       plan_role: ["owner", "assignee", "reviewer", "viewer"],
       project_role: ["lead", "contributor", "viewer"],
       project_source: ["documentation", "zip", "github"],

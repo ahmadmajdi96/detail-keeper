@@ -3,6 +3,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   CheckCircle2, XCircle, Loader2, ArrowRight, ArrowLeft,
@@ -49,7 +50,8 @@ function StyledTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>
 
 export function WorkspaceWizard({ open, onOpenChange }: Props) {
   const { user } = useAuth();
-  const { refresh, setCurrentWorkspaceId } = useWorkspace();
+ const { refresh, setCurrentWorkspaceId } = useWorkspace();
+ const { currentOrganization } = useOrganization();
   const qc = useQueryClient();
 
   const [step, setStep] = useState(0);
@@ -93,7 +95,7 @@ export function WorkspaceWizard({ open, onOpenChange }: Props) {
 
   const create = useMutation({
     mutationFn: async () => {
-      const { data: ws, error } = await supabase.from("workspaces").insert({ name, description, owner_id: user?.id }).select("id").single();
+      const { data: ws, error } = await supabase.from("workspaces").insert({ name, description, owner_id: user?.id, organization_id: currentOrganization?.id ?? null }).select("id").single();
       if (error) throw error;
       const wsId = ws.id;
       const direct = members.filter((m) => m.user_id).map((m) => ({ workspace_id: wsId, user_id: m.user_id!, role: m.role }));

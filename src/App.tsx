@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import OrganizationPage from "./pages/OrganizationPage";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ActiveTestPlanProvider } from "@/contexts/ActiveTestPlanContext";
 import DefectDetailPage from "./pages/DefectDetailPage";
@@ -56,6 +58,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <OrganizationProvider>
       <WorkspaceProvider>
         <NotificationProvider>
           <ActiveTestPlanProvider>
@@ -80,6 +83,12 @@ const App = () => (
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/organization" element={
+                <ProtectedRoute>
+                  <OrganizationPage />
+                </ProtectedRoute>
+              } />
+              
               
               {/* Protected Routes - QA Engineer and above */}
               <Route path="/workspaces" element={
@@ -228,6 +237,7 @@ const App = () => (
         </ActiveTestPlanProvider>
       </NotificationProvider>
       </WorkspaceProvider>
+      </OrganizationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

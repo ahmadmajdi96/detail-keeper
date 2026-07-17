@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "./AppSidebar";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { WorkspaceSwitcher, ProjectSwitcher } from "./WorkspaceSwitcher";
+import { OrgSwitcher } from "./OrgSwitcher";
 import { WorkflowNav } from "./WorkflowNav";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { Loader2 } from "lucide-react";
@@ -39,6 +40,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <header className="sticky top-0 z-30 h-14 border-b border-border/40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="w-full h-full px-3 md:px-6 flex items-center gap-2">
             <div className="w-12 md:hidden" />
+            <OrgSwitcher />
+            <span className="text-muted-foreground text-sm hidden sm:inline">/</span>
             <WorkspaceSwitcher />
             <span className="text-muted-foreground text-sm hidden sm:inline">/</span>
             <div className="hidden sm:block"><ProjectSwitcher /></div>
