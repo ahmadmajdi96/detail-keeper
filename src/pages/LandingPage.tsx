@@ -1048,7 +1048,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {pricingPlans.map((p) => (
-              <PricingCard key={p.plan} {...p} isYearly={isYearly} onCta={() => navigate("/register")} />
+              <PricingCard key={p.plan} {...p} isYearly={isYearly} onCta={() => navigate("/pricing")} />
             ))}
           </div>
         </div>
