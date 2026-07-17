@@ -231,6 +231,7 @@ const App = () => (
         </ActiveTestPlanProvider>
       </NotificationProvider>
       </WorkspaceProvider>
+      </OrganizationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
