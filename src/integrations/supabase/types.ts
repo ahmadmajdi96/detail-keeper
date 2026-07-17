@@ -2905,9 +2905,11 @@ export type Database = {
           last_project_id: string | null
           last_workspace_id: string | null
           name: string
+          onboarding_completed_at: string | null
           role: Database["public"]["Enums"]["user_role"]
           status: Database["public"]["Enums"]["user_status"]
           team_id: string | null
+          terms_accepted_at: string | null
           timezone: string | null
           updated_at: string
         }
@@ -2922,9 +2924,11 @@ export type Database = {
           last_project_id?: string | null
           last_workspace_id?: string | null
           name: string
+          onboarding_completed_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["user_status"]
           team_id?: string | null
+          terms_accepted_at?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -2939,9 +2943,11 @@ export type Database = {
           last_project_id?: string | null
           last_workspace_id?: string | null
           name?: string
+          onboarding_completed_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["user_status"]
           team_id?: string | null
+          terms_accepted_at?: string | null
           timezone?: string | null
           updated_at?: string
         }
