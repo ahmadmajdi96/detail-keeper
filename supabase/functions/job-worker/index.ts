@@ -40,6 +40,40 @@ async function claimJobs(sb: any, workerId: string) {
   return claimed;
 }
 
+const AI_JOB_KINDS = new Set([
+  "generate_test_plan_from_docs",
+  "ai_release_judge",
+  "tp_generate_cases",
+  "tp_generate_code",
+  "tp_generate_docs",
+  "generate_prd",
+]);
+
+async function meterAiJob(sb: any, job: any) {
+  try {
+    if (!AI_JOB_KINDS.has(job.kind)) return;
+    let orgId: string | null = null;
+    if (job.workspace_id) {
+      const { data: ws } = await sb.from("workspaces").select("organization_id").eq("id", job.workspace_id).maybeSingle();
+      orgId = ws?.organization_id || null;
+    }
+    if (!orgId && job.project_id) {
+      const { data: p } = await sb.from("projects").select("workspace_id").eq("id", job.project_id).maybeSingle();
+      if (p?.workspace_id) {
+        const { data: ws } = await sb.from("workspaces").select("organization_id").eq("id", p.workspace_id).maybeSingle();
+        orgId = ws?.organization_id || null;
+      }
+    }
+    if (!orgId) return;
+    await sb.from("usage_events").insert({
+      org_id: orgId, kind: "ai_job", quantity: 1,
+      ref: { job_id: job.id, kind: job.kind },
+    });
+  } catch (e) {
+    console.error("meterAiJob error", e);
+  }
+}
+
 async function runJob(sb: any, job: any) {
   const attemptNo = job.attempt_count;
   const { data: attempt } = await sb.from("job_attempts").insert({
@@ -56,6 +90,7 @@ async function runJob(sb: any, job: any) {
     if (attempt) await sb.from("job_attempts").update({
       status: "completed", finished_at: new Date().toISOString(),
     }).eq("id", attempt.id);
+    await meterAiJob(sb, job);
   } catch (e: any) {
     const msg = e?.message || String(e);
     const errPayload = { message: msg, stack: e?.stack };

@@ -76,6 +76,8 @@ export default function OrganizationPage() {
       if (!orgId) return;
       const email = newEmail.trim().toLowerCase();
       if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Invalid email");
+      const { data: ok } = await supabase.rpc("within_quota", { _org_id: orgId, _kind: "seats", _additional: 1 });
+      if (ok === false) throw new Error("quota_exceeded:seats");
       const { data: prof, error: pErr } = await supabase
         .from("profiles")
         .select("id,email")

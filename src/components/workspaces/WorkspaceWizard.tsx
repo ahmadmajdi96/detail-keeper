@@ -95,6 +95,10 @@ export function WorkspaceWizard({ open, onOpenChange }: Props) {
 
   const create = useMutation({
     mutationFn: async () => {
+      if (currentOrganization?.id) {
+        const { data: ok } = await supabase.rpc("within_quota", { _org_id: currentOrganization.id, _kind: "workspaces", _additional: 1 });
+        if (ok === false) throw new Error("quota_exceeded:workspaces");
+      }
       const { data: ws, error } = await supabase.from("workspaces").insert({ name, description, owner_id: user?.id, organization_id: currentOrganization?.id ?? null }).select("id").single();
       if (error) throw error;
       const wsId = ws.id;
