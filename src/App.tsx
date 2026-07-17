@@ -75,6 +75,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <MfaGate>
               <Routes>
               {/* Landing Page - Main Route */}
               <Route path="/" element={<LandingPage />} />
