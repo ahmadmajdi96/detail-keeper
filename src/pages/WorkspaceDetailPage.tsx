@@ -187,14 +187,26 @@ export default function WorkspaceDetailPage() {
         if (error) throw error;
         return "member";
       }
-      const { error } = await supabase.from("workspace_invitations").insert({
+      const { data: created, error } = await supabase.from("workspace_invitations").insert({
         workspace_id: id, email, role: inviteRole, invited_by: user?.id,
-      });
+      }).select("id,token").single();
       if (error) throw error;
-      return "invite";
+      // Optional email delivery — no-ops gracefully when RESEND_API_KEY is unset.
+      supabase.functions.invoke("send-invitation-email", {
+        body: {
+          invitation_id: created.id,
+          accept_url: inviteLinkFor(created.token),
+        },
+      }).catch(() => {});
+      return { kind: "invite" as const, token: created.token };
     },
-    onSuccess: (kind) => {
-      toast.success(kind === "member" ? "Added to workspace" : "Invitation sent");
+    onSuccess: async (result) => {
+      if (result.kind === "member") {
+        toast.success("Added to workspace");
+      } else {
+        toast.success("Invitation created");
+        await copyInviteLink(result.token);
+      }
       setInviteEmail("");
       qc.invalidateQueries({ queryKey: ["ws-members", id] });
       qc.invalidateQueries({ queryKey: ["ws-invites", id] });
