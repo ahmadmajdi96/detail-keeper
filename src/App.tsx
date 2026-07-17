@@ -45,6 +45,7 @@ import ApprovalsPage from "./admin/pages/ApprovalsPage";
 import AIJobsPage from "./admin/pages/AIJobsPage";
 import NotFound from "./pages/NotFound";
 import OAuthConsentPage from "./pages/OAuthConsentPage";
+import AcceptInvitationPage from "./pages/AcceptInvitationPage";
 
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ const App = () => (
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
+              <Route path="/invitations/accept" element={<AcceptInvitationPage />} />
               
               
               {/* Protected Routes - All authenticated users */}

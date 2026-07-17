@@ -28,8 +28,21 @@ import { ProjectWizard } from "@/components/projects/ProjectWizard";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Users, FolderOpen, Mail, UserPlus, Save, Loader2,
-  Github, FileArchive, FileText, ArrowRight,
+  Github, FileArchive, FileText, ArrowRight, Link2, Copy,
 } from "lucide-react";
+
+function inviteLinkFor(token: string) {
+  return `${window.location.origin}/invitations/accept?token=${token}`;
+}
+async function copyInviteLink(token: string) {
+  const link = inviteLinkFor(token);
+  try {
+    await navigator.clipboard.writeText(link);
+    toast.success("Invite link copied", { description: link });
+  } catch {
+    toast.message("Copy failed", { description: link });
+  }
+}
 
 type WsRole = "owner" | "admin" | "editor" | "viewer";
 
@@ -172,16 +185,28 @@ export default function WorkspaceDetailPage() {
           workspace_id: id, user_id: existing.id, role: inviteRole,
         });
         if (error) throw error;
-        return "member";
+        return { kind: "member" as const };
       }
-      const { error } = await supabase.from("workspace_invitations").insert({
+      const { data: created, error } = await supabase.from("workspace_invitations").insert({
         workspace_id: id, email, role: inviteRole, invited_by: user?.id,
-      });
+      }).select("id,token").single();
       if (error) throw error;
-      return "invite";
+      // Optional email delivery — no-ops gracefully when RESEND_API_KEY is unset.
+      supabase.functions.invoke("send-invitation-email", {
+        body: {
+          invitation_id: created.id,
+          accept_url: inviteLinkFor(created.token),
+        },
+      }).catch(() => {});
+      return { kind: "invite" as const, token: created.token };
     },
-    onSuccess: (kind) => {
-      toast.success(kind === "member" ? "Added to workspace" : "Invitation sent");
+    onSuccess: async (result) => {
+      if (result.kind === "member") {
+        toast.success("Added to workspace");
+      } else {
+        toast.success("Invitation created");
+        await copyInviteLink(result.token);
+      }
       setInviteEmail("");
       qc.invalidateQueries({ queryKey: ["ws-members", id] });
       qc.invalidateQueries({ queryKey: ["ws-invites", id] });
@@ -402,9 +427,23 @@ export default function WorkspaceDetailPage() {
                     <TableCell className="text-xs text-muted-foreground">{new Date(iv.expires_at).toLocaleDateString()}</TableCell>
                     {canManage && (
                       <TableCell className="text-right">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => revokeInvite.mutate(iv.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          {iv.status === "pending" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1.5"
+                              onClick={() => copyInviteLink(iv.token)}
+                              title="Copy invite link"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                              <span className="text-xs">Copy link</span>
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => revokeInvite.mutate(iv.id)} title="Revoke">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
