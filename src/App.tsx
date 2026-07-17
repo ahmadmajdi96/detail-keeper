@@ -72,6 +72,8 @@ const App = () => (
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
               <Route path="/invitations/accept" element={<AcceptInvitationPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               
               
               {/* Protected Routes - All authenticated users */}
