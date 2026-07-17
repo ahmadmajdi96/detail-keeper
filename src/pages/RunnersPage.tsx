@@ -277,7 +277,9 @@ export default function RunnersPage() {
                     </div>
                   </CardHeader>
                 </Card>
-              ))
+                );
+              })
+
             )}
           </TabsContent>
 
