@@ -22,6 +22,7 @@ import { TIMEZONES } from "@/lib/user-tz";
 import {
   User, Shield, Palette, Globe, Key, Save, Camera, Moon, Sun, Monitor, Lock, Mail, Loader2,
 } from "lucide-react";
+import { MfaPanel } from "@/components/security/MfaPanel";
 
 type Theme = "light" | "dark" | "system";
 
