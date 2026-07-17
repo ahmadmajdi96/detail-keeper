@@ -16,6 +16,7 @@ import DashboardPage from "./pages/DashboardPage";
 import WorkspacesPage from "./pages/WorkspacesPage";
 import WorkspaceDetailPage from "./pages/WorkspaceDetailPage";
 import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import TestPlansPage from "./pages/TestPlansPage";
 import TestPlanDetailPage from "./pages/TestPlanDetailPage";
