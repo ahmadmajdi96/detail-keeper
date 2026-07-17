@@ -231,23 +231,36 @@ export default function RunnersPage() {
                 <Button className="mt-4" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" /> Register your first runner</Button>
               </CardContent></Card>
             ) : (
-              runners.map((r) => (
+              runners.map((r) => {
+                const hb = heartbeatStatus(r.last_seen_at);
+                const hbCls =
+                  hb === "online" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" :
+                  hb === "stale" ? "bg-amber-500/15 text-amber-300 border-amber-500/30" :
+                  "bg-muted text-muted-foreground";
+                return (
                 <Card key={r.id}>
                   <CardHeader className="flex flex-row items-start justify-between space-y-0">
                     <div>
                       <CardTitle className="text-base flex items-center gap-2">
                         <Server className="h-4 w-4 text-accent" /> {r.name}
+                        <Badge variant="outline" className={hbCls}>
+                          {hb === "offline" ? <WifiOff className="h-3 w-3 mr-1" /> : <Wifi className="h-3 w-3 mr-1" />}
+                          {hb}
+                        </Badge>
                         <Badge variant="outline" className={STATUS_COLORS[r.status] || ""}>{r.status}</Badge>
                       </CardTitle>
                       <div className="text-xs text-muted-foreground mt-1">
                         {KIND_LABELS[r.kind] || r.kind}
                         {r.environment_id && ` · env: ${envs.find(e => e.id === r.environment_id)?.name || "—"}`}
-                        {r.last_seen_at && ` · last seen ${new Date(r.last_seen_at).toLocaleString()}`}
+                        {r.last_seen_at ? ` · last seen ${new Date(r.last_seen_at).toLocaleString()}` : " · never seen"}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => openDispatch(r)} disabled={r.status === "disabled"}>
                         <PlayCircle className="mr-1 h-3.5 w-3.5" /> Dispatch
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => rotateToken(r)} title="Rotate token">
+                        <RefreshCw className="h-3.5 w-3.5" />
                       </Button>
                       <Select value={r.status} onValueChange={(v) => setRunnerStatus(r.id, v)}>
                         <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
@@ -255,9 +268,11 @@ export default function RunnersPage() {
                           <SelectItem value="idle">Idle</SelectItem>
                           <SelectItem value="busy">Busy</SelectItem>
                           <SelectItem value="offline">Offline</SelectItem>
+                          <SelectItem value="draining">Draining</SelectItem>
                           <SelectItem value="disabled">Disabled</SelectItem>
                         </SelectContent>
                       </Select>
+
                       <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </CardHeader>
