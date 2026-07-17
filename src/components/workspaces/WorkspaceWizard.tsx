@@ -50,7 +50,8 @@ function StyledTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>
 
 export function WorkspaceWizard({ open, onOpenChange }: Props) {
   const { user } = useAuth();
-  const { refresh, setCurrentWorkspaceId } = useWorkspace();
+ const { refresh, setCurrentWorkspaceId } = useWorkspace();
+ const { currentOrganization } = useOrganization();
   const qc = useQueryClient();
 
   const [step, setStep] = useState(0);
