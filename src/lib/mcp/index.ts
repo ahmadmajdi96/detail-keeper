@@ -12,7 +12,7 @@ export default defineMcp({
   title: "Qualixa MCP",
   version: "0.1.0",
   instructions:
-    "Tools for Qualixa, the AI-powered Quality Intelligence Platform. Use these to browse projects, test plans, test cases, and defects, and to file new defects on behalf of the signed-in user.",
+    "Tools for Qualixa, the AI-powered Quality Intelligence Platform. Use these to browse projects, test plans, test cases, and defects, and to file new defects on behalf of the signed-in user. CI systems and headless agents that cannot complete an OAuth flow may instead call the REST API at /functions/v1/api-v1 with an `Authorization: Bearer qxa_...` API key issued from Organization → API Keys (scoped, revocable, hashed at rest).",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
