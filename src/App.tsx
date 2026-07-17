@@ -83,6 +83,12 @@ const App = () => (
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/organization" element={
+                <ProtectedRoute>
+                  <OrganizationPage />
+                </ProtectedRoute>
+              } />
+              
               
               {/* Protected Routes - QA Engineer and above */}
               <Route path="/workspaces" element={
