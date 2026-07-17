@@ -42,11 +42,23 @@ export default function RegisterPage() {
       setError("Password must be at least 8 characters");
       return;
     }
+    if (!agreed) {
+      setError("Please accept the Terms and Privacy Policy to continue");
+      return;
+    }
     setIsLoading(true);
     try {
       await register(email, name, password);
+      // best-effort: stamp terms acceptance on profile
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: sess } = await supabase.auth.getUser();
+        if (sess.user?.id) {
+          await supabase.from("profiles").update({ terms_accepted_at: new Date().toISOString() }).eq("id", sess.user.id);
+        }
+      } catch { /* non-blocking */ }
       if (nextPath) window.location.href = nextPath;
-      else navigate("/dashboard");
+      else navigate("/onboarding");
     } catch (err: any) {
       setError(err?.message || "Registration failed. Please try again.");
     } finally {
