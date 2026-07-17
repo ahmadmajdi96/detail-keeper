@@ -7,6 +7,7 @@ import { WorkspaceSwitcher, ProjectSwitcher } from "./WorkspaceSwitcher";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { WorkflowNav } from "./WorkflowNav";
 import { DunningBanner } from "@/components/billing/DunningBanner";
+import { TrialBanner } from "@/components/billing/TrialBanner";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { Loader2 } from "lucide-react";
 
