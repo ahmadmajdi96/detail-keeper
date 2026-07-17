@@ -93,6 +93,11 @@ const App = () => (
                   <ProjectsPage />
                 </ProtectedRoute>
               } />
+              <Route path="/projects/:id" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <ProjectDetailPage />
+                </ProtectedRoute>
+              } />
               <Route path="/documents" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
                   <DocumentsPage />
