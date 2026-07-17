@@ -52,6 +52,12 @@ import OAuthConsentPage from "./pages/OAuthConsentPage";
 import AcceptInvitationPage from "./pages/AcceptInvitationPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import OnboardingPage from "./pages/OnboardingPage";
+import PricingPage from "./pages/PricingPage";
+import DocsPage from "./pages/DocsPage";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import SecurityPage from "./pages/SecurityPage";
 
 
 const queryClient = new QueryClient();
