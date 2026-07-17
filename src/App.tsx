@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import OrganizationPage from "./pages/OrganizationPage";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ActiveTestPlanProvider } from "@/contexts/ActiveTestPlanContext";
 import DefectDetailPage from "./pages/DefectDetailPage";
