@@ -4085,6 +4085,57 @@ export type Database = {
           },
         ]
       }
+      share_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          last_viewed_at: string | null
+          org_id: string | null
+          resource_id: string
+          resource_type: string
+          revoked_at: string | null
+          token: string
+          updated_at: string
+          view_count: number
+          watermark_label: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          last_viewed_at?: string | null
+          org_id?: string | null
+          resource_id: string
+          resource_type: string
+          revoked_at?: string | null
+          token: string
+          updated_at?: string
+          view_count?: number
+          watermark_label?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          last_viewed_at?: string | null
+          org_id?: string | null
+          resource_id?: string
+          resource_type?: string
+          revoked_at?: string | null
+          token?: string
+          updated_at?: string
+          view_count?: number
+          watermark_label?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       spec_runs: {
         Row: {
           artifacts_json: Json | null
@@ -5969,6 +6020,7 @@ export type Database = {
         Args: { _project_id: string }
         Returns: Database["public"]["Enums"]["project_role"]
       }
+      resolve_share_link: { Args: { _token: string }; Returns: Json }
       within_quota: {
         Args: { _additional?: number; _kind: string; _org_id: string }
         Returns: boolean
@@ -6056,7 +6108,7 @@ export type Database = {
       test_case_status: "draft" | "active" | "deprecated" | "archived"
       user_role: "admin" | "qa_manager" | "qa_engineer" | "viewer"
       user_status: "active" | "pending" | "inactive" | "suspended"
-      workspace_role: "owner" | "admin" | "editor" | "viewer"
+      workspace_role: "owner" | "admin" | "editor" | "viewer" | "guest"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -6268,7 +6320,7 @@ export const Constants = {
       test_case_status: ["draft", "active", "deprecated", "archived"],
       user_role: ["admin", "qa_manager", "qa_engineer", "viewer"],
       user_status: ["active", "pending", "inactive", "suspended"],
-      workspace_role: ["owner", "admin", "editor", "viewer"],
+      workspace_role: ["owner", "admin", "editor", "viewer", "guest"],
     },
   },
 } as const

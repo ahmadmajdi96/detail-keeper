@@ -59,6 +59,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SecurityPage from "./pages/SecurityPage";
 import AuditLogPage from "./pages/AuditLogPage";
+import SharePage from "./pages/SharePage";
 import { MfaGate } from "@/components/security/MfaGate";
 
 
@@ -92,6 +93,8 @@ const App = () => (
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/security" element={<SecurityPage />} />
+              <Route path="/share/:token" element={<SharePage />} />
+
 
               {/* Onboarding */}
               <Route path="/onboarding" element={<OnboardingPage />} />
