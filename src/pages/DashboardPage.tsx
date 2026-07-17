@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -59,7 +60,24 @@ function RingKpi({
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { projectId, scopeKey } = useProjectScope();
-  const { currentProject, currentWorkspace } = useWorkspace();
+  const { currentProject, currentWorkspace, workspaces, loading: wsLoading } = useWorkspace();
+  const { user } = useAuth();
+
+  // Onboarding gate: first-run users (no workspaces + never completed onboarding) → /onboarding
+  const { data: onboardingCheck } = useQuery({
+    queryKey: ["onboarding-check", user?.id],
+    enabled: !!user?.id && !wsLoading,
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("onboarding_completed_at").eq("id", user!.id).maybeSingle();
+      return { completed: !!data?.onboarding_completed_at };
+    },
+  });
+  useEffect(() => {
+    if (onboardingCheck && !onboardingCheck.completed && !wsLoading && workspaces.length === 0) {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [onboardingCheck, wsLoading, workspaces.length, navigate]);
+
 
   const { data: testCases = [] } = useQuery({
     queryKey: ["dashboard-test-cases", ...scopeKey],

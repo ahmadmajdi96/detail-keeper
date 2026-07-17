@@ -52,6 +52,12 @@ import OAuthConsentPage from "./pages/OAuthConsentPage";
 import AcceptInvitationPage from "./pages/AcceptInvitationPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import OnboardingPage from "./pages/OnboardingPage";
+import PricingPage from "./pages/PricingPage";
+import DocsPage from "./pages/DocsPage";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import SecurityPage from "./pages/SecurityPage";
 
 
 const queryClient = new QueryClient();
@@ -78,8 +84,15 @@ const App = () => (
               <Route path="/invitations/accept" element={<AcceptInvitationPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
-              
-              
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/docs" element={<DocsPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/security" element={<SecurityPage />} />
+
+              {/* Onboarding */}
+              <Route path="/onboarding" element={<OnboardingPage />} />
+
               {/* Protected Routes - All authenticated users */}
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />

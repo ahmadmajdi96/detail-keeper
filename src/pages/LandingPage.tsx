@@ -409,7 +409,7 @@ export default function LandingPage() {
                   { label: "Product", href: "#product" },
                   { label: "Workbench", href: "#workbench" },
                   { label: "DNA", href: "#dna" },
-                  { label: "Pricing", href: "#pricing" },
+                  { label: "Pricing", href: "/pricing" },
                   { label: "Resources", href: "#faq" },
                 ].map((item) => (
                   <a key={item.label} href={item.href}
@@ -1048,7 +1048,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {pricingPlans.map((p) => (
-              <PricingCard key={p.plan} {...p} isYearly={isYearly} onCta={() => navigate("/register")} />
+              <PricingCard key={p.plan} {...p} isYearly={isYearly} onCta={() => navigate("/pricing")} />
             ))}
           </div>
         </div>
@@ -1113,9 +1113,9 @@ export default function LandingPage() {
           <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/30 text-sm">© 2026 Qualixa. All rights reserved.</p>
             <div className="flex items-center gap-6 text-sm text-white/30">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors">Cookie Settings</a>
+              <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+              <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
+              <a href="/security" className="hover:text-white transition-colors">Security</a>
             </div>
           </div>
         </div>
