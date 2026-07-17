@@ -20,10 +20,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { TIMEZONES } from "@/lib/user-tz";
 import {
-  User, Shield, Palette, Globe, Key, Save, Camera, Moon, Sun, Monitor, Lock, Mail, Loader2,
+  User, Shield, Palette, Globe, Key, Save, Camera, Moon, Sun, Monitor, Lock, Mail, Loader2, Bell,
 } from "lucide-react";
 import { MfaPanel } from "@/components/security/MfaPanel";
 import { AccountDeletionPanel } from "@/components/security/AccountDeletionPanel";
+import { NotificationPrefsPanel } from "@/components/settings/NotificationPrefsPanel";
 
 type Theme = "light" | "dark" | "system";
 
