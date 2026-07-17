@@ -5339,6 +5339,11 @@ export type Database = {
     }
     Functions: {
       can_access_project: { Args: { _project_id: string }; Returns: boolean }
+      can_manage_plan_assignees: {
+        Args: { _plan_id: string }
+        Returns: boolean
+      }
+      can_signoff_plan: { Args: { _plan_id: string }; Returns: boolean }
       claim_jobs: {
         Args: { _limit?: number; _visibility_sec?: number; _worker: string }
         Returns: {
