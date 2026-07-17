@@ -272,6 +272,15 @@ export default function OrganizationPage() {
           <SsoTabBody orgId={currentOrganization.id} canManage={currentOrgRole === "owner" || currentOrgRole === "security_admin"} />
         </TabsContent>
 
+        <TabsContent value="api-keys" className="mt-4">
+          <ApiKeysPanel orgId={currentOrganization.id} canManage={isOwner || currentOrgRole === "billing_admin" || currentOrgRole === "security_admin"} />
+        </TabsContent>
+
+        <TabsContent value="webhooks" className="mt-4">
+          <WebhooksPanel orgId={currentOrganization.id} canManage={isOwner || currentOrgRole === "billing_admin" || currentOrgRole === "security_admin"} />
+        </TabsContent>
+
+
         <TabsContent value="data" className="mt-4">
           <OrgDangerZone
             orgId={currentOrganization.id}
