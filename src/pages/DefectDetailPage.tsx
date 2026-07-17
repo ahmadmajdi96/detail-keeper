@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Bug, Loader2 } from "lucide-react";
+import { DefectCommentsPanel } from "@/components/defects/DefectCommentsPanel";
 
 export default function DefectDetailPage() {
   const { id } = useParams();
@@ -146,6 +147,12 @@ export default function DefectDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        <DefectCommentsPanel
+          defectId={d.id}
+          projectId={(d as any).project?.id ?? d.project_id}
+          workspaceId={(d as any).project?.workspace_id ?? null}
+        />
       </div>
     </AppLayout>
   );

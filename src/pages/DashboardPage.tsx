@@ -17,6 +17,7 @@ import { ExecutionTrendsChart } from "@/components/dashboard/ExecutionTrendsChar
 import { DefectMetricsChart } from "@/components/dashboard/DefectMetricsChart";
 import { TestCaseStatusChart } from "@/components/dashboard/TestCaseStatusChart";
 import { ExtendedHeatmap } from "@/components/dashboard/ExtendedHeatmap";
+import { AssignedToMeCard } from "@/components/dashboard/AssignedToMeCard";
 import {
   Activity, ArrowRight, Bot, Bug, CheckCircle2, Clock, FileText, FlaskConical,
   Play, Plus, ShieldCheck, Sparkles, TestTube, TrendingUp, Zap,
@@ -282,10 +283,12 @@ export default function DashboardPage() {
       </Card>
 
       {/* Charts row */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <ExecutionTrendsChart data={trendData} />
         <DefectMetricsChart data={defectChartData} />
+        <AssignedToMeCard />
       </div>
+
 
       {/* Extended heatmap */}
       <div className="mt-6">
