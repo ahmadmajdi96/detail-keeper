@@ -3049,8 +3049,10 @@ export type Database = {
           last_project_id: string | null
           last_workspace_id: string | null
           name: string
+          notification_prefs: Json
           onboarding_completed_at: string | null
           role: Database["public"]["Enums"]["user_role"]
+          slack_webhook_url: string | null
           status: Database["public"]["Enums"]["user_status"]
           team_id: string | null
           terms_accepted_at: string | null
@@ -3068,8 +3070,10 @@ export type Database = {
           last_project_id?: string | null
           last_workspace_id?: string | null
           name: string
+          notification_prefs?: Json
           onboarding_completed_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          slack_webhook_url?: string | null
           status?: Database["public"]["Enums"]["user_status"]
           team_id?: string | null
           terms_accepted_at?: string | null
@@ -3087,8 +3091,10 @@ export type Database = {
           last_project_id?: string | null
           last_workspace_id?: string | null
           name?: string
+          notification_prefs?: Json
           onboarding_completed_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          slack_webhook_url?: string | null
           status?: Database["public"]["Enums"]["user_status"]
           team_id?: string | null
           terms_accepted_at?: string | null
@@ -5774,6 +5780,7 @@ export type Database = {
           organization_id: string | null
           owner_id: string | null
           projects_count: number | null
+          slack_webhook_url: string | null
           status: string
           storage_quota: number | null
           storage_used: number | null
@@ -5788,6 +5795,7 @@ export type Database = {
           organization_id?: string | null
           owner_id?: string | null
           projects_count?: number | null
+          slack_webhook_url?: string | null
           status?: string
           storage_quota?: number | null
           storage_used?: number | null
@@ -5802,6 +5810,7 @@ export type Database = {
           organization_id?: string | null
           owner_id?: string | null
           projects_count?: number | null
+          slack_webhook_url?: string | null
           status?: string
           storage_quota?: number | null
           storage_used?: number | null
