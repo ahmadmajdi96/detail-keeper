@@ -186,6 +186,16 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
       if (error) throw error;
       const projectId = proj.id;
 
+      // Ensure creator is a project lead (trigger also handles this; upsert is defensive).
+      if (user?.id) {
+        await supabase
+          .from("project_members")
+          .upsert(
+            { project_id: projectId, user_id: user.id, role: "lead" as const },
+            { onConflict: "project_id,user_id" }
+          );
+      }
+
       if (locator === "zip" && zipFile) {
         const path = `${wsId}/${projectId}/${Date.now()}-${zipFile.name}`;
         const { error: upErr } = await supabase.storage.from("project-repos").upload(path, zipFile, { upsert: false });
