@@ -542,6 +542,7 @@ export default function TestPlanDetailPage() {
             {[
               { v: "overview", l: "Overview", i: FileText },
               { v: "workbench", l: "AI Workbench", i: Sparkles },
+              { v: "people", l: "People", i: Users },
               { v: "insights", l: "Insights", i: Gauge },
               { v: "operations", l: "Operations", i: Zap },
             ].map((t) => (
