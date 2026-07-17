@@ -427,9 +427,23 @@ export default function WorkspaceDetailPage() {
                     <TableCell className="text-xs text-muted-foreground">{new Date(iv.expires_at).toLocaleDateString()}</TableCell>
                     {canManage && (
                       <TableCell className="text-right">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => revokeInvite.mutate(iv.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          {iv.status === "pending" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1.5"
+                              onClick={() => copyInviteLink(iv.token)}
+                              title="Copy invite link"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                              <span className="text-xs">Copy link</span>
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => revokeInvite.mutate(iv.id)} title="Revoke">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
