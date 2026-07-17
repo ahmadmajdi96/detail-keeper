@@ -137,7 +137,10 @@ export default function BillingPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="Billing & Plan" description="Manage your organization's plan, usage, and limits." />
+      <div className="flex items-center justify-between mt-2">
+        <PageHeader title="Billing & Plan" description="Manage your organization's plan, usage, and limits." />
+        <StripeModeBadge onConfigured={setBillingConfigured} />
+      </div>
 
       {billingConfigured === false && (
         <Alert className="mt-4 border-amber-500/40">
