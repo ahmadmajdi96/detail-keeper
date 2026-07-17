@@ -28,8 +28,21 @@ import { ProjectWizard } from "@/components/projects/ProjectWizard";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Users, FolderOpen, Mail, UserPlus, Save, Loader2,
-  Github, FileArchive, FileText, ArrowRight,
+  Github, FileArchive, FileText, ArrowRight, Link2, Copy,
 } from "lucide-react";
+
+function inviteLinkFor(token: string) {
+  return `${window.location.origin}/invitations/accept?token=${token}`;
+}
+async function copyInviteLink(token: string) {
+  const link = inviteLinkFor(token);
+  try {
+    await navigator.clipboard.writeText(link);
+    toast.success("Invite link copied", { description: link });
+  } catch {
+    toast.message("Copy failed", { description: link });
+  }
+}
 
 type WsRole = "owner" | "admin" | "editor" | "viewer";
 
