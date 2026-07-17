@@ -187,11 +187,14 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {tab !== "email" && (
+          {tab === "sso" && (
+            <div className="mt-6">
+              <SsoSignInBox nextPath={nextPath} />
+            </div>
+          )}
+          {tab === "magic" && (
             <p className="mt-4 text-center text-xs text-[#4a6a88]">
-              {tab === "sso"
-                ? "SSO is configured per workspace. Contact your admin if unsure."
-                : "Magic link sign-in launching soon — use email for now."}
+              Magic link sign-in launching soon — use email for now.
             </p>
           )}
 
