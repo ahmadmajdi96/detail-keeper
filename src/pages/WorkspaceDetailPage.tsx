@@ -228,10 +228,12 @@ export default function WorkspaceDetailPage() {
   // settings local state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
   useEffect(() => {
     if (workspace) {
       setName(workspace.name);
       setDescription(workspace.description || "");
+      setSlackWebhookUrl((workspace as any).slack_webhook_url || "");
     }
   }, [workspace]);
 
