@@ -185,7 +185,7 @@ export default function WorkspaceDetailPage() {
           workspace_id: id, user_id: existing.id, role: inviteRole,
         });
         if (error) throw error;
-        return "member";
+        return { kind: "member" as const };
       }
       const { data: created, error } = await supabase.from("workspace_invitations").insert({
         workspace_id: id, email, role: inviteRole, invited_by: user?.id,
