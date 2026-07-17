@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.send-trial-reminder]
 verify_jwt = false
+
+[functions.stripe-mode]
+verify_jwt = false
