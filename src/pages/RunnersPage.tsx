@@ -77,6 +77,7 @@ export default function RunnersPage() {
   const [form, setForm] = useState({
     name: "", kind: "webhook", environment_id: "", webhook_url: "", dispatch_ref: "main",
   });
+  const [tokenDialog, setTokenDialog] = useState<{ open: boolean; token: string; name: string } | null>(null);
 
   const [dispatchOpen, setDispatchOpen] = useState(false);
   const [dispatchRunner, setDispatchRunner] = useState<any>(null);
