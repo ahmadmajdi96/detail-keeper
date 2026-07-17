@@ -105,6 +105,11 @@ const App = () => (
                   <OrganizationPage />
                 </ProtectedRoute>
               } />
+              <Route path="/organization/audit" element={
+                <ProtectedRoute>
+                  <AuditLogPage />
+                </ProtectedRoute>
+              } />
               <Route path="/billing" element={
                 <ProtectedRoute>
                   <BillingPage />
