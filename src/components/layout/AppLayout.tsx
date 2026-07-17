@@ -51,6 +51,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <NotificationBell />
           </div>
         </header>
+        <DunningBanner />
         <main className="flex-1 min-w-0">
           <div className="w-full max-w-[1600px] mx-auto py-6 px-3 md:px-6 lg:px-8">{children}</div>
         </main>
