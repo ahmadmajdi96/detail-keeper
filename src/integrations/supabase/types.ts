@@ -1697,6 +1697,50 @@ export type Database = {
           },
         ]
       }
+      deletion_requests: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          kind: string
+          org_id: string | null
+          reason: string | null
+          requested_by: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          org_id?: string | null
+          reason?: string | null
+          requested_by: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          org_id?: string | null
+          reason?: string | null
+          requested_by?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deletion_requests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deployments: {
         Row: {
           build_id: string
@@ -4077,6 +4121,56 @@ export type Database = {
           },
         ]
       }
+      sso_connections: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          display_name: string | null
+          domains: string[]
+          enabled: boolean
+          id: string
+          org_id: string
+          provider: string
+          supabase_provider_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          domains?: string[]
+          enabled?: boolean
+          id?: string
+          org_id: string
+          provider: string
+          supabase_provider_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          domains?: string[]
+          enabled?: boolean
+          id?: string
+          org_id?: string
+          provider?: string
+          supabase_provider_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sso_connections_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean
@@ -5676,6 +5770,7 @@ export type Database = {
         Returns: undefined
       }
       org_entitlements: { Args: { _org_id: string }; Returns: Json }
+      org_for_sso_domain: { Args: { _domain: string }; Returns: string }
       org_of_workspace: { Args: { _ws: string }; Returns: string }
       org_role_of: {
         Args: { _org_id: string }

@@ -23,6 +23,7 @@ import {
   User, Shield, Palette, Globe, Key, Save, Camera, Moon, Sun, Monitor, Lock, Mail, Loader2,
 } from "lucide-react";
 import { MfaPanel } from "@/components/security/MfaPanel";
+import { AccountDeletionPanel } from "@/components/security/AccountDeletionPanel";
 
 type Theme = "light" | "dark" | "system";
 
@@ -389,6 +390,8 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <AccountDeletionPanel />
           </TabsContent>
         </Tabs>
       </div>

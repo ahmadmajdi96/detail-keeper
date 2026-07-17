@@ -16,6 +16,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Building2, Trash2, UserPlus, Loader2 } from "lucide-react";
+import { OrgSsoPanel } from "@/components/organization/OrgSsoPanel";
+import { OrgDangerZone } from "@/components/organization/OrgDangerZone";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 const ROLES: OrgRole[] = ["owner", "billing_admin", "security_admin", "member"];
 
@@ -142,6 +145,8 @@ export default function OrganizationPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="sso">SSO</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="mt-4">
@@ -260,6 +265,19 @@ export default function OrganizationPage() {
             onSaved={refresh}
           />
         </TabsContent>
+
+        <TabsContent value="sso" className="mt-4">
+          <SsoTabBody orgId={currentOrganization.id} canManage={currentOrgRole === "owner" || currentOrgRole === "security_admin"} />
+        </TabsContent>
+
+        <TabsContent value="data" className="mt-4">
+          <OrgDangerZone
+            orgId={currentOrganization.id}
+            orgName={currentOrganization.name}
+            orgSlug={currentOrganization.slug}
+            isOwner={isOwner}
+          />
+        </TabsContent>
       </Tabs>
     </AppLayout>
   );
@@ -294,4 +312,10 @@ function OrgSecurityPanel({ orgId, canManage, initial, onSaved }: { orgId: strin
       </CardContent>
     </Card>
   );
+}
+
+function SsoTabBody({ orgId, canManage }: { orgId: string; canManage: boolean }) {
+  const { can, loading } = useEntitlements();
+  if (loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
+  return <OrgSsoPanel orgId={orgId} canManage={canManage} ssoEnabled={can("sso")} />;
 }

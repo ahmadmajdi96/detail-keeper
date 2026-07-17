@@ -80,6 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const profile = await fetchUserProfile(session.user.id);
           setUser(profile);
           setIsLoading(false);
+          // JIT provisioning for SSO sign-ins (safe no-op for password/OAuth users)
+          if (event === "SIGNED_IN" && (session.user.app_metadata as any)?.provider === "sso") {
+            try { await supabase.functions.invoke("sso-jit-provision"); } catch { /* ignore */ }
+          }
         }, 0);
       } else {
         setUser(null);
