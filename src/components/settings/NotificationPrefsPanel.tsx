@@ -37,7 +37,7 @@ export function NotificationPrefsPanel() {
     (async () => {
       const { data } = await supabase.from("profiles")
         .select("notification_prefs, slack_webhook_url").eq("id", user.id).maybeSingle();
-      const merged = { ...DEFAULT_PREFS, ...(data?.notification_prefs || {}) } as typeof DEFAULT_PREFS;
+      const merged = { ...DEFAULT_PREFS, ...((data?.notification_prefs as any) || {}) } as typeof DEFAULT_PREFS;
       merged.categories = { ...DEFAULT_PREFS.categories, ...((data?.notification_prefs as any)?.categories || {}) };
       setPrefs(merged);
       setSlackUrl(data?.slack_webhook_url ?? "");
