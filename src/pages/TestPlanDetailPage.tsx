@@ -1075,6 +1075,15 @@ export default function TestPlanDetailPage() {
           </Tabs>
         </TabsContent>
 
+        {/* ============== PEOPLE ============== */}
+        <TabsContent value="people" className="animate-fade-in">
+          <PlanPeoplePanel
+            planId={id!}
+            projectId={(plan as any).project_id ?? null}
+            workspaceId={(plan as any).workspace_id ?? null}
+          />
+        </TabsContent>
+
         {/* ============== INSIGHTS ============== */}
         <TabsContent value="insights" className="animate-fade-in">
           <Tabs value={insightsSub} onValueChange={setInsightsSub}>
