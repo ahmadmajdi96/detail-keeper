@@ -95,7 +95,7 @@ export function WorkspaceWizard({ open, onOpenChange }: Props) {
 
   const create = useMutation({
     mutationFn: async () => {
-      const { data: ws, error } = await supabase.from("workspaces").insert({ name, description, owner_id: user?.id }).select("id").single();
+      const { data: ws, error } = await supabase.from("workspaces").insert({ name, description, owner_id: user?.id, organization_id: currentOrganization?.id ?? null }).select("id").single();
       if (error) throw error;
       const wsId = ws.id;
       const direct = members.filter((m) => m.user_id).map((m) => ({ workspace_id: wsId, user_id: m.user_id!, role: m.role }));
