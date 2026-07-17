@@ -132,7 +132,6 @@ export default function OrganizationPage() {
       <PageHeader
         title={currentOrganization.name}
         description="Organization settings and members"
-        icon={<Building2 className="h-6 w-6" />}
       />
 
       <Tabs defaultValue="general" className="mt-6">
