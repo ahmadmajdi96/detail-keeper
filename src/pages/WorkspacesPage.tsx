@@ -241,6 +241,9 @@ export default function WorkspacesPage() {
                           <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
                             {ws.description || "No description"}
                           </p>
+                          <p className="text-[10px] text-muted-foreground/70 mt-1">
+                            Created {new Date(ws.created_at).toLocaleString()}
+                          </p>
                         </div>
                       </div>
 
