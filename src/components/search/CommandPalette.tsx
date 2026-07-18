@@ -224,12 +224,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     return map;
   }, [hits]);
 
-  const go = (path: string) => {
+  const go = (path: string, state?: Record<string, any>) => {
     onOpenChange(false);
     setQuery("");
-    // Split path & hash
     const [p, hash] = path.split("#");
-    navigate(p);
+    navigate(p, state ? { state } : undefined);
     if (hash) {
       setTimeout(() => {
         const el = document.getElementById(hash);
@@ -248,23 +247,42 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput
-        placeholder="Search everything — projects, plans, tests, defects, docs…"
+        placeholder="Search or create — try 'new defect', 'test plan', 'billing'…"
         value={query}
         onValueChange={setQuery}
       />
       <CommandList className="max-h-[520px]">
         {!query && (
-          <CommandGroup heading="Quick actions">
-            {QUICK_ACTIONS.map((a) => {
-              const Icon = a.icon;
-              return (
-                <CommandItem key={a.path} onSelect={() => go(a.path)} value={a.label}>
-                  <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span>{a.label}</span>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
+          <>
+            <CommandGroup heading="Create">
+              {CREATE_ACTIONS.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <CommandItem
+                    key={`create-${a.path}`}
+                    onSelect={() => go(a.path, a.state)}
+                    value={`create ${a.label} ${a.keywords ?? ""}`}
+                  >
+                    <Plus className="mr-2 h-4 w-4 text-primary" />
+                    <span>{a.label}</span>
+                    <Icon className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Jump to">
+              {OPEN_ACTIONS.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <CommandItem key={a.path} onSelect={() => go(a.path)} value={a.label}>
+                    <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>{a.label}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </>
         )}
 
         {query && (
