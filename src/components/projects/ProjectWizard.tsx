@@ -217,10 +217,14 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
         }).catch(() => {});
       } else if (locator === "documentation" && docFiles.length) {
         for (const f of docFiles) {
+          const storagePath = `${wsId}/${projectId}/docs/${Date.now()}-${f.name}`;
+          const { error: upErr } = await supabase.storage
+            .from("project-repos").upload(storagePath, f, { upsert: false });
           const { data: docRow } = await supabase.from("documents").insert({
             filename: f.name, file_size: f.size, mime_type: f.type || "application/octet-stream",
-            status: "pending", uploader_id: user?.id, workspace_id: wsId, project_id: projectId,
-          }).select("id").single();
+            status: "processing", uploader_id: user?.id, workspace_id: wsId, project_id: projectId,
+            storage_path: upErr ? null : storagePath,
+          } as any).select("id").single();
           if (docRow) supabase.functions.invoke("process-document", { body: { document_id: docRow.id } }).catch(() => {});
         }
         await supabase.from("projects").update({ status: "ready" }).eq("id", projectId);
