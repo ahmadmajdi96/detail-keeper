@@ -329,16 +329,16 @@ export default function ProjectsPage() {
                             size="sm" variant="ghost" className="h-7"
                             onClick={() => {
                               setCurrentProjectId(p.id);
-                              navigate("/documents");
+                              navigate(`/projects/${p.id}`);
                             }}
                           >
                             Open <ArrowRight className="h-3 w-3 ml-1" />
                           </Button>
                           <Button
                             size="sm" variant="ghost" className="h-7"
-                            onClick={() => navigate(`/projects/${p.id}`)}
+                            onClick={() => { setCurrentProjectId(p.id); navigate("/documents"); }}
                           >
-                            Manage
+                            Documents
                           </Button>
                           {(p.source_type === "github" || p.source_type === "zip") && (
                             <Button
