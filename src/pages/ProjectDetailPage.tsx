@@ -267,6 +267,18 @@ export default function ProjectDetailPage() {
           )}
         </TabsContent>
 
+        {project.source_type === "github" && (
+          <TabsContent value="repository" className="space-y-4">
+            <RepoFilesPanel
+              projectId={project.id}
+              repoJobId={(project as any).repo_job_id || null}
+              repoJobStatus={(project as any).repo_job_status || null}
+              repoJobProgress={(project as any).repo_job_progress ?? null}
+              canEdit={canManage}
+            />
+          </TabsContent>
+        )}
+
         {/* MEMBERS */}
         <TabsContent value="members" className="space-y-4">
           {canManage && (
