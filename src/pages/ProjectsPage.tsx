@@ -243,7 +243,7 @@ export default function ProjectsPage() {
                     className="border-border/50 hover:border-accent/40 hover:shadow-elevated transition-all cursor-pointer group relative overflow-hidden"
                     onClick={() => {
                       setCurrentProjectId(p.id);
-                      navigate("/documents");
+                      navigate(`/projects/${p.id}`);
                     }}
                   >
                     <div
