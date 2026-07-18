@@ -175,7 +175,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         unreadCount,
         markAsRead,
         markAllAsRead,
+        markManyAsRead,
         deleteNotification,
+        deleteMany,
         clearAll,
       }}
     >
