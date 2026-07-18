@@ -275,6 +275,11 @@ export function NotificationBell() {
             </TabsTrigger>
             <TabsTrigger value="activity" className="text-xs gap-1.5">
               <Activity className="h-3 w-3" /> Activity
+              {counts.activity > 0 && (
+                <Badge variant="secondary" className="h-4 px-1 text-[9px]">
+                  {counts.activity}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
