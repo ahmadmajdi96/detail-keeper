@@ -4085,6 +4085,50 @@ export type Database = {
           },
         ]
       }
+      share_link_views: {
+        Row: {
+          created_at: string
+          granted: boolean
+          id: string
+          reason: string | null
+          resource_id: string | null
+          resource_type: string | null
+          share_link_id: string | null
+          token: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          granted?: boolean
+          id?: string
+          reason?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          share_link_id?: string | null
+          token: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          granted?: boolean
+          id?: string
+          reason?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          share_link_id?: string | null
+          token?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_link_views_share_link_id_fkey"
+            columns: ["share_link_id"]
+            isOneToOne: false
+            referencedRelation: "share_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       share_links: {
         Row: {
           created_at: string
@@ -6020,7 +6064,9 @@ export type Database = {
         Args: { _project_id: string }
         Returns: Database["public"]["Enums"]["project_role"]
       }
-      resolve_share_link: { Args: { _token: string }; Returns: Json }
+      resolve_share_link:
+        | { Args: { _token: string }; Returns: Json }
+        | { Args: { _token: string; _user_agent?: string }; Returns: Json }
       within_quota: {
         Args: { _additional?: number; _kind: string; _org_id: string }
         Returns: boolean

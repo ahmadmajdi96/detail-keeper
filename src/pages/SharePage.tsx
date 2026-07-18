@@ -15,18 +15,23 @@ interface Resolved {
 
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
-  const [state, setState] = useState<"loading" | "invalid" | "expired" | "ok">("loading");
+  const [state, setState] = useState<"loading" | "invalid" | "expired" | "revoked" | "rate_limited" | "ok">("loading");
   const [data, setData] = useState<Resolved | null>(null);
 
   useEffect(() => {
     if (!token) { setState("invalid"); return; }
     (async () => {
-      const { data, error } = await supabase.rpc("resolve_share_link", { _token: token });
+      const ua = typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null;
+      const { data, error } = await supabase.rpc("resolve_share_link", { _token: token, _user_agent: ua });
       if (error || !data) { setState("invalid"); return; }
       const row: any = Array.isArray(data) ? data[0] : data;
-      if (!row) { setState("invalid"); return; }
-      if (row.status === "expired") { setState("expired"); return; }
-      if (row.status === "invalid" || !row.payload) { setState("invalid"); return; }
+      if (!row || row.ok !== true) {
+        const reason = row?.status || row?.reason;
+        if (reason === "expired") return setState("expired");
+        if (reason === "revoked") return setState("revoked");
+        if (reason === "rate_limited") return setState("rate_limited");
+        return setState("invalid");
+      }
       setData(row as Resolved);
       setState("ok");
     })();
@@ -62,6 +67,18 @@ export default function SharePage() {
           <Card className="border-amber-500/40">
             <CardHeader><CardTitle className="flex items-center gap-2 text-amber-500"><ShieldAlert className="h-5 w-5" /> Link expired</CardTitle></CardHeader>
             <CardContent><p className="text-sm text-muted-foreground">Ask the owner to generate a new share link.</p></CardContent>
+          </Card>
+        )}
+        {state === "revoked" && (
+          <Card className="border-destructive/40">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Link revoked</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-muted-foreground">The owner revoked this share link.</p></CardContent>
+          </Card>
+        )}
+        {state === "rate_limited" && (
+          <Card className="border-amber-500/40">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-amber-500"><ShieldAlert className="h-5 w-5" /> Too many requests</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-muted-foreground">This link is being accessed too frequently. Please retry in a minute.</p></CardContent>
           </Card>
         )}
         {state === "ok" && data && <SharedResourceView data={data} />}
