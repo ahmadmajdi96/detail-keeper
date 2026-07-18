@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +75,14 @@ export default function TestPlansPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const location = useLocation();
+  useEffect(() => {
+    const st = location.state as any;
+    if (st?.openCreate) {
+      setIsCreateDialogOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const { data: testPlans = [], isLoading } = useQuery({
     queryKey: ["test-plans", ...scopeKey],

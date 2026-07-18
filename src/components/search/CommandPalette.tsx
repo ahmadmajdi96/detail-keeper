@@ -25,6 +25,8 @@ import {
   BarChart3,
   Sparkles,
   Search as SearchIcon,
+  Plus,
+  Upload,
 } from "lucide-react";
 
 type Hit = {
@@ -54,13 +56,30 @@ const kindLabel: Record<Hit["kind"], string> = {
   document: "Documents",
 };
 
-const QUICK_ACTIONS = [
+type QuickAction = {
+  label: string;
+  path: string;
+  icon: any;
+  state?: Record<string, any>;
+  keywords?: string;
+};
+
+const CREATE_ACTIONS: QuickAction[] = [
+  { label: "New defect", path: "/defects", icon: Bug, state: { openCreate: true }, keywords: "create bug issue report" },
+  { label: "New test plan", path: "/test-plans", icon: ClipboardList, state: { openCreate: true }, keywords: "create plan" },
+  { label: "Upload document", path: "/documents", icon: Upload, state: { openCreate: true }, keywords: "create prd spec upload file" },
+  { label: "New project", path: "/projects", icon: FolderKanban, state: { openCreate: true }, keywords: "create" },
+  { label: "New workspace", path: "/workspaces", icon: Building2, state: { openCreate: true }, keywords: "create team" },
+];
+
+const OPEN_ACTIONS: QuickAction[] = [
   { label: "Go to Dashboard", path: "/", icon: BarChart3 },
   { label: "Workspaces", path: "/workspaces", icon: Building2 },
   { label: "Projects", path: "/projects", icon: FolderKanban },
   { label: "Test Plans", path: "/test-plans", icon: ClipboardList },
   { label: "Test Cases", path: "/test-cases", icon: Layers },
   { label: "Defects", path: "/defects", icon: Bug },
+  { label: "Documents", path: "/documents", icon: FileText },
   { label: "Releases", path: "/releases", icon: Rocket },
   { label: "AI Workbench", path: "/ai", icon: Sparkles },
   { label: "Team", path: "/team", icon: Users },
@@ -205,12 +224,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     return map;
   }, [hits]);
 
-  const go = (path: string) => {
+  const go = (path: string, state?: Record<string, any>) => {
     onOpenChange(false);
     setQuery("");
-    // Split path & hash
     const [p, hash] = path.split("#");
-    navigate(p);
+    navigate(p, state ? { state } : undefined);
     if (hash) {
       setTimeout(() => {
         const el = document.getElementById(hash);
@@ -229,23 +247,42 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput
-        placeholder="Search everything — projects, plans, tests, defects, docs…"
+        placeholder="Search or create — try 'new defect', 'test plan', 'billing'…"
         value={query}
         onValueChange={setQuery}
       />
       <CommandList className="max-h-[520px]">
         {!query && (
-          <CommandGroup heading="Quick actions">
-            {QUICK_ACTIONS.map((a) => {
-              const Icon = a.icon;
-              return (
-                <CommandItem key={a.path} onSelect={() => go(a.path)} value={a.label}>
-                  <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span>{a.label}</span>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
+          <>
+            <CommandGroup heading="Create">
+              {CREATE_ACTIONS.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <CommandItem
+                    key={`create-${a.path}`}
+                    onSelect={() => go(a.path, a.state)}
+                    value={`create ${a.label} ${a.keywords ?? ""}`}
+                  >
+                    <Plus className="mr-2 h-4 w-4 text-primary" />
+                    <span>{a.label}</span>
+                    <Icon className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Jump to">
+              {OPEN_ACTIONS.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <CommandItem key={a.path} onSelect={() => go(a.path)} value={a.label}>
+                    <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>{a.label}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </>
         )}
 
         {query && (

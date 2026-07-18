@@ -59,6 +59,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SecurityPage from "./pages/SecurityPage";
 import AuditLogPage from "./pages/AuditLogPage";
+import ShareLinksAdminPage from "./pages/ShareLinksAdminPage";
 import SharePage from "./pages/SharePage";
 import { MfaGate } from "@/components/security/MfaGate";
 
@@ -111,6 +112,11 @@ const App = () => (
               <Route path="/organization/audit" element={
                 <ProtectedRoute>
                   <AuditLogPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/organization/share-links" element={
+                <ProtectedRoute>
+                  <ShareLinksAdminPage />
                 </ProtectedRoute>
               } />
               <Route path="/billing" element={

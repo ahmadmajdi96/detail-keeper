@@ -15,7 +15,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Building2, Trash2, UserPlus, Loader2 } from "lucide-react";
+import { Building2, Trash2, UserPlus, Loader2, Link2, ShieldAlert } from "lucide-react";
+import { Link } from "react-router-dom";
 import { OrgSsoPanel } from "@/components/organization/OrgSsoPanel";
 import { OrgDangerZone } from "@/components/organization/OrgDangerZone";
 import { useEntitlements } from "@/hooks/useEntitlements";
@@ -140,6 +141,18 @@ export default function OrganizationPage() {
       <PageHeader
         title={currentOrganization.name}
         description="Organization settings and members"
+        actions={
+          (currentOrgRole === "owner" || currentOrgRole === "security_admin") ? (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/organization/audit"><ShieldAlert className="h-3.5 w-3.5 mr-1.5" /> Audit log</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/organization/share-links"><Link2 className="h-3.5 w-3.5 mr-1.5" /> Share links</Link>
+              </Button>
+            </div>
+          ) : undefined
+        }
       />
 
       <Tabs defaultValue="general" className="mt-6">
