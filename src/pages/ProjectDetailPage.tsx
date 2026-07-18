@@ -228,6 +228,9 @@ export default function ProjectDetailPage() {
       <Tabs value={tab} onValueChange={(v) => { setTab(v); setParams({ tab: v }); }}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          {project.source_type === "github" && (
+            <TabsTrigger value="repository"><GitBranch className="h-3.5 w-3.5 mr-1" /> Repository</TabsTrigger>
+          )}
           <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
