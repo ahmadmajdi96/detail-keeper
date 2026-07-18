@@ -53,7 +53,8 @@ describe("mention extraction", () => {
     // The raw @[...](...) marker must NOT leak into the rendered output.
     const flat = JSON.stringify(nodes);
     expect(flat).not.toMatch(/@\[Alice\]\(/);
-    expect(flat).toContain("@Alice");
+    expect(flat).toContain("Alice");
+    expect(flat).toContain("bg-primary/15");
   });
 });
 
