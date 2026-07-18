@@ -181,6 +181,15 @@ export default function WorkspaceDetailPage() {
       // if user exists, add directly
       const { data: existing } = await supabase.from("profiles").select("id").eq("email", email).maybeSingle();
       if (existing) {
+        // Already a member? update role. Otherwise insert.
+        const { data: prev } = await supabase.from("workspace_members")
+          .select("id").eq("workspace_id", id!).eq("user_id", existing.id).maybeSingle();
+        if (prev) {
+          const { error } = await supabase.from("workspace_members")
+            .update({ role: inviteRole }).eq("id", prev.id);
+          if (error) throw error;
+          return { kind: "existing" as const };
+        }
         const { error } = await supabase.from("workspace_members").insert({
           workspace_id: id, user_id: existing.id, role: inviteRole,
         });
