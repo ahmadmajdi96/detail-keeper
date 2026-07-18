@@ -261,13 +261,7 @@ export default function WorkspaceDetailPage() {
       </div>
       <PageHeader
         title={workspace.name}
-        description={
-          <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>{workspace.description || "Workspace overview"}</span>
-            <span className="opacity-60">·</span>
-            <span>Created {new Date(workspace.created_at).toLocaleString()}</span>
-          </span>
-        }
+        description={`${workspace.description || "Workspace overview"} · Created ${new Date(workspace.created_at).toLocaleString()}`}
         breadcrumbs={[{ label: "Workspaces", href: "/workspaces" }, { label: workspace.name }]}
         actions={
           canManage && (
