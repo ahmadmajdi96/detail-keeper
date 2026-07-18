@@ -217,17 +217,29 @@ export function NotificationBell() {
             </p>
           </div>
           <div className="flex gap-1">
-            {unreadCount > 0 && (
+            {visibleUnreadIds.length > 0 && tab !== 'all' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => markManyAsRead(visibleUnreadIds)}
+                className="text-xs h-7"
+                title={`Mark ${visibleUnreadIds.length} as read`}
+              >
+                <CheckCheck className="h-3 w-3 mr-1" /> Mark tab read
+              </Button>
+            )}
+            {unreadCount > 0 && tab === 'all' && (
               <Button variant="ghost" size="sm" onClick={() => markAllAsRead()} className="text-xs h-7">
                 <Check className="h-3 w-3 mr-1" /> Mark all read
               </Button>
             )}
-            {notifications.length > 0 && (
+            {visibleIds.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => clearAll()}
+                onClick={() => (tab === 'all' ? clearAll() : deleteMany(visibleIds))}
                 className="text-xs h-7 text-destructive hover:text-destructive"
+                title={tab === 'all' ? 'Clear all' : 'Clear tab'}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
