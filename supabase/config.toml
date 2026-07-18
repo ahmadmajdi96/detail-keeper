@@ -1,55 +1,39 @@
 project_id = "seqnkjuoilkrrazvgoae"
 
-[functions.process-document]
-verify_jwt = false
-
-[functions.generate-prd]
-verify_jwt = false
-
-[functions.generate-test-plan]
-verify_jwt = false
-
-[functions.execute-api-test]
-verify_jwt = false
-
-[functions.generate-test-plan-from-docs]
-verify_jwt = false
-
-[functions.job-worker]
-verify_jwt = false
-
-[functions.ci-webhook]
-verify_jwt = false
-
-[functions.create-cycle-from-suite]
-verify_jwt = false
-
-[functions.oauth-github-callback]
-verify_jwt = false
-
-[functions.oauth-jira-callback]
-verify_jwt = false
-
-[functions.integrations-callback-info]
-verify_jwt = false
-
-
-
-
-[functions.stripe-webhook]
-verify_jwt = false
-
-[functions.send-trial-reminder]
-verify_jwt = false
-
-[functions.stripe-mode]
-verify_jwt = false
-
-[functions.runner-heartbeat]
-verify_jwt = false
-
-[functions.dispatch-notification]
-verify_jwt = false
-
-[functions.process-email-queue]
-verify_jwt = true
+[functions]
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.ci-webhook]
+    verify_jwt = false
+  [functions.create-cycle-from-suite]
+    verify_jwt = false
+  [functions.dispatch-notification]
+    verify_jwt = false
+  [functions.execute-api-test]
+    verify_jwt = false
+  [functions.generate-prd]
+    verify_jwt = false
+  [functions.generate-test-plan]
+    verify_jwt = false
+  [functions.generate-test-plan-from-docs]
+    verify_jwt = false
+  [functions.integrations-callback-info]
+    verify_jwt = false
+  [functions.job-worker]
+    verify_jwt = false
+  [functions.oauth-github-callback]
+    verify_jwt = false
+  [functions.oauth-jira-callback]
+    verify_jwt = false
+  [functions.process-document]
+    verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+  [functions.runner-heartbeat]
+    verify_jwt = false
+  [functions.send-trial-reminder]
+    verify_jwt = false
+  [functions.stripe-mode]
+    verify_jwt = false
+  [functions.stripe-webhook]
+    verify_jwt = false
