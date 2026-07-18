@@ -57,6 +57,50 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
     })
     .filter(Boolean).join("\n\n---\n\n");
 
+  // Pull repository files from Repo Reader when the project has a clone job.
+  let repoContext = "";
+  try {
+    const { data: proj } = await sb.from("projects")
+      .select("repo_job_id, repo_job_status").eq("id", plan.project_id).maybeSingle();
+    const ready = proj?.repo_job_status && ["completed", "ready", "success"].includes(proj.repo_job_status);
+    const BASE = Deno.env.get("REPO_READER_BASE_URL");
+    const TOKEN = Deno.env.get("REPO_READER_TOKEN");
+    if (proj?.repo_job_id && ready && BASE && TOKEN) {
+      await setProgress(sb, job.id, 12, "Fetching repository files");
+      const listRes = await fetch(`${BASE}/v1/jobs/${proj.repo_job_id}/repository/files?limit=200`, {
+        headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/json" },
+      });
+      if (listRes.ok) {
+        const listJson = await listRes.json();
+        const files: any[] = listJson?.files || listJson?.items || (Array.isArray(listJson) ? listJson : []);
+        // Prioritize spec / requirement / readme-like text files, cap total bytes to keep the prompt small.
+        const priority = /(readme|openapi|swagger|api|spec|requirements|\.md$|\.mdx$|\.txt$|\.ya?ml$|\.json$|package\.json)/i;
+        const ordered = files
+          .map((f: any) => (typeof f === "string" ? { path: f } : { path: f.path || f.name, size: f.size }))
+          .filter((f: any) => f.path && (!f.size || f.size < 200_000))
+          .sort((a: any, b: any) => Number(priority.test(b.path)) - Number(priority.test(a.path)))
+          .slice(0, 25);
+        const chunks: string[] = [];
+        let total = 0;
+        for (const f of ordered) {
+          if (total > 60_000) break;
+          const res = await fetch(`${BASE}/v1/jobs/${proj.repo_job_id}/repository/files/${encodeURI(f.path)}`, {
+            headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/json" },
+          });
+          if (!res.ok) continue;
+          const body = await res.text();
+          const raw = (() => { try { const j = JSON.parse(body); return j?.content ?? body; } catch { return body; } })();
+          const slice = String(raw).slice(0, 5000);
+          chunks.push(`### ${f.path}\n${slice}`);
+          total += slice.length;
+        }
+        if (chunks.length) repoContext = chunks.join("\n\n---\n\n");
+      }
+    }
+  } catch (e) {
+    console.error("repo context fetch failed", (e as Error).message);
+  }
+
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -78,7 +122,9 @@ Objective: ${plan.objective || "N/A"}
 Scope: ${plan.scope || "N/A"}
 
 Source Documents:
-${docsContext || "(no documents attached — infer from plan name/description)"}`;
+${docsContext || "(no documents attached — infer from plan name/description)"}
+
+${repoContext ? `Repository Source Files (from the cloned repo):\n${repoContext}` : ""}`;
 
   const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
