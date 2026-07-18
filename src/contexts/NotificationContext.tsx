@@ -53,36 +53,43 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     fetchNotifications();
 
-    // Subscribe to realtime notifications
+    // Subscribe to realtime notifications (INSERT + UPDATE + DELETE)
     const channel = supabase
       .channel('notifications-realtime')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
           const newNotification = payload.new as Notification;
-          setNotifications((prev) => [newNotification, ...prev]);
-          
-          // Show toast for new notification
+          setNotifications((prev) =>
+            prev.some((n) => n.id === newNotification.id) ? prev : [newNotification, ...prev]
+          );
           toast(newNotification.title, {
             description: newNotification.message,
             action: {
               label: 'View',
               onClick: () => {
-                // Navigate based on notification type
-                if (newNotification.type === 'defect_assigned') {
-                  window.location.href = '/defects';
-                } else if (newNotification.type === 'execution_completed') {
-                  window.location.href = '/executions';
-                }
+                if (newNotification.type === 'defect_assigned') window.location.href = '/defects';
+                else if (newNotification.type === 'execution_completed') window.location.href = '/executions';
               },
             },
           });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const updated = payload.new as Notification;
+          setNotifications((prev) => prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n)));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const removed = payload.old as Notification;
+          setNotifications((prev) => prev.filter((n) => n.id !== removed.id));
         }
       )
       .subscribe();
@@ -95,15 +102,31 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAsRead = async (id: string) => {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', id);
+    // Optimistic
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+    if (error) {
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
+    }
+  };
 
-    if (!error) {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
+  const markManyAsRead = async (ids: string[]) => {
+    if (!ids.length) return;
+    const idSet = new Set(ids);
+    setNotifications((prev) => prev.map((n) => (idSet.has(n.id) ? { ...n, read: true } : n)));
+    const { error } = await supabase.from('notifications').update({ read: true }).in('id', ids);
+    if (error) toast.error('Could not mark as read');
+  };
+
+  const deleteMany = async (ids: string[]) => {
+    if (!ids.length) return;
+    const idSet = new Set(ids);
+    const snapshot = notifications;
+    setNotifications((prev) => prev.filter((n) => !idSet.has(n.id)));
+    const { error } = await supabase.from('notifications').delete().in('id', ids);
+    if (error) {
+      setNotifications(snapshot);
+      toast.error('Could not delete');
     }
   };
 
