@@ -453,7 +453,7 @@ export function PlanRequirementsPanel({ projectId, workspaceId }: { projectId: s
       const payload: any = {
         key: form.key || null, title: form.title, description: form.description || null,
         priority: Number(form.priority), status: form.status, tags,
-        project_id: projectId, workspace_id: workspaceId || null,
+        project_id: projectId,
       };
       if (editing) {
         const { error } = await supabase.from("requirements").update(payload).eq("id", editing.id);
