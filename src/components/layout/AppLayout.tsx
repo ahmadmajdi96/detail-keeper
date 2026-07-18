@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "./AppSidebar";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { CommandPaletteTrigger } from "@/components/search/CommandPalette";
 import { WorkspaceSwitcher, ProjectSwitcher } from "./WorkspaceSwitcher";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { WorkflowNav } from "./WorkflowNav";
@@ -49,6 +50,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="hidden sm:block"><ProjectSwitcher /></div>
             <div className="flex-1" />
             <WorkflowNav />
+            <div className="hidden md:block"><CommandPaletteTrigger /></div>
             <NotificationBell />
           </div>
         </header>
