@@ -66,6 +66,7 @@ interface Document {
   requirements_count: number;
   processed_at: string | null;
   created_at: string;
+  storage_path?: string | null;
 }
 
 export default function DocumentsPage() {
