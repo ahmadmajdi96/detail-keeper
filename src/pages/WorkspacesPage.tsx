@@ -53,6 +53,7 @@ export default function WorkspacesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { setCurrentWorkspaceId } = useWorkspace();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [wizardOpen, setWizardOpen] = useState(searchParams.get("new") === "1");
 
