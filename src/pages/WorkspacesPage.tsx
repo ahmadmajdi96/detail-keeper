@@ -88,11 +88,14 @@ export default function WorkspacesPage() {
     onError: (e: any) => toast.error("Failed: " + e.message),
   });
 
-  const filtered = workspaces.filter(
-    (w) =>
-      w.name.toLowerCase().includes(search.toLowerCase()) ||
-      (w.description || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = workspaces.filter((w) => {
+    const s = search.toLowerCase();
+    const matchesSearch =
+      w.name.toLowerCase().includes(s) ||
+      (w.description || "").toLowerCase().includes(s);
+    const matchesStatus = statusFilter === "all" || w.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const totalProjects = workspaces.reduce((s, w) => s + (w.projects_count || 0), 0);
   const totalMembers = workspaces.reduce((s, w) => s + (w.members_count || 0), 0);
