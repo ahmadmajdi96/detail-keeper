@@ -3245,6 +3245,10 @@ export type Database = {
           last_processed_at: string | null
           name: string
           process_error: string | null
+          repo_job_id: string | null
+          repo_job_meta: Json | null
+          repo_job_progress: number | null
+          repo_job_status: string | null
           source_type: Database["public"]["Enums"]["project_source"]
           status: Database["public"]["Enums"]["project_status"]
           test_cases_count: number | null
@@ -3267,6 +3271,10 @@ export type Database = {
           last_processed_at?: string | null
           name: string
           process_error?: string | null
+          repo_job_id?: string | null
+          repo_job_meta?: Json | null
+          repo_job_progress?: number | null
+          repo_job_status?: string | null
           source_type?: Database["public"]["Enums"]["project_source"]
           status?: Database["public"]["Enums"]["project_status"]
           test_cases_count?: number | null
@@ -3289,6 +3297,10 @@ export type Database = {
           last_processed_at?: string | null
           name?: string
           process_error?: string | null
+          repo_job_id?: string | null
+          repo_job_meta?: Json | null
+          repo_job_progress?: number | null
+          repo_job_status?: string | null
           source_type?: Database["public"]["Enums"]["project_source"]
           status?: Database["public"]["Enums"]["project_status"]
           test_cases_count?: number | null
