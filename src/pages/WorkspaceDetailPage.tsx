@@ -210,7 +210,9 @@ export default function WorkspaceDetailPage() {
       return { kind: "invite" as const, token: created.token };
     },
     onSuccess: async (result) => {
-      if (result.kind === "member") {
+      if (result.kind === "existing") {
+        toast.success("Role updated for existing member");
+      } else if (result.kind === "member") {
         toast.success("Added to workspace");
       } else {
         toast.success("Invitation created");
