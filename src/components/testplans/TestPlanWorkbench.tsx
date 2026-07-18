@@ -230,7 +230,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             {busy === "cases" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
             2. Generate Test Cases
           </Button>
-          <Button size="sm" variant="outline" disabled={busy !== null || cases.length === 0}
+          <Button size="sm" variant="outline" disabled={busy !== null || cases.length === 0 || docs.length === 0}
+            title={docs.length === 0 ? "Generate documents first" : cases.length === 0 ? "Generate test cases first" : ""}
             onClick={() => runStep("code", "tp-generate-code", { test_plan_id: testPlanId }, "Generated Playwright code")}>
             {busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
             3. Generate Playwright Code
