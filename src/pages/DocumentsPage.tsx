@@ -80,6 +80,14 @@ export default function DocumentsPage() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [documentContent, setDocumentContent] = useState("");
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
+  const location = useLocation();
+  useEffect(() => {
+    const st = location.state as any;
+    if (st?.openCreate) {
+      setTimeout(() => fileInputRef.current?.click(), 100);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["documents", ...scopeKey],
