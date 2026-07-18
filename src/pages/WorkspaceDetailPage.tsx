@@ -181,6 +181,15 @@ export default function WorkspaceDetailPage() {
       // if user exists, add directly
       const { data: existing } = await supabase.from("profiles").select("id").eq("email", email).maybeSingle();
       if (existing) {
+        // Already a member? update role. Otherwise insert.
+        const { data: prev } = await supabase.from("workspace_members")
+          .select("id").eq("workspace_id", id!).eq("user_id", existing.id).maybeSingle();
+        if (prev) {
+          const { error } = await supabase.from("workspace_members")
+            .update({ role: inviteRole }).eq("id", prev.id);
+          if (error) throw error;
+          return { kind: "existing" as const };
+        }
         const { error } = await supabase.from("workspace_members").insert({
           workspace_id: id, user_id: existing.id, role: inviteRole,
         });
@@ -201,7 +210,9 @@ export default function WorkspaceDetailPage() {
       return { kind: "invite" as const, token: created.token };
     },
     onSuccess: async (result) => {
-      if (result.kind === "member") {
+      if (result.kind === "existing") {
+        toast.success("Role updated for existing member");
+      } else if (result.kind === "member") {
         toast.success("Added to workspace");
       } else {
         toast.success("Invitation created");
@@ -243,9 +254,14 @@ export default function WorkspaceDetailPage() {
 
   return (
     <AppLayout>
+      <div className="mb-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/workspaces")} className="h-8 px-2 -ml-2">
+          <ArrowRight className="h-4 w-4 mr-1 rotate-180" /> Back to workspaces
+        </Button>
+      </div>
       <PageHeader
         title={workspace.name}
-        description={workspace.description || "Workspace overview"}
+        description={`${workspace.description || "Workspace overview"} · Created ${new Date(workspace.created_at).toLocaleString()}`}
         breadcrumbs={[{ label: "Workspaces", href: "/workspaces" }, { label: workspace.name }]}
         actions={
           canManage && (

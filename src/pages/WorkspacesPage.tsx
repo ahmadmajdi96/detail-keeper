@@ -53,6 +53,7 @@ export default function WorkspacesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { setCurrentWorkspaceId } = useWorkspace();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [wizardOpen, setWizardOpen] = useState(searchParams.get("new") === "1");
 
@@ -87,11 +88,14 @@ export default function WorkspacesPage() {
     onError: (e: any) => toast.error("Failed: " + e.message),
   });
 
-  const filtered = workspaces.filter(
-    (w) =>
-      w.name.toLowerCase().includes(search.toLowerCase()) ||
-      (w.description || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = workspaces.filter((w) => {
+    const s = search.toLowerCase();
+    const matchesSearch =
+      w.name.toLowerCase().includes(s) ||
+      (w.description || "").toLowerCase().includes(s);
+    const matchesStatus = statusFilter === "all" || w.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const totalProjects = workspaces.reduce((s, w) => s + (w.projects_count || 0), 0);
   const totalMembers = workspaces.reduce((s, w) => s + (w.members_count || 0), 0);
@@ -147,6 +151,19 @@ export default function WorkspacesPage() {
               placeholder="Search workspaces…"
               className="pl-9"
             />
+          </div>
+          <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
+            {(["all", "active", "archived"] as const).map((s) => (
+              <Button
+                key={s}
+                variant={statusFilter === s ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 px-2 text-xs capitalize"
+                onClick={() => setStatusFilter(s)}
+              >
+                {s}
+              </Button>
+            ))}
           </div>
           <div className="ml-auto flex items-center gap-1 border border-border rounded-md p-0.5">
             {([["grid", LayoutGrid], ["list", List]] as const).map(([m, Icon]) => (
@@ -223,6 +240,9 @@ export default function WorkspacesPage() {
                           </div>
                           <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
                             {ws.description || "No description"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/70 mt-1">
+                            Created {new Date(ws.created_at).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -307,7 +327,7 @@ export default function WorkspacesPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{ws.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {ws.projects_count} projects · {ws.members_count} members · {fmtStorage(ws.storage_used || 0)}
+                        {ws.projects_count} projects · {ws.members_count} members · {fmtStorage(ws.storage_used || 0)} · Created {new Date(ws.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="hidden md:flex items-center gap-2 w-32">
