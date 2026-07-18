@@ -26,8 +26,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Loader2, Users, UserPlus, Trash2, Save, ArrowRight, Globe, Lock, FolderOpen,
+  Loader2, Users, UserPlus, Trash2, Save, ArrowRight, Globe, Lock, FolderOpen, GitBranch,
 } from "lucide-react";
+import { RepoFilesPanel } from "@/components/projects/RepoFilesPanel";
 
 type ProjectRole = "lead" | "contributor" | "viewer";
 type WsRole = "owner" | "admin" | "editor" | "viewer";
