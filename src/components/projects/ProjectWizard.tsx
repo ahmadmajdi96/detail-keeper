@@ -212,9 +212,22 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
         supabase.functions.invoke("ingest-zip", { body: { project_id: projectId } }).catch(() => {});
       } else if (locator === "github") {
         await supabase.from("projects").update({ status: "processing" }).eq("id", projectId);
-        supabase.functions.invoke("ingest-github", {
-          body: { project_id: projectId, url: repoUrl, branch: "main", token: secrets[0]?.value || null },
-        }).catch(() => {});
+        // Kick off Repo Reader clone job. Polling happens in the project detail page.
+        const { error: rrErr } = await supabase.functions.invoke("repo-reader", {
+          body: {
+            action: "clone",
+            project_id: projectId,
+            repo_url: repoUrl,
+            branch: "main",
+            access_token: secrets[0]?.value || null,
+          },
+        });
+        if (rrErr) {
+          await supabase.from("projects").update({
+            status: "failed", process_error: rrErr.message || "Repo Reader failed",
+          }).eq("id", projectId);
+          throw rrErr;
+        }
       } else if (locator === "documentation" && docFiles.length) {
         for (const f of docFiles) {
           const storagePath = `${wsId}/${projectId}/docs/${Date.now()}-${f.name}`;
