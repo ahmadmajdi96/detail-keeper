@@ -93,7 +93,9 @@ export function NotificationBell() {
     unreadCount,
     markAsRead,
     markAllAsRead,
+    markManyAsRead,
     deleteNotification,
+    deleteMany,
     clearAll,
   } = useNotifications();
   const [open, setOpen] = useState(false);
@@ -114,6 +116,12 @@ export function NotificationBell() {
     }
     return c;
   }, [notifications]);
+
+  const visibleUnreadIds = useMemo(
+    () => filtered.filter((n) => !n.read).map((n) => n.id),
+    [filtered]
+  );
+  const visibleIds = useMemo(() => filtered.map((n) => n.id), [filtered]);
 
   const handleClick = (n: Notification) => {
     if (!n.read) markAsRead(n.id);
