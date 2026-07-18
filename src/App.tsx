@@ -114,6 +114,11 @@ const App = () => (
                   <AuditLogPage />
                 </ProtectedRoute>
               } />
+              <Route path="/organization/share-links" element={
+                <ProtectedRoute>
+                  <ShareLinksAdminPage />
+                </ProtectedRoute>
+              } />
               <Route path="/billing" element={
                 <ProtectedRoute>
                   <BillingPage />
