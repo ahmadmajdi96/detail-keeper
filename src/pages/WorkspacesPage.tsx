@@ -152,7 +152,19 @@ export default function WorkspacesPage() {
               className="pl-9"
             />
           </div>
-          <div className="ml-auto flex items-center gap-1 border border-border rounded-md p-0.5">
+          <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
+            {(["all", "active", "archived"] as const).map((s) => (
+              <Button
+                key={s}
+                variant={statusFilter === s ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 px-2 text-xs capitalize"
+                onClick={() => setStatusFilter(s)}
+              >
+                {s}
+              </Button>
+            ))}
+          </div>
             {([["grid", LayoutGrid], ["list", List]] as const).map(([m, Icon]) => (
               <Button
                 key={m} variant={view === m ? "secondary" : "ghost"} size="sm"
