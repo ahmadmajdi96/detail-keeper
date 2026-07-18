@@ -254,9 +254,20 @@ export default function WorkspaceDetailPage() {
 
   return (
     <AppLayout>
+      <div className="mb-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/workspaces")} className="h-8 px-2 -ml-2">
+          <ArrowRight className="h-4 w-4 mr-1 rotate-180" /> Back to workspaces
+        </Button>
+      </div>
       <PageHeader
         title={workspace.name}
-        description={workspace.description || "Workspace overview"}
+        description={
+          <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{workspace.description || "Workspace overview"}</span>
+            <span className="opacity-60">·</span>
+            <span>Created {new Date(workspace.created_at).toLocaleString()}</span>
+          </span>
+        }
         breadcrumbs={[{ label: "Workspaces", href: "/workspaces" }, { label: workspace.name }]}
         actions={
           canManage && (
