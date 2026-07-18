@@ -66,6 +66,7 @@ interface Document {
   requirements_count: number;
   processed_at: string | null;
   created_at: string;
+  storage_path?: string | null;
 }
 
 export default function DocumentsPage() {
@@ -543,6 +544,23 @@ export default function DocumentsPage() {
                               title="View Endpoints"
                             >
                               <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {doc.storage_path && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Download"
+                              onClick={async () => {
+                                const { data, error } = await supabase.storage
+                                  .from("project-repos")
+                                  .createSignedUrl(doc.storage_path!, 300, { download: doc.filename });
+                                if (error || !data?.signedUrl) { toast.error(error?.message || "Download failed"); return; }
+                                window.open(data.signedUrl, "_blank");
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
                             </Button>
                           )}
                           {hasPermission(["admin", "qa_manager"]) && (

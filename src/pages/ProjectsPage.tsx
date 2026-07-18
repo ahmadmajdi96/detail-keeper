@@ -243,7 +243,7 @@ export default function ProjectsPage() {
                     className="border-border/50 hover:border-accent/40 hover:shadow-elevated transition-all cursor-pointer group relative overflow-hidden"
                     onClick={() => {
                       setCurrentProjectId(p.id);
-                      navigate("/documents");
+                      navigate(`/projects/${p.id}`);
                     }}
                   >
                     <div
@@ -329,16 +329,16 @@ export default function ProjectsPage() {
                             size="sm" variant="ghost" className="h-7"
                             onClick={() => {
                               setCurrentProjectId(p.id);
-                              navigate("/documents");
+                              navigate(`/projects/${p.id}`);
                             }}
                           >
                             Open <ArrowRight className="h-3 w-3 ml-1" />
                           </Button>
                           <Button
                             size="sm" variant="ghost" className="h-7"
-                            onClick={() => navigate(`/projects/${p.id}`)}
+                            onClick={() => { setCurrentProjectId(p.id); navigate("/documents"); }}
                           >
-                            Manage
+                            Documents
                           </Button>
                           {(p.source_type === "github" || p.source_type === "zip") && (
                             <Button
@@ -377,7 +377,7 @@ export default function ProjectsPage() {
                 return (
                   <button
                     key={p.id}
-                    onClick={() => { setCurrentProjectId(p.id); navigate("/documents"); }}
+                    onClick={() => { setCurrentProjectId(p.id); navigate(`/projects/${p.id}`); }}
                     className="w-full flex items-center gap-4 px-5 py-4 border-b border-border/50 last:border-0 text-left hover:bg-accent/5 transition-all group"
                   >
                     <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
