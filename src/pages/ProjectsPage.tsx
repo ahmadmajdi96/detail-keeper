@@ -377,7 +377,7 @@ export default function ProjectsPage() {
                 return (
                   <button
                     key={p.id}
-                    onClick={() => { setCurrentProjectId(p.id); navigate("/documents"); }}
+                    onClick={() => { setCurrentProjectId(p.id); navigate(`/projects/${p.id}`); }}
                     className="w-full flex items-center gap-4 px-5 py-4 border-b border-border/50 last:border-0 text-left hover:bg-accent/5 transition-all group"
                   >
                     <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
