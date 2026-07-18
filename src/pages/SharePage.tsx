@@ -69,6 +69,18 @@ export default function SharePage() {
             <CardContent><p className="text-sm text-muted-foreground">Ask the owner to generate a new share link.</p></CardContent>
           </Card>
         )}
+        {state === "revoked" && (
+          <Card className="border-destructive/40">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Link revoked</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-muted-foreground">The owner revoked this share link.</p></CardContent>
+          </Card>
+        )}
+        {state === "rate_limited" && (
+          <Card className="border-amber-500/40">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-amber-500"><ShieldAlert className="h-5 w-5" /> Too many requests</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-muted-foreground">This link is being accessed too frequently. Please retry in a minute.</p></CardContent>
+          </Card>
+        )}
         {state === "ok" && data && <SharedResourceView data={data} />}
       </main>
     </div>
