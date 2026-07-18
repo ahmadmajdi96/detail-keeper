@@ -327,7 +327,7 @@ export default function WorkspacesPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{ws.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {ws.projects_count} projects · {ws.members_count} members · {fmtStorage(ws.storage_used || 0)}
+                        {ws.projects_count} projects · {ws.members_count} members · {fmtStorage(ws.storage_used || 0)} · Created {new Date(ws.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="hidden md:flex items-center gap-2 w-32">
