@@ -19,7 +19,9 @@ interface NotificationContextType {
   unreadCount: number;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  markManyAsRead: (ids: string[]) => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
+  deleteMany: (ids: string[]) => Promise<void>;
   clearAll: () => Promise<void>;
 }
 
