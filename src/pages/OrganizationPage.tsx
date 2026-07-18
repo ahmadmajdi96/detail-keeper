@@ -141,6 +141,18 @@ export default function OrganizationPage() {
       <PageHeader
         title={currentOrganization.name}
         description="Organization settings and members"
+        actions={
+          (currentOrgRole === "owner" || currentOrgRole === "security_admin") ? (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/organization/audit"><ShieldAlert className="h-3.5 w-3.5 mr-1.5" /> Audit log</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/organization/share-links"><Link2 className="h-3.5 w-3.5 mr-1.5" /> Share links</Link>
+              </Button>
+            </div>
+          ) : undefined
+        }
       />
 
       <Tabs defaultValue="general" className="mt-6">
