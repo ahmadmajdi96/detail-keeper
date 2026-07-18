@@ -15,18 +15,23 @@ interface Resolved {
 
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
-  const [state, setState] = useState<"loading" | "invalid" | "expired" | "ok">("loading");
+  const [state, setState] = useState<"loading" | "invalid" | "expired" | "revoked" | "rate_limited" | "ok">("loading");
   const [data, setData] = useState<Resolved | null>(null);
 
   useEffect(() => {
     if (!token) { setState("invalid"); return; }
     (async () => {
-      const { data, error } = await supabase.rpc("resolve_share_link", { _token: token });
+      const ua = typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null;
+      const { data, error } = await supabase.rpc("resolve_share_link", { _token: token, _user_agent: ua });
       if (error || !data) { setState("invalid"); return; }
       const row: any = Array.isArray(data) ? data[0] : data;
-      if (!row) { setState("invalid"); return; }
-      if (row.status === "expired") { setState("expired"); return; }
-      if (row.status === "invalid" || !row.payload) { setState("invalid"); return; }
+      if (!row || row.ok !== true) {
+        const reason = row?.status || row?.reason;
+        if (reason === "expired") return setState("expired");
+        if (reason === "revoked") return setState("revoked");
+        if (reason === "rate_limited") return setState("rate_limited");
+        return setState("invalid");
+      }
       setData(row as Resolved);
       setState("ok");
     })();
