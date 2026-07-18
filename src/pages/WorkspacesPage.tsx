@@ -165,6 +165,7 @@ export default function WorkspacesPage() {
               </Button>
             ))}
           </div>
+          <div className="ml-auto flex items-center gap-1 border border-border rounded-md p-0.5">
             {([["grid", LayoutGrid], ["list", List]] as const).map(([m, Icon]) => (
               <Button
                 key={m} variant={view === m ? "secondary" : "ghost"} size="sm"
