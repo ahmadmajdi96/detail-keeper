@@ -23,10 +23,35 @@ function safeParseJson(input: string): any {
 }
 
 async function setProgress(sb: Sb, jobId: string, progress: number, message?: string, checkpoint?: any) {
-  await sb.from("jobs").update({
-    progress, progress_message: message ?? null,
-    checkpoint: checkpoint ?? null,
-  }).eq("id", jobId);
+  const patch: Record<string, any> = { progress, progress_message: message ?? null };
+  if (checkpoint !== undefined) patch.checkpoint = checkpoint;
+  await sb.from("jobs").update(patch).eq("id", jobId);
+}
+
+function waitForJob(progress: number, message: string, checkpoint: any, delayMs = 60_000) {
+  return {
+    __job_control: "waiting",
+    progress,
+    progress_message: message,
+    checkpoint,
+    run_after: new Date(Date.now() + delayMs).toISOString(),
+  };
+}
+
+function nonRetryableError(message: string) {
+  const err = new Error(message) as Error & { nonRetryable?: boolean };
+  err.nonRetryable = true;
+  return err;
+}
+
+async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = 20_000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ---------------- generate_test_plan_from_docs ----------------
@@ -62,85 +87,160 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
   const KEY = Deno.env.get("DOC_GENERATOR_API_KEY");
   if (!KEY) throw new Error("DOC_GENERATOR_API_KEY not configured");
 
-  // 1. Build multipart with each project doc as a file.
-  await setProgress(sb, job.id, 15, `Uploading ${docs.length} docs to Doc Generator`);
-  const form = new FormData();
-  for (const d of docs) {
-    const name = (d.filename || `${d.slug}.md`).endsWith(".md")
-      ? (d.filename || `${d.slug}.md`)
-      : `${d.filename || d.slug}.md`;
-    form.append("files", new Blob([d.content || ""], { type: "text/markdown" }), name);
-  }
-  form.append("metadata", JSON.stringify({
-    source: "qualixa",
-    test_plan_id,
-    project_id: plan.project_id,
-    plan_name: plan.name,
-    plan_description: plan.description,
-  }));
+  const EXPECTED_FILES = [
+    "00_master_test_plan.md",
+    "01_unit_test_plan.md",
+    "02_integration_api_test_plan.md",
+    "03_stress_load_test_plan.md",
+    "04_penetration_security_test_plan.md",
+    "05_benchmark_performance_test_plan.md",
+    "06_edge_case_catalog.md",
+    "07_automation_backlog.md",
+    "08_traceability_matrix.md",
+    "09_execution_runbook.md",
+  ];
 
-  const createRes = await fetch(`${BASE}/v1/jobs`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${KEY}` },
-    body: form,
-  });
-  if (!createRes.ok) {
-    const t = await createRes.text();
-    throw new Error(`Doc Generator create job failed (${createRes.status}): ${t.slice(0, 300)}`);
+  const checkpoint = job.checkpoint || {};
+  const startedAt = checkpoint.started_at || new Date().toISOString();
+  const overallStarted = new Date(startedAt).getTime();
+  const MAX_TOTAL_MS = 35 * 60 * 1000;
+  const MAX_INVOCATION_POLL_MS = 45 * 1000;
+  const STUCK_WITHOUT_CHANGE_MS = 12 * 60 * 1000;
+  let remoteJobId = checkpoint.remote_job_id as string | undefined;
+  let remoteStatus = checkpoint.remote_status || "queued";
+  let remoteProgress = typeof checkpoint.remote_progress === "number" ? checkpoint.remote_progress : 0;
+  let lastRemoteChangeAt = checkpoint.last_remote_change_at || startedAt;
+
+  if (Date.now() - overallStarted > MAX_TOTAL_MS) {
+    throw new Error(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
   }
-  const createJson = await createRes.json();
-  const remoteJobId = createJson.id || createJson.job_id;
-  if (!remoteJobId) throw new Error("Doc Generator did not return a job id");
+
+  // 1. Build multipart with each project doc as a file, unless this job already
+  // has a checkpointed remote job to resume.
+  if (!remoteJobId) {
+    await setProgress(sb, job.id, 15, `Uploading ${docs.length} docs to Doc Generator`);
+    const form = new FormData();
+    for (const d of docs) {
+      const name = (d.filename || `${d.slug}.md`).endsWith(".md")
+        ? (d.filename || `${d.slug}.md`)
+        : `${d.filename || d.slug}.md`;
+      form.append("files", new Blob([d.content || ""], { type: "text/markdown" }), name);
+    }
+    form.append("metadata", JSON.stringify({
+      source: "qualixa",
+      test_plan_id,
+      project_id: plan.project_id,
+      plan_name: plan.name,
+      plan_description: plan.description,
+      expected_files: EXPECTED_FILES,
+    }));
+
+    const createRes = await fetchWithTimeout(`${BASE}/v1/jobs`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${KEY}` },
+      body: form,
+    }, 30_000);
+    if (!createRes.ok) {
+      const t = await createRes.text();
+      throw new Error(`Doc Generator create job failed (${createRes.status}): ${t.slice(0, 300)}`);
+    }
+    const createJson = await createRes.json();
+    remoteJobId = createJson.id || createJson.job_id;
+    if (!remoteJobId) throw new Error("Doc Generator did not return a job id");
+    const nextCheckpoint = {
+      started_at: startedAt,
+      remote_job_id: remoteJobId,
+      remote_status: "queued",
+      remote_progress: 0,
+      last_remote_change_at: new Date().toISOString(),
+      expected_files: EXPECTED_FILES,
+    };
+    lastRemoteChangeAt = nextCheckpoint.last_remote_change_at;
+    await setProgress(sb, job.id, 25, "Doc Generator queued — generating test plan documents", nextCheckpoint);
+  }
 
   // 2. Poll until terminal.
-  await setProgress(sb, job.id, 25, "Doc Generator queued — generating test plan documents");
-  const started = Date.now();
-  const MAX_MS = 15 * 60 * 1000; // 15 min
-  let remoteStatus = "queued";
-  let remoteProgress = 0;
+  const invocationStarted = Date.now();
   let lastErr: string | null = null;
 
-  while (Date.now() - started < MAX_MS) {
+  while (Date.now() - invocationStarted < MAX_INVOCATION_POLL_MS) {
     await new Promise((r) => setTimeout(r, 3500));
-    const pollRes = await fetch(`${BASE}/v1/jobs/${remoteJobId}`, {
+    const pollRes = await fetchWithTimeout(`${BASE}/v1/jobs/${remoteJobId}`, {
       headers: { Authorization: `Bearer ${KEY}` },
-    });
+    }, 15_000);
     if (!pollRes.ok) { lastErr = `poll ${pollRes.status}`; continue; }
     const pj = await pollRes.json();
-    remoteStatus = (pj.status || "").toLowerCase();
-    remoteProgress = typeof pj.progress === "number" ? pj.progress : remoteProgress;
+    const nextStatus = (pj.status || "").toLowerCase();
+    const nextProgress = typeof pj.progress === "number" ? pj.progress : remoteProgress;
+    if (nextStatus !== remoteStatus || nextProgress !== remoteProgress) {
+      lastRemoteChangeAt = new Date().toISOString();
+    }
+    remoteStatus = nextStatus;
+    remoteProgress = nextProgress;
     const mapped = 25 + Math.min(60, Math.round(remoteProgress * 0.6));
-    await setProgress(sb, job.id, mapped, `Doc Generator: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
+    const nextCheckpoint = {
+      started_at: startedAt,
+      remote_job_id: remoteJobId,
+      remote_status: remoteStatus,
+      remote_progress: remoteProgress,
+      last_remote_change_at: lastRemoteChangeAt,
+      expected_files: EXPECTED_FILES,
+      last_poll_at: new Date().toISOString(),
+    };
+    await setProgress(sb, job.id, mapped, `Doc Generator: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`, nextCheckpoint);
     if (["succeeded", "success", "completed", "ready"].includes(remoteStatus)) break;
     if (["failed", "error", "cancelled", "canceled"].includes(remoteStatus)) {
-      throw new Error(`Doc Generator failed: ${pj.error || remoteStatus}`);
+      throw nonRetryableError(`Doc Generator failed: ${pj.error || remoteStatus}`);
+    }
+    if (Date.now() - new Date(lastRemoteChangeAt).getTime() > STUCK_WITHOUT_CHANGE_MS) {
+      throw new Error(`Doc Generator appears stuck: no status/progress change for ${Math.round(STUCK_WITHOUT_CHANGE_MS / 60000)} minutes (last: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""})`);
+    }
+    if (Date.now() - overallStarted > MAX_TOTAL_MS) {
+      throw new Error(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
     }
   }
   if (!["succeeded", "success", "completed", "ready"].includes(remoteStatus)) {
-    throw new Error(`Doc Generator timed out (last: ${remoteStatus}${lastErr ? ` · ${lastErr}` : ""})`);
+    const mapped = 25 + Math.min(60, Math.round(remoteProgress * 0.6));
+    return waitForJob(
+      mapped,
+      `Doc Generator: ${remoteStatus || "running"}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`,
+      {
+        started_at: startedAt,
+        remote_job_id: remoteJobId,
+        remote_status: remoteStatus,
+        remote_progress: remoteProgress,
+        last_remote_change_at: lastRemoteChangeAt,
+        expected_files: EXPECTED_FILES,
+        last_poll_at: new Date().toISOString(),
+      },
+    );
   }
 
   // 3. List generated documents.
   await setProgress(sb, job.id, 88, "Downloading generated documents");
-  const listRes = await fetch(`${BASE}/v1/jobs/${remoteJobId}/documents`, {
+  const listRes = await fetchWithTimeout(`${BASE}/v1/jobs/${remoteJobId}/documents`, {
     headers: { Authorization: `Bearer ${KEY}` },
-  });
+  }, 20_000);
   if (!listRes.ok) throw new Error(`Doc Generator list failed: ${listRes.status}`);
   const listJson = await listRes.json();
   const documents: Array<{ filename: string; title?: string; slug?: string; bytes?: number }> =
     listJson.documents || [];
 
   if (!documents.length) throw new Error("Doc Generator returned no documents");
+  const docsByFilename = new Map(documents.map((d: any) => [d.filename || d.name, d]));
+  const orderedDocuments = EXPECTED_FILES.map((filename) => docsByFilename.get(filename)).filter(Boolean) as Array<{ filename: string; title?: string; slug?: string; bytes?: number }>;
+  if (!orderedDocuments.length) throw new Error("Doc Generator did not return the expected test plan files");
 
   // 4. Download each doc and persist to test_plan_documents_v2 (replace).
   await sb.from("test_plan_documents_v2").delete().eq("test_plan_id", test_plan_id);
 
   const rows: any[] = [];
-  for (let i = 0; i < documents.length; i++) {
-    const d = documents[i];
-    const dlRes = await fetch(
+  for (let i = 0; i < orderedDocuments.length; i++) {
+    const d = orderedDocuments[i];
+    const dlRes = await fetchWithTimeout(
       `${BASE}/v1/jobs/${remoteJobId}/documents/${encodeURIComponent(d.filename)}`,
       { headers: { Authorization: `Bearer ${KEY}` } },
+      20_000,
     );
     if (!dlRes.ok) continue;
     const content = await dlRes.text();
