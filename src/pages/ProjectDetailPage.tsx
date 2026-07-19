@@ -55,6 +55,16 @@ export default function ProjectDetailPage() {
     enabled: !!id,
   });
 
+  // Ensure the WorkspaceContext scope is aligned with the project being viewed so
+  // embedded/scoped views (Documents tab, etc.) filter correctly.
+  useEffect(() => {
+    if (project?.id) {
+      setCurrentWorkspaceId(project.workspace_id);
+      setCurrentProjectId(project.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
+
   const { data: workspace } = useQuery({
     queryKey: ["ws", project?.workspace_id],
     queryFn: async () => {
