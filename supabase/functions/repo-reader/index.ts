@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     }
 
     const jobId = project.repo_job_id;
-    if (!jobId) return j({ error: "Project has no repo job. Call action=clone first." }, 400);
+    if (!jobId) return j({ status: "none", no_job: true, message: "Project has no repo job yet." }, 200);
 
     // -------- JOB STATUS --------
     if (action === "job") {
