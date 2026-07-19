@@ -88,7 +88,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
   });
   function docsQ_hasData() {
     // stable helper for lint
-    try { return (qc.getQueryData<Doc[]>(["generated-docs", projectId])?.length ?? 0) >= 10; } catch { return false; }
+    try { return (qc.getQueryData<Doc[]>(["generated-docs", projectId])?.length ?? 0) >= 14; } catch { return false; }
   }
 
   const selected = useMemo(
