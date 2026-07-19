@@ -3198,6 +3198,62 @@ export type Database = {
           },
         ]
       }
+      project_generated_docs: {
+        Row: {
+          content: string
+          created_at: string
+          edited: boolean
+          edited_by: string | null
+          filename: string
+          id: string
+          job_id: string
+          project_id: string
+          slug: string
+          source_bytes: number | null
+          source_hash: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          edited?: boolean
+          edited_by?: string | null
+          filename: string
+          id?: string
+          job_id: string
+          project_id: string
+          slug: string
+          source_bytes?: number | null
+          source_hash?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          edited?: boolean
+          edited_by?: string | null
+          filename?: string
+          id?: string
+          job_id?: string
+          project_id?: string
+          slug?: string
+          source_bytes?: number | null
+          source_hash?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_generated_docs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_members: {
         Row: {
           created_at: string
@@ -3239,6 +3295,7 @@ export type Database = {
           files_count: number | null
           github_branch: string | null
           github_is_private: boolean | null
+          github_repo_visibility: string
           github_token_secret_name: string | null
           github_url: string | null
           id: string
@@ -3265,6 +3322,7 @@ export type Database = {
           files_count?: number | null
           github_branch?: string | null
           github_is_private?: boolean | null
+          github_repo_visibility?: string
           github_token_secret_name?: string | null
           github_url?: string | null
           id?: string
@@ -3291,6 +3349,7 @@ export type Database = {
           files_count?: number | null
           github_branch?: string | null
           github_is_private?: boolean | null
+          github_repo_visibility?: string
           github_token_secret_name?: string | null
           github_url?: string | null
           id?: string

@@ -26,9 +26,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Loader2, Users, UserPlus, Trash2, Save, ArrowRight, Globe, Lock, FolderOpen, GitBranch,
+  Loader2, Users, UserPlus, Trash2, Save, ArrowRight, Globe, Lock, FolderOpen, GitBranch, Sparkles,
 } from "lucide-react";
 import { RepoFilesPanel } from "@/components/projects/RepoFilesPanel";
+import { GeneratedDocsPanel } from "@/components/projects/GeneratedDocsPanel";
 
 type ProjectRole = "lead" | "contributor" | "viewer";
 type WsRole = "owner" | "admin" | "editor" | "viewer";
@@ -229,7 +230,10 @@ export default function ProjectDetailPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {project.source_type === "github" && (
-            <TabsTrigger value="repository"><GitBranch className="h-3.5 w-3.5 mr-1" /> Repository</TabsTrigger>
+            <>
+              <TabsTrigger value="docs"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Docs</TabsTrigger>
+              <TabsTrigger value="repository"><GitBranch className="h-3.5 w-3.5 mr-1" /> Repository</TabsTrigger>
+            </>
           )}
           <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -268,15 +272,26 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         {project.source_type === "github" && (
-          <TabsContent value="repository" className="space-y-4">
-            <RepoFilesPanel
-              projectId={project.id}
-              repoJobId={(project as any).repo_job_id || null}
-              repoJobStatus={(project as any).repo_job_status || null}
-              repoJobProgress={(project as any).repo_job_progress ?? null}
-              canEdit={canManage}
-            />
-          </TabsContent>
+          <>
+            <TabsContent value="docs" className="space-y-4">
+              <GeneratedDocsPanel
+                projectId={project.id}
+                repoJobId={(project as any).repo_job_id || null}
+                repoJobStatus={(project as any).repo_job_status || null}
+                repoJobProgress={(project as any).repo_job_progress ?? null}
+                canEdit={canManage}
+              />
+            </TabsContent>
+            <TabsContent value="repository" className="space-y-4">
+              <RepoFilesPanel
+                projectId={project.id}
+                repoJobId={(project as any).repo_job_id || null}
+                repoJobStatus={(project as any).repo_job_status || null}
+                repoJobProgress={(project as any).repo_job_progress ?? null}
+                canEdit={canManage}
+              />
+            </TabsContent>
+          </>
         )}
 
         {/* MEMBERS */}
