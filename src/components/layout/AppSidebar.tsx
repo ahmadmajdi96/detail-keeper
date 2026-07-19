@@ -57,7 +57,7 @@ const mainNavItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Workspaces", href: "/workspaces", icon: FolderKanban, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Projects", href: "/projects", icon: FolderOpen, roles: ["qa_engineer", "qa_manager", "admin"] },
-  { title: "Documents", href: "/documents", icon: FileText, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  // Documents live inside the Project profile now.
   { title: "Test Plans", href: "/test-plans", icon: ClipboardList, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   // Requirements hidden from sidebar (still available within Test Plan tabs)
   { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
