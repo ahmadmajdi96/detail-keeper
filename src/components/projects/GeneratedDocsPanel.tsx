@@ -222,10 +222,22 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
             {docs.length} documents generated from your repository · click any card to view or edit
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={resync} disabled={syncing}>
-          {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
-          Resync
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={resync} disabled={syncing}>
+            {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+            Resync
+          </Button>
+          <Button
+            size="sm"
+            className="ai-gradient text-white"
+            onClick={extract}
+            disabled={extracting || docs.length === 0}
+            title="Extract endpoints, test cases, and requirements from the 4 testing docs (10–13)"
+          >
+            {extracting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+            Extract endpoints, tests & requirements
+          </Button>
+        </div>
       </div>
 
       {/* Card grid */}
