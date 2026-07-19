@@ -158,7 +158,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
             <Loader2 className="h-7 w-7 animate-spin text-accent" />
             <div className="absolute inset-0 rounded-full animate-ping bg-accent/20" />
           </div>
-          <div className="text-lg font-semibold mb-1">Generating 10 technical documents…</div>
+          <div className="text-lg font-semibold mb-1">Generating 14 technical documents…</div>
           <div className="text-xs text-muted-foreground mb-4">
             Status: <span className="text-accent font-mono">{repoJobStatus || "queued"}</span>
             {repoJobProgress != null ? <> · {repoJobProgress}%</> : null}
