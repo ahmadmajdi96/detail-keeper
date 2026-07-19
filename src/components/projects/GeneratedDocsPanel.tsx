@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Loader2, RefreshCw, Save, FileText, Sparkles, ChevronRight,
-  CheckCircle2, PencilLine, Clock, X,
+  CheckCircle2, PencilLine, Clock, X, Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,10 @@ const DOC_ICONS: Record<string, string> = {
   "07_observability_and_operations": "📊",
   "08_quality_testing_and_risk_register": "🧪",
   "09_test_doc_service_handoff": "🤝",
+  "10_endpoint_testing_sequence": "🔗",
+  "11_ui_page_testing_sequence": "🖥️",
+  "12_system_testing_requirements": "📋",
+  "13_testing_data_catalog": "🗂️",
 };
 
 export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJobProgress, canEdit }: Props) {
@@ -50,6 +54,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
   const [buffer, setBuffer] = useState("");
   const [dirty, setDirty] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [extracting, setExtracting] = useState(false);
 
   const isReady = ["completed", "ready", "succeeded", "success"].includes((repoJobStatus || "").toLowerCase());
   const isRunning = !isReady && !!repoJobId && !["failed", "error"].includes((repoJobStatus || "").toLowerCase());
@@ -112,6 +117,25 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
     } catch (e: any) {
       toast.error(e.message || "Sync failed");
     } finally { setSyncing(false); }
+  };
+
+  const extract = async () => {
+    setExtracting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-from-generated-docs", {
+        body: { project_id: projectId },
+      });
+      if (error) throw error;
+      const d: any = data || {};
+      toast.success(
+        `Extracted ${d.endpoints_inserted ?? 0} endpoints, ${d.test_cases_inserted ?? 0} test cases, ${d.requirements_inserted ?? 0} requirements`,
+      );
+      qc.invalidateQueries({ queryKey: ["api-endpoints"] });
+      qc.invalidateQueries({ queryKey: ["test-cases"] });
+      qc.invalidateQueries({ queryKey: ["requirements"] });
+    } catch (e: any) {
+      toast.error(e.message || "Extraction failed");
+    } finally { setExtracting(false); }
   };
 
   const save = useMutation({
@@ -198,10 +222,22 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
             {docs.length} documents generated from your repository · click any card to view or edit
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={resync} disabled={syncing}>
-          {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
-          Resync
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={resync} disabled={syncing}>
+            {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+            Resync
+          </Button>
+          <Button
+            size="sm"
+            className="ai-gradient text-white"
+            onClick={extract}
+            disabled={extracting || docs.length === 0}
+            title="Extract endpoints, test cases, and requirements from the 4 testing docs (10–13)"
+          >
+            {extracting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+            Extract endpoints, tests & requirements
+          </Button>
+        </div>
       </div>
 
       {/* Card grid */}
