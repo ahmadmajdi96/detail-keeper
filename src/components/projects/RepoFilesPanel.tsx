@@ -26,7 +26,7 @@ export function RepoFilesPanel({ projectId, repoJobId, repoJobStatus, repoJobPro
   const [dirty, setDirty] = useState(false);
   const [filter, setFilter] = useState("");
 
-  const isReady = repoJobStatus === "completed" || repoJobStatus === "ready" || repoJobStatus === "success";
+  const isReady = ["completed", "ready", "success", "succeeded"].includes(repoJobStatus || "") || repoJobProgress === 100;
   const isRunning = !isReady && !!repoJobId && repoJobStatus !== "failed" && repoJobStatus !== "error";
 
   // Poll job status until ready
