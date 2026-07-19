@@ -176,7 +176,7 @@ export default function TestPlansPage() {
         }
       />
 
-      {/* AI Suggestion Banner */}
+      {/* AI Generate Banner */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -189,19 +189,27 @@ export default function TestPlansPage() {
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h3 className="font-medium">AI Test Plan Suggestions</h3>
+                <h3 className="font-medium">Generate a full Test Plan with AI</h3>
                 <p className="text-sm text-muted-foreground">
-                  Based on your test cases, we recommend creating optimized test plans
+                  We'll send all AI-generated project docs and project details to the AI and build a complete test plan in one shot.
                 </p>
               </div>
             </div>
-            <Button variant="outline" className="border-accent/30 text-accent hover:bg-accent/10">
-              View Suggestions
-              <ChevronRight className="ml-1 h-4 w-4" />
+            <Button
+              className="ai-gradient text-white"
+              disabled={!projectId || generateWithAI.isPending}
+              onClick={() => generateWithAI.mutate()}
+            >
+              {generateWithAI.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating…</>
+              ) : (
+                <><Sparkles className="mr-2 h-4 w-4" /> Generate with AI</>
+              )}
             </Button>
           </CardContent>
         </Card>
       </motion.div>
+
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
