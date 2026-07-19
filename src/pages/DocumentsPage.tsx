@@ -69,7 +69,7 @@ interface Document {
   storage_path?: string | null;
 }
 
-export default function DocumentsPage() {
+export default function DocumentsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
