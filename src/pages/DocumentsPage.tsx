@@ -304,13 +304,16 @@ export default function DocumentsPage({ embedded = false }: { embedded?: boolean
     requirements: documents.reduce((sum, d) => sum + (d.requirements_count || 0), 0),
   };
 
-  return (
-    <AppLayout>
-      <PageHeader
-        title="Document Processing"
-        description="Upload and analyze documents to extract testable requirements"
-        isAIPowered
-      />
+  const inner = (
+    <>
+      {!embedded && (
+        <PageHeader
+          title="Document Processing"
+          description="Upload and analyze documents to extract testable requirements"
+          isAIPowered
+        />
+      )}
+
 
       {/* Upload Area */}
       <motion.div
