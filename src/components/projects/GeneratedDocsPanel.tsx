@@ -119,6 +119,25 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
     } finally { setSyncing(false); }
   };
 
+  const extract = async () => {
+    setExtracting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-from-generated-docs", {
+        body: { project_id: projectId },
+      });
+      if (error) throw error;
+      const d: any = data || {};
+      toast.success(
+        `Extracted ${d.endpoints_inserted ?? 0} endpoints, ${d.test_cases_inserted ?? 0} test cases, ${d.requirements_inserted ?? 0} requirements`,
+      );
+      qc.invalidateQueries({ queryKey: ["api-endpoints"] });
+      qc.invalidateQueries({ queryKey: ["test-cases"] });
+      qc.invalidateQueries({ queryKey: ["requirements"] });
+    } catch (e: any) {
+      toast.error(e.message || "Extraction failed");
+    } finally { setExtracting(false); }
+  };
+
   const save = useMutation({
     mutationFn: async () => {
       if (!selected) return;
