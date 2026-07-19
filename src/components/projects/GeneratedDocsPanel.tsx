@@ -42,6 +42,10 @@ const DOC_ICONS: Record<string, string> = {
   "07_observability_and_operations": "📊",
   "08_quality_testing_and_risk_register": "🧪",
   "09_test_doc_service_handoff": "🤝",
+  "10_endpoint_testing_sequence": "🔗",
+  "11_ui_page_testing_sequence": "🖥️",
+  "12_system_testing_requirements": "📋",
+  "13_testing_data_catalog": "🗂️",
 };
 
 export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJobProgress, canEdit }: Props) {
