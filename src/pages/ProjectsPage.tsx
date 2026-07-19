@@ -342,10 +342,11 @@ export default function ProjectsPage() {
                           </Button>
                           <Button
                             size="sm" variant="ghost" className="h-7"
-                            onClick={() => { setCurrentProjectId(p.id); navigate("/documents"); }}
+                            onClick={() => { setCurrentProjectId(p.id); navigate(`/projects/${p.id}?tab=documents`); }}
                           >
                             Documents
                           </Button>
+
                           {(p.source_type === "github" || p.source_type === "zip") && (
                             <Button
                               size="sm" variant="ghost" className="h-7 w-7 p-0"
