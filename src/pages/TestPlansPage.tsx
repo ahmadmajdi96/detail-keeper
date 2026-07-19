@@ -144,6 +144,43 @@ export default function TestPlansPage() {
     },
   });
 
+  const generateWithAI = useMutation({
+    mutationFn: async () => {
+      if (!projectId) throw new Error("Select a project first");
+      // 1) Create a shell test plan
+      const { data: plan, error: planErr } = await supabase
+        .from("test_plans")
+        .insert({
+          name: "AI Generated Test Plan",
+          description: "Generated from project docs and details.",
+          status: "draft",
+          ai_status: "queued",
+          ai_suggested: true,
+          created_by: user?.id,
+          project_id: projectId,
+          workspace_id: workspaceId,
+        })
+        .select("id")
+        .single();
+      if (planErr) throw planErr;
+
+      // 2) Kick the durable generation job (uses all AI docs + project details).
+      const { error: fnErr } = await supabase.functions.invoke(
+        "generate-test-plan-from-docs",
+        { body: { test_plan_id: plan.id } },
+      );
+      if (fnErr) throw fnErr;
+      return plan.id as string;
+    },
+    onSuccess: (planId) => {
+      queryClient.invalidateQueries({ queryKey: ["test-plans"] });
+      toast.success("AI is generating your test plan…");
+      navigate(`/test-plans/${planId}`);
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to generate"),
+  });
+
+
   const filteredPlans = testPlans.filter((plan) => {
     const matchesSearch =
       plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
