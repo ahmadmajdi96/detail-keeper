@@ -247,6 +247,7 @@ export default function ProjectDetailPage() {
       <Tabs value={tab} onValueChange={(v) => { setTab(v); setParams({ tab: v }); }}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="documents"><FileText className="h-3.5 w-3.5 mr-1" /> Documents</TabsTrigger>
           {project.source_type === "github" && (
             <>
               <TabsTrigger value="docs"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Docs</TabsTrigger>
@@ -256,6 +257,7 @@ export default function ProjectDetailPage() {
           <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
+
 
         {/* OVERVIEW */}
         <TabsContent value="overview" className="space-y-4">
