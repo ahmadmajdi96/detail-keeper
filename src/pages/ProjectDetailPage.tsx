@@ -204,10 +204,10 @@ export default function ProjectDetailPage() {
     return <AppLayout><div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div></AppLayout>;
   }
 
-  const openProject = () => {
+  const extractAndGoToTestPlans = () => {
     setCurrentWorkspaceId(project.workspace_id);
     setCurrentProjectId(project.id);
-    navigate("/documents");
+    navigate("/test-plans");
   };
 
   return (
@@ -221,11 +221,18 @@ export default function ProjectDetailPage() {
           { label: project.name },
         ]}
         actions={
-          <Button onClick={openProject} className="ai-gradient text-white">
-            Open <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate("/projects")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+            <Button onClick={extractAndGoToTestPlans} className="ai-gradient text-white">
+              <Zap className="h-4 w-4 mr-2" /> Extract endpoints, tests & requirements
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         }
       />
+
 
       <Tabs value={tab} onValueChange={(v) => { setTab(v); setParams({ tab: v }); }}>
         <TabsList>
