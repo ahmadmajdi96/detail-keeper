@@ -346,16 +346,13 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               </Button>
             </div>
           </div>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[600px]">
-              <textarea
-                value={buffer}
-                onChange={(e) => { setBuffer(e.target.value); setDirty(true); }}
-                disabled={!canEdit}
-                spellCheck={false}
-                className="w-full min-h-[600px] font-mono text-xs p-4 bg-muted/10 border-0 resize-none focus:outline-none leading-relaxed"
-              />
-            </ScrollArea>
+          <CardContent className="p-3">
+            <RichMarkdownEditor
+              value={buffer}
+              onChange={(md) => { setBuffer(md); setDirty(true); }}
+              editable={canEdit}
+              placeholder="Start writing…"
+            />
           </CardContent>
         </Card>
       )}
