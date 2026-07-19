@@ -208,6 +208,9 @@ Deno.serve(async (req) => {
 
     return j({ error: "Unknown action" }, 400);
   } catch (e) {
+    if (e instanceof UpstreamUnreachable) {
+      return j({ error: e.message, code: "upstream_unreachable" }, 502);
+    }
     return j({ error: (e as Error).message }, 500);
   }
 });
