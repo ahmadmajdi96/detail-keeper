@@ -291,6 +291,13 @@ export default function ProjectDetailPage() {
           )}
         </TabsContent>
 
+        {/* DOCUMENTS */}
+        <TabsContent value="documents" className="space-y-4">
+          <DocumentsPage embedded />
+        </TabsContent>
+
+
+
         {project.source_type === "github" && (
           <>
             <TabsContent value="docs" className="space-y-4">
