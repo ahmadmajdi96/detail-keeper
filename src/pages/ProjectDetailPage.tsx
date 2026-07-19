@@ -438,6 +438,46 @@ export default function ProjectDetailPage() {
                 <Label>Description</Label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} disabled={!canManage} rows={3} />
               </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Source type</Label>
+                  <Input value={project.source_type || "—"} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Input value={project.status || "—"} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Created</Label>
+                  <Input value={new Date(project.created_at).toLocaleString()} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Project ID</Label>
+                  <Input value={project.id} disabled className="font-mono text-xs" />
+                </div>
+              </div>
+              {project.source_type === "github" && (
+                <div className="grid gap-4 md:grid-cols-2 pt-2 border-t border-border/50">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Repository URL</Label>
+                    <Input value={project.github_url || ""} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Branch</Label>
+                    <Input value={project.github_branch || "main"} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Repository visibility</Label>
+                    <Input value={project.github_repo_visibility || (project.github_is_private ? "private" : "public")} disabled />
+                  </div>
+                  {project.github_token_secret_name && (
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Access token secret</Label>
+                      <Input value={project.github_token_secret_name} disabled className="font-mono text-xs" />
+                    </div>
+                  )}
+                </div>
+              )}
               {canManage && (
                 <Button
                   onClick={() => updateProject.mutate({ name, description })}
@@ -450,6 +490,7 @@ export default function ProjectDetailPage() {
               )}
             </CardContent>
           </Card>
+
 
           <Card>
             <CardHeader><CardTitle className="text-base">Visibility</CardTitle></CardHeader>
