@@ -54,6 +54,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
   const [buffer, setBuffer] = useState("");
   const [dirty, setDirty] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [extracting, setExtracting] = useState(false);
 
   const isReady = ["completed", "ready", "succeeded", "success"].includes((repoJobStatus || "").toLowerCase());
   const isRunning = !isReady && !!repoJobId && !["failed", "error"].includes((repoJobStatus || "").toLowerCase());
