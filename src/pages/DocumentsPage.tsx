@@ -650,6 +650,7 @@ export default function DocumentsPage({ embedded = false }: { embedded?: boolean
           )}
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </>
   );
+  return embedded ? inner : <AppLayout>{inner}</AppLayout>;
 }
