@@ -448,26 +448,68 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
                             <Field label="Repository URL">
                               <StyledInput value={repoUrl} onChange={(e) => { setRepoUrl(e.target.value); setCheckStatus("idle"); }} placeholder="https://github.com/org/repository" />
                             </Field>
-                            <Field label="Environment Secrets">
-                              <div className="flex flex-col gap-2">
-                                {secrets.map((s, i) => (
-                                  <div key={i} className="flex gap-2">
-                                    <StyledInput value={s.key} onChange={(e) => { const c = [...secrets]; c[i].key = e.target.value; setSecrets(c); }}
-                                      placeholder="GITHUB_TOKEN" className="flex-1 uppercase text-[#00cfe0] placeholder:normal-case" />
-                                    <StyledInput value={s.value} onChange={(e) => { const c = [...secrets]; c[i].value = e.target.value; setSecrets(c); }}
-                                      placeholder="value" type="password" className="flex-1" />
-                                    <button onClick={() => setSecrets(secrets.filter((_, idx) => idx !== i))}
-                                      className="shrink-0 w-10 rounded border border-[rgba(255,48,88,0.22)] text-[#ff3058] hover:bg-[rgba(255,48,88,0.08)] flex items-center justify-center">
-                                      <XCircle size={13} />
+                            <Field label="Repository Visibility">
+                              <div className="grid grid-cols-2 gap-2">
+                                {(["public", "private"] as const).map((v) => {
+                                  const active = repoVisibility === v;
+                                  return (
+                                    <button
+                                      key={v}
+                                      type="button"
+                                      onClick={() => setRepoVisibility(v)}
+                                      className="flex items-center gap-3 px-4 py-3 rounded border text-left transition-all duration-200"
+                                      style={{
+                                        borderColor: active ? "#00cfe0" : "rgba(0,200,220,0.12)",
+                                        background: active ? "rgba(0,207,224,0.07)" : "rgba(7,14,28,0.5)",
+                                        boxShadow: active ? "0 0 18px rgba(0,207,224,0.18)" : "none",
+                                      }}
+                                    >
+                                      <div className="w-8 h-8 rounded flex items-center justify-center shrink-0"
+                                        style={{ background: active ? "rgba(0,207,224,0.15)" : "rgba(0,180,200,0.06)" }}>
+                                        {v === "public" ? <Globe size={14} className={active ? "text-[#00cfe0]" : "text-[#2a4860]"} /> : <KeyRound size={14} className={active ? "text-[#00cfe0]" : "text-[#2a4860]"} />}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-mono text-xs uppercase tracking-wider" style={{ color: active ? "#dde8f0" : "#4a6a88" }}>
+                                          {v}
+                                        </p>
+                                        <p className="font-sans text-[10px] mt-0.5" style={{ color: active ? "#4a6a88" : "#1a2e40" }}>
+                                          {v === "public" ? "No token required" : "Access token required"}
+                                        </p>
+                                      </div>
                                     </button>
-                                  </div>
-                                ))}
-                                <button onClick={() => setSecrets([...secrets, { key: "", value: "" }])}
-                                  className="flex items-center gap-2 px-3 py-2 mt-1 text-[10px] font-mono tracking-widest rounded border border-dashed border-[rgba(0,180,200,0.2)] text-[#4a6a88] hover:text-[#00cfe0] hover:border-[rgba(0,207,224,0.35)] transition-all duration-150">
-                                  <KeyRound size={11} /> ADD SECRET
-                                </button>
+                                  );
+                                })}
                               </div>
                             </Field>
+                            {repoVisibility === "private" && (
+                              <Field label={<>Access Token <span className="text-[#ff3058]">*</span></> as any}>
+                                <div className="flex flex-col gap-2">
+                                  {secrets.length === 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setSecrets([{ key: "GITHUB_TOKEN", value: "" }])}
+                                      className="flex items-center gap-2 px-3 py-2 text-[10px] font-mono tracking-widest rounded border border-dashed border-[rgba(0,180,200,0.2)] text-[#4a6a88] hover:text-[#00cfe0] hover:border-[rgba(0,207,224,0.35)] transition-all">
+                                      <KeyRound size={11} /> ADD ACCESS TOKEN
+                                    </button>
+                                  )}
+                                  {secrets.map((s, i) => (
+                                    <div key={i} className="flex gap-2">
+                                      <StyledInput value={s.key} onChange={(e) => { const c = [...secrets]; c[i].key = e.target.value; setSecrets(c); }}
+                                        placeholder="GITHUB_TOKEN" className="flex-1 uppercase text-[#00cfe0] placeholder:normal-case" />
+                                      <StyledInput value={s.value} onChange={(e) => { const c = [...secrets]; c[i].value = e.target.value; setSecrets(c); }}
+                                        placeholder="ghp_..." type="password" className="flex-1" />
+                                      <button type="button" onClick={() => setSecrets(secrets.filter((_, idx) => idx !== i))}
+                                        className="shrink-0 w-10 rounded border border-[rgba(255,48,88,0.22)] text-[#ff3058] hover:bg-[rgba(255,48,88,0.08)] flex items-center justify-center">
+                                        <XCircle size={13} />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <p className="font-mono text-[10px] text-[#4a6a88] pl-1">
+                                    Token is sent once to clone the repository and is not stored.
+                                  </p>
+                                </div>
+                              </Field>
+                            )}
                             <Checker status={checkStatus} onCheck={runCheck} url={repoUrl} />
                           </div>
                         )}
