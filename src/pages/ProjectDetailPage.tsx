@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Loader2, Users, UserPlus, Trash2, Save, ArrowRight, Globe, Lock, FolderOpen, GitBranch,
+  Loader2, Users, UserPlus, Trash2, Save, ArrowRight, Globe, Lock, FolderOpen, GitBranch, Sparkles,
 } from "lucide-react";
 import { RepoFilesPanel } from "@/components/projects/RepoFilesPanel";
 import { GeneratedDocsPanel } from "@/components/projects/GeneratedDocsPanel";
