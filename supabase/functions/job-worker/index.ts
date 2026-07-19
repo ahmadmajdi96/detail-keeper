@@ -84,6 +84,21 @@ async function runJob(sb: any, job: any) {
     const handler = HANDLERS[job.kind];
     if (!handler) throw new Error(`No handler for kind: ${job.kind}`);
     const result = await handler(sb, job);
+    if (result?.__job_control === "waiting") {
+      await sb.from("jobs").update({
+        status: "waiting",
+        progress: result.progress ?? job.progress ?? 0,
+        progress_message: result.progress_message ?? job.progress_message ?? "Waiting",
+        checkpoint: result.checkpoint ?? job.checkpoint ?? null,
+        run_after: result.run_after ?? new Date(Date.now() + 60_000).toISOString(),
+        locked_at: null,
+        locked_by: null,
+      }).eq("id", job.id);
+      if (attempt) await sb.from("job_attempts").update({
+        status: "waiting", finished_at: new Date().toISOString(),
+      }).eq("id", attempt.id);
+      return;
+    }
     await sb.from("jobs").update({
       status: "completed", result, error: null, progress: 100, locked_at: null, locked_by: null,
     }).eq("id", job.id);
