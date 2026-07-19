@@ -482,7 +482,7 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
                               </div>
                             </Field>
                             {repoVisibility === "private" && (
-                              <Field label={<>Access Token <span className="text-[#ff3058]">*</span></> as any}>
+                              <Field label="Access Token (required)">
                                 <div className="flex flex-col gap-2">
                                   {secrets.length === 0 && (
                                     <button
