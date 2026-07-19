@@ -135,6 +135,7 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [docFiles, setDocFiles] = useState<File[]>([]);
   const [repoUrl, setRepoUrl] = useState("");
+  const [repoVisibility, setRepoVisibility] = useState<"public" | "private">("public");
   const [secrets, setSecrets] = useState<Secret[]>([]);
   const [checkStatus, setCheckStatus] = useState<CheckStatus>("idle");
 
@@ -143,6 +144,7 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
   const reset = () => {
     setStep(0); setDone(false); setProjectName(""); setProjectType("");
     setLocator(null); setZipFile(null); setDocFiles([]); setRepoUrl("");
+    setRepoVisibility("public");
     setSecrets([]); setCheckStatus("idle"); setNotifications([]);
   };
 
@@ -156,7 +158,11 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
     if (step === 1) {
       if (!locator) return false;
       if (locator === "zip") return zipFile !== null;
-      if (locator === "github") return repoUrl.trim() !== "";
+      if (locator === "github") {
+        if (!repoUrl.trim()) return false;
+        if (repoVisibility === "private" && !secrets.some((s) => s.value.trim())) return false;
+        return true;
+      }
       if (locator === "documentation") return true;
     }
     return true;
@@ -186,7 +192,8 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
       if (locator === "github") {
         projectInsert.github_url = repoUrl;
         projectInsert.github_branch = "main";
-        projectInsert.github_is_private = secrets.length > 0;
+        projectInsert.github_is_private = repoVisibility === "private";
+        projectInsert.github_repo_visibility = repoVisibility;
         if (secrets.length > 0) projectInsert.github_token_secret_name = secrets[0]?.value;
       }
 
@@ -219,7 +226,8 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
             project_id: projectId,
             repo_url: repoUrl,
             branch: "main",
-            access_token: secrets[0]?.value || null,
+            visibility: repoVisibility,
+            access_token: repoVisibility === "private" ? (secrets[0]?.value || null) : null,
           },
         });
         if (rrErr) {
