@@ -26,10 +26,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Loader2, Users, UserPlus, Trash2, Save, ArrowRight, Globe, Lock, FolderOpen, GitBranch, Sparkles,
+  Loader2, Users, UserPlus, Trash2, Save, ArrowLeft, ArrowRight, Globe, Lock, FolderOpen, GitBranch, Sparkles, FileText, Zap,
 } from "lucide-react";
 import { RepoFilesPanel } from "@/components/projects/RepoFilesPanel";
 import { GeneratedDocsPanel } from "@/components/projects/GeneratedDocsPanel";
+import DocumentsPage from "@/pages/DocumentsPage";
 
 type ProjectRole = "lead" | "contributor" | "viewer";
 type WsRole = "owner" | "admin" | "editor" | "viewer";
