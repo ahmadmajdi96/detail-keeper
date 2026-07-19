@@ -4,13 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Loader2, RefreshCw, Save, FileText, Sparkles, ChevronRight,
   CheckCircle2, PencilLine, Clock, X, Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 
 interface Props {
   projectId: string;
@@ -346,16 +346,13 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               </Button>
             </div>
           </div>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[600px]">
-              <textarea
-                value={buffer}
-                onChange={(e) => { setBuffer(e.target.value); setDirty(true); }}
-                disabled={!canEdit}
-                spellCheck={false}
-                className="w-full min-h-[600px] font-mono text-xs p-4 bg-muted/10 border-0 resize-none focus:outline-none leading-relaxed"
-              />
-            </ScrollArea>
+          <CardContent className="p-3">
+            <RichMarkdownEditor
+              value={buffer}
+              onChange={(md) => { setBuffer(md); setDirty(true); }}
+              editable={canEdit}
+              placeholder="Start writing…"
+            />
           </CardContent>
         </Card>
       )}

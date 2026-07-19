@@ -30,6 +30,9 @@ async function setProgress(sb: Sb, jobId: string, progress: number, message?: st
 }
 
 // ---------------- generate_test_plan_from_docs ----------------
+// New flow: send all AI-generated project docs (project_generated_docs) to the
+// external Doc Generator service, wait for it to produce the 10 test-plan docs,
+// and persist them as test_plan_documents_v2 rows so the workbench renders them.
 export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
   const test_plan_id = job.payload?.test_plan_id;
   if (!test_plan_id) throw new Error("payload.test_plan_id required");
@@ -39,175 +42,160 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
     ai_last_run_at: new Date().toISOString(),
   }).eq("id", test_plan_id);
 
-  await setProgress(sb, job.id, 5, "Loading plan & documents");
+  await setProgress(sb, job.id, 5, "Loading plan & AI project docs");
 
   const { data: plan } = await sb.from("test_plans").select("*").eq("id", test_plan_id).single();
   if (!plan) throw new Error("Test plan not found");
 
-  const { data: planDocs } = await sb
-    .from("test_plan_documents")
-    .select("document_id, documents:document_id(filename, content, summary)")
-    .eq("test_plan_id", test_plan_id);
+  const { data: aiDocs } = await sb
+    .from("project_generated_docs")
+    .select("slug, filename, title, content")
+    .eq("project_id", plan.project_id)
+    .order("slug", { ascending: true });
 
-  const docsContext = (planDocs || [])
-    .map((d: any) => {
-      const doc = d.documents;
-      if (!doc) return "";
-      return `### ${doc.filename}\n${(doc.summary || "")}\n${(doc.content || "").slice(0, 6000)}`;
-    })
-    .filter(Boolean).join("\n\n---\n\n");
-
-  // Pull repository files from Repo Reader when the project has a clone job.
-  let repoContext = "";
-  try {
-    const { data: proj } = await sb.from("projects")
-      .select("repo_job_id, repo_job_status").eq("id", plan.project_id).maybeSingle();
-    const ready = proj?.repo_job_status && ["completed", "ready", "success"].includes(proj.repo_job_status);
-    const BASE = Deno.env.get("REPO_READER_BASE_URL");
-    const TOKEN = Deno.env.get("REPO_READER_TOKEN");
-    if (proj?.repo_job_id && ready && BASE && TOKEN) {
-      await setProgress(sb, job.id, 12, "Fetching repository files");
-      const listRes = await fetch(`${BASE}/v1/jobs/${proj.repo_job_id}/repository/files?limit=200`, {
-        headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/json" },
-      });
-      if (listRes.ok) {
-        const listJson = await listRes.json();
-        const files: any[] = listJson?.files || listJson?.items || (Array.isArray(listJson) ? listJson : []);
-        // Prioritize spec / requirement / readme-like text files, cap total bytes to keep the prompt small.
-        const priority = /(readme|openapi|swagger|api|spec|requirements|\.md$|\.mdx$|\.txt$|\.ya?ml$|\.json$|package\.json)/i;
-        const ordered = files
-          .map((f: any) => (typeof f === "string" ? { path: f } : { path: f.path || f.name, size: f.size }))
-          .filter((f: any) => f.path && (!f.size || f.size < 200_000))
-          .sort((a: any, b: any) => Number(priority.test(b.path)) - Number(priority.test(a.path)))
-          .slice(0, 25);
-        const chunks: string[] = [];
-        let total = 0;
-        for (const f of ordered) {
-          if (total > 60_000) break;
-          const res = await fetch(`${BASE}/v1/jobs/${proj.repo_job_id}/repository/files/${encodeURI(f.path)}`, {
-            headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/json" },
-          });
-          if (!res.ok) continue;
-          const body = await res.text();
-          const raw = (() => { try { const j = JSON.parse(body); return j?.content ?? body; } catch { return body; } })();
-          const slice = String(raw).slice(0, 5000);
-          chunks.push(`### ${f.path}\n${slice}`);
-          total += slice.length;
-        }
-        if (chunks.length) repoContext = chunks.join("\n\n---\n\n");
-      }
-    }
-  } catch (e) {
-    console.error("repo context fetch failed", (e as Error).message);
+  const docs = aiDocs || [];
+  if (!docs.length) {
+    throw new Error("Project has no AI-generated documents yet. Generate them from the project's AI Docs tab first.");
   }
 
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+  const BASE = Deno.env.get("DOC_GENERATOR_BASE_URL") || "https://docgenerator.qualixa.cortanexai.com";
+  const KEY = Deno.env.get("DOC_GENERATOR_API_KEY");
+  if (!KEY) throw new Error("DOC_GENERATOR_API_KEY not configured");
 
-  await setProgress(sb, job.id, 20, "Calling AI gateway");
+  // 1. Build multipart with each project doc as a file.
+  await setProgress(sb, job.id, 15, `Uploading ${docs.length} docs to Doc Generator`);
+  const form = new FormData();
+  for (const d of docs) {
+    const name = (d.filename || `${d.slug}.md`).endsWith(".md")
+      ? (d.filename || `${d.slug}.md`)
+      : `${d.filename || d.slug}.md`;
+    form.append("files", new Blob([d.content || ""], { type: "text/markdown" }), name);
+  }
+  form.append("metadata", JSON.stringify({
+    source: "qualixa",
+    test_plan_id,
+    project_id: plan.project_id,
+    plan_name: plan.name,
+    plan_description: plan.description,
+  }));
 
-  const systemPrompt = `You are a senior QA engineer. Generate a complete, structured test plan in JSON.
-Return ONLY valid JSON with shape:
-{ "objective": string, "scope": string, "coverage_areas": string[],
-  "test_cases": [{ "title": string, "description": string,
-    "priority": "high"|"medium"|"low",
-    "type": "functional"|"integration"|"e2e"|"security"|"performance"|"regression",
-    "preconditions": string, "steps": string[], "expected_result": string,
-    "coverage_tags": string[] }] }
-Generate 8-15 high-quality cases covering happy path, edge, negative, and security.`;
-
-  const userPrompt = `Test Plan: ${plan.name}
-Description: ${plan.description || "N/A"}
-Objective: ${plan.objective || "N/A"}
-Scope: ${plan.scope || "N/A"}
-
-Source Documents:
-${docsContext || "(no documents attached — infer from plan name/description)"}
-
-${repoContext ? `Repository Source Files (from the cloned repo):\n${repoContext}` : ""}`;
-
-  const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const createRes = await fetch(`${BASE}/v1/jobs`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      response_format: { type: "json_object" },
-    }),
+    headers: { Authorization: `Bearer ${KEY}` },
+    body: form,
   });
-  if (!aiRes.ok) {
-    const t = await aiRes.text();
-    throw new Error(`AI gateway ${aiRes.status}: ${t.slice(0, 300)}`);
+  if (!createRes.ok) {
+    const t = await createRes.text();
+    throw new Error(`Doc Generator create job failed (${createRes.status}): ${t.slice(0, 300)}`);
   }
-  const aiJson = await aiRes.json();
-  const raw = aiJson.choices?.[0]?.message?.content || "{}";
-  const parsed = safeParseJson(raw);
+  const createJson = await createRes.json();
+  const remoteJobId = createJson.id || createJson.job_id;
+  if (!remoteJobId) throw new Error("Doc Generator did not return a job id");
 
-  await setProgress(sb, job.id, 65, "Saving test cases");
+  // 2. Poll until terminal.
+  await setProgress(sb, job.id, 25, "Doc Generator queued — generating test plan documents");
+  const started = Date.now();
+  const MAX_MS = 15 * 60 * 1000; // 15 min
+  let remoteStatus = "queued";
+  let remoteProgress = 0;
+  let lastErr: string | null = null;
 
-  await sb.from("test_plans").update({
-    objective: parsed.objective || plan.objective,
-    scope: parsed.scope || plan.scope,
-    ai_suggested: true,
-  }).eq("id", test_plan_id);
-
-  const cases = Array.isArray(parsed.test_cases) ? parsed.test_cases : [];
-  let created = 0;
-  for (const tc of cases) {
-    const priorityNum = tc.priority === "high" ? 1 : tc.priority === "low" ? 3 : 2;
-    const { data: inserted, error: tcErr } = await sb.from("test_cases").insert({
-      title: tc.title || "Untitled",
-      description: tc.description || null,
-      preconditions: tc.preconditions || null,
-      expected_result: tc.expected_result || null,
-      priority: priorityNum,
-      status: "draft",
-      ai_generated: true,
-      ai_confidence: 0.85,
-      coverage_tags: tc.coverage_tags || (tc.type ? [tc.type, ...(tc.coverage_tags || [])] : null),
-      created_by: plan.created_by,
-      workspace_id: plan.workspace_id,
-      project_id: plan.project_id,
-      source: "ai_generated",
-    }).select("id").single();
-
-    if (!tcErr && inserted) {
-      await sb.from("test_plan_test_cases").insert({
-        test_plan_id, test_case_id: inserted.id, added_by: plan.created_by,
-      });
-      if (Array.isArray(tc.steps)) {
-        const stepRows = tc.steps.map((s: string, i: number) => ({
-          test_case_id: inserted.id, step_number: i + 1, action: s,
-          expected_result: i === tc.steps.length - 1 ? tc.expected_result || "" : "",
-        }));
-        if (stepRows.length) await sb.from("test_case_steps").insert(stepRows);
-      }
-      created++;
+  while (Date.now() - started < MAX_MS) {
+    await new Promise((r) => setTimeout(r, 3500));
+    const pollRes = await fetch(`${BASE}/v1/jobs/${remoteJobId}`, {
+      headers: { Authorization: `Bearer ${KEY}` },
+    });
+    if (!pollRes.ok) { lastErr = `poll ${pollRes.status}`; continue; }
+    const pj = await pollRes.json();
+    remoteStatus = (pj.status || "").toLowerCase();
+    remoteProgress = typeof pj.progress === "number" ? pj.progress : remoteProgress;
+    const mapped = 25 + Math.min(60, Math.round(remoteProgress * 0.6));
+    await setProgress(sb, job.id, mapped, `Doc Generator: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
+    if (["succeeded", "success", "completed", "ready"].includes(remoteStatus)) break;
+    if (["failed", "error", "cancelled", "canceled"].includes(remoteStatus)) {
+      throw new Error(`Doc Generator failed: ${pj.error || remoteStatus}`);
     }
   }
+  if (!["succeeded", "success", "completed", "ready"].includes(remoteStatus)) {
+    throw new Error(`Doc Generator timed out (last: ${remoteStatus}${lastErr ? ` · ${lastErr}` : ""})`);
+  }
 
-  const nextVersion = (plan.current_version || 1) + (created > 0 ? 1 : 0);
-  if (created > 0) {
-    await sb.from("test_plan_versions").insert({
-      test_plan_id, version: nextVersion, snapshot: parsed,
-      change_summary: `AI generated ${created} test case(s)`,
+  // 3. List generated documents.
+  await setProgress(sb, job.id, 88, "Downloading generated documents");
+  const listRes = await fetch(`${BASE}/v1/jobs/${remoteJobId}/documents`, {
+    headers: { Authorization: `Bearer ${KEY}` },
+  });
+  if (!listRes.ok) throw new Error(`Doc Generator list failed: ${listRes.status}`);
+  const listJson = await listRes.json();
+  const documents: Array<{ filename: string; title?: string; slug?: string; bytes?: number }> =
+    listJson.documents || [];
+
+  if (!documents.length) throw new Error("Doc Generator returned no documents");
+
+  // 4. Download each doc and persist to test_plan_documents_v2 (replace).
+  await sb.from("test_plan_documents_v2").delete().eq("test_plan_id", test_plan_id);
+
+  const rows: any[] = [];
+  for (let i = 0; i < documents.length; i++) {
+    const d = documents[i];
+    const dlRes = await fetch(
+      `${BASE}/v1/jobs/${remoteJobId}/documents/${encodeURIComponent(d.filename)}`,
+      { headers: { Authorization: `Bearer ${KEY}` } },
+    );
+    if (!dlRes.ok) continue;
+    const content = await dlRes.text();
+    const baseName = (d.filename || `doc-${i + 1}`).replace(/\.md$/i, "");
+    const slug = (d.slug || baseName).toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, 60);
+    rows.push({
+      test_plan_id,
+      project_id: plan.project_id,
+      slug,
+      title: d.title || baseName.replace(/^\d+_?/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      kind: inferPlanDocKind(baseName),
+      content,
+      sort_order: i,
       created_by: plan.created_by,
     });
-    await sb.from("test_plans").update({
-      ai_status: "ready", current_version: nextVersion,
-    }).eq("id", test_plan_id);
-
-    const docIds = (planDocs || []).map((d: any) => d.document_id).filter(Boolean);
-    if (docIds.length) {
-      await sb.from("documents").update({ status: "requirements_extracted" }).in("id", docIds);
-    }
-  } else {
-    await sb.from("test_plans").update({ ai_status: "ready" }).eq("id", test_plan_id);
   }
 
-  await setProgress(sb, job.id, 100, `Generated ${created} test case(s)`);
-  return { created, test_plan_id };
+  if (!rows.length) throw new Error("No documents downloaded from Doc Generator");
+
+  const { error: insErr } = await sb.from("test_plan_documents_v2").insert(rows);
+  if (insErr) throw new Error(`Persist docs failed: ${insErr.message}`);
+
+  const nextVersion = (plan.current_version || 1) + 1;
+  await sb.from("test_plan_versions").insert({
+    test_plan_id, version: nextVersion,
+    snapshot: { source: "doc-generator", remote_job_id: remoteJobId, document_count: rows.length },
+    change_summary: `Doc Generator produced ${rows.length} document(s)`,
+    created_by: plan.created_by,
+  });
+
+  await sb.from("test_plans").update({
+    ai_status: "ready",
+    ai_suggested: true,
+    current_version: nextVersion,
+  }).eq("id", test_plan_id);
+
+  await setProgress(sb, job.id, 100, `Generated ${rows.length} test-plan document(s)`);
+  return { document_count: rows.length, test_plan_id, remote_job_id: remoteJobId };
 }
+
+function inferPlanDocKind(baseName: string): string {
+  const n = baseName.toLowerCase();
+  if (n.includes("master")) return "test_strategy";
+  if (n.includes("unit")) return "unit_plan";
+  if (n.includes("integration") || n.includes("api")) return "api_contract_plan";
+  if (n.includes("stress") || n.includes("load")) return "performance_plan";
+  if (n.includes("penetration") || n.includes("security")) return "security_plan";
+  if (n.includes("benchmark") || n.includes("performance")) return "performance_plan";
+  if (n.includes("edge")) return "risk_matrix";
+  if (n.includes("automation")) return "automation_plan";
+  if (n.includes("traceability")) return "traceability";
+  if (n.includes("runbook") || n.includes("execution")) return "release_checklist";
+  return "other";
+}
+
 
 // ---------------- ingest_ci_results ----------------
 export async function handleIngestCiResults(sb: Sb, job: any) {
