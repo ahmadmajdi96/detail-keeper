@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 const FLOW: { path: string; label: string }[] = [
   { path: "/workspaces", label: "Workspaces" },
   { path: "/projects", label: "Projects" },
-  { path: "/documents", label: "Documents" },
   { path: "/test-plans", label: "Test Plans" },
   { path: "/test-cases", label: "Test Cases" },
   { path: "/executions", label: "Executions" },
