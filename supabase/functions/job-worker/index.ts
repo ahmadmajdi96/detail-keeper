@@ -109,7 +109,7 @@ async function runJob(sb: any, job: any) {
   } catch (e: any) {
     const msg = e?.message || String(e);
     const errPayload = { message: msg, stack: e?.stack };
-    const isDead = job.attempt_count >= job.max_attempts;
+    const isDead = e?.nonRetryable || job.attempt_count >= job.max_attempts;
     const backoffSec = Math.min(900, 2 ** job.attempt_count * 15); // exp backoff capped 15 min
     await sb.from("jobs").update({
       status: isDead ? "dead_letter" : "retrying",
