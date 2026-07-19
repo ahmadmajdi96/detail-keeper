@@ -107,7 +107,7 @@ export default function WorkspacesPage() {
 
   const open = (id: string) => {
     setCurrentWorkspaceId(id);
-    navigate(`/workspaces/${id}`);
+    navigate(`/projects`);
   };
 
   return (

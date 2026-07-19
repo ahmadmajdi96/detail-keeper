@@ -26,10 +26,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Loader2, Users, UserPlus, Trash2, Save, ArrowRight, Globe, Lock, FolderOpen, GitBranch, Sparkles,
+  Loader2, Users, UserPlus, Trash2, Save, ArrowLeft, ArrowRight, Globe, Lock, FolderOpen, GitBranch, Sparkles, FileText, Zap,
 } from "lucide-react";
 import { RepoFilesPanel } from "@/components/projects/RepoFilesPanel";
 import { GeneratedDocsPanel } from "@/components/projects/GeneratedDocsPanel";
+import DocumentsPage from "@/pages/DocumentsPage";
 
 type ProjectRole = "lead" | "contributor" | "viewer";
 type WsRole = "owner" | "admin" | "editor" | "viewer";
@@ -53,6 +54,16 @@ export default function ProjectDetailPage() {
     },
     enabled: !!id,
   });
+
+  // Ensure the WorkspaceContext scope is aligned with the project being viewed so
+  // embedded/scoped views (Documents tab, etc.) filter correctly.
+  useEffect(() => {
+    if (project?.id) {
+      setCurrentWorkspaceId(project.workspace_id);
+      setCurrentProjectId(project.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
 
   const { data: workspace } = useQuery({
     queryKey: ["ws", project?.workspace_id],
@@ -203,10 +214,10 @@ export default function ProjectDetailPage() {
     return <AppLayout><div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div></AppLayout>;
   }
 
-  const openProject = () => {
+  const extractAndGoToTestPlans = () => {
     setCurrentWorkspaceId(project.workspace_id);
     setCurrentProjectId(project.id);
-    navigate("/documents");
+    navigate("/test-plans");
   };
 
   return (
@@ -220,15 +231,23 @@ export default function ProjectDetailPage() {
           { label: project.name },
         ]}
         actions={
-          <Button onClick={openProject} className="ai-gradient text-white">
-            Open <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate("/projects")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+            <Button onClick={extractAndGoToTestPlans} className="ai-gradient text-white">
+              <Zap className="h-4 w-4 mr-2" /> Extract endpoints, tests & requirements
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         }
       />
+
 
       <Tabs value={tab} onValueChange={(v) => { setTab(v); setParams({ tab: v }); }}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="documents"><FileText className="h-3.5 w-3.5 mr-1" /> Documents</TabsTrigger>
           {project.source_type === "github" && (
             <>
               <TabsTrigger value="docs"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Docs</TabsTrigger>
@@ -238,6 +257,7 @@ export default function ProjectDetailPage() {
           <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
+
 
         {/* OVERVIEW */}
         <TabsContent value="overview" className="space-y-4">
@@ -270,6 +290,13 @@ export default function ProjectDetailPage() {
             </CardContent></Card>
           )}
         </TabsContent>
+
+        {/* DOCUMENTS */}
+        <TabsContent value="documents" className="space-y-4">
+          <DocumentsPage embedded />
+        </TabsContent>
+
+
 
         {project.source_type === "github" && (
           <>
@@ -411,6 +438,46 @@ export default function ProjectDetailPage() {
                 <Label>Description</Label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} disabled={!canManage} rows={3} />
               </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Source type</Label>
+                  <Input value={project.source_type || "—"} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Input value={project.status || "—"} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Created</Label>
+                  <Input value={new Date(project.created_at).toLocaleString()} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Project ID</Label>
+                  <Input value={project.id} disabled className="font-mono text-xs" />
+                </div>
+              </div>
+              {project.source_type === "github" && (
+                <div className="grid gap-4 md:grid-cols-2 pt-2 border-t border-border/50">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Repository URL</Label>
+                    <Input value={project.github_url || ""} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Branch</Label>
+                    <Input value={project.github_branch || "main"} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Repository visibility</Label>
+                    <Input value={project.github_repo_visibility || (project.github_is_private ? "private" : "public")} disabled />
+                  </div>
+                  {project.github_token_secret_name && (
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Access token secret</Label>
+                      <Input value={project.github_token_secret_name} disabled className="font-mono text-xs" />
+                    </div>
+                  )}
+                </div>
+              )}
               {canManage && (
                 <Button
                   onClick={() => updateProject.mutate({ name, description })}
@@ -423,6 +490,7 @@ export default function ProjectDetailPage() {
               )}
             </CardContent>
           </Card>
+
 
           <Card>
             <CardHeader><CardTitle className="text-base">Visibility</CardTitle></CardHeader>

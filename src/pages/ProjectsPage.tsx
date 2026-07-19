@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { MetricCard } from "@/components/ui/metric-card";
 import {
-  ArrowRight, ChevronRight, Clock, FileArchive, FileText, FolderOpen,
+  ArrowLeft, ArrowRight, ChevronRight, Clock, FileArchive, FileText, FolderOpen,
   Github, LayoutGrid, List, Loader2, Plus, RefreshCw, Search, Trash2,
   CheckCircle2, AlertCircle, Loader, Zap, Network, FlaskConical,
 } from "lucide-react";
@@ -143,11 +143,17 @@ export default function ProjectsPage() {
           { label: currentWorkspace.name },
         ]}
         actions={
-          <Button onClick={() => setWizardOpen(true)} className="ai-gradient text-white">
-            <Plus className="h-4 w-4 mr-2" /> New project
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate("/workspaces")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+            <Button onClick={() => setWizardOpen(true)} className="ai-gradient text-white">
+              <Plus className="h-4 w-4 mr-2" /> New project
+            </Button>
+          </div>
         }
       />
+
 
       {/* KPI row */}
       <motion.div
@@ -336,10 +342,11 @@ export default function ProjectsPage() {
                           </Button>
                           <Button
                             size="sm" variant="ghost" className="h-7"
-                            onClick={() => { setCurrentProjectId(p.id); navigate("/documents"); }}
+                            onClick={() => { setCurrentProjectId(p.id); navigate(`/projects/${p.id}?tab=documents`); }}
                           >
                             Documents
                           </Button>
+
                           {(p.source_type === "github" || p.source_type === "zip") && (
                             <Button
                               size="sm" variant="ghost" className="h-7 w-7 p-0"
