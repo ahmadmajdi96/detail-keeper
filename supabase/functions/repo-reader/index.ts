@@ -15,17 +15,25 @@ function j(body: unknown, status = 200) {
   });
 }
 
+class UpstreamUnreachable extends Error {}
+
 async function rr(path: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      "x-api-key": API_KEY,
-      Authorization: `Bearer ${API_KEY}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(init.headers || {}),
-    },
-  });
+  try {
+    return await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: {
+        "x-api-key": API_KEY,
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(init.headers || {}),
+      },
+    });
+  } catch (e) {
+    throw new UpstreamUnreachable(
+      `Repo Reader service unreachable at ${BASE}. The configured REPO_READER_BASE_URL is offline or invalid. (${(e as Error).message})`,
+    );
+  }
 }
 
 async function syncDocuments(admin: any, projectId: string, jobId: string) {
