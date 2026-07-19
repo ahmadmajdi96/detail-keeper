@@ -38,6 +38,12 @@ function waitForJob(progress: number, message: string, checkpoint: any, delayMs 
   };
 }
 
+function nonRetryableError(message: string) {
+  const err = new Error(message) as Error & { nonRetryable?: boolean };
+  err.nonRetryable = true;
+  return err;
+}
+
 async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = 20_000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -184,7 +190,7 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
     await setProgress(sb, job.id, mapped, `Doc Generator: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`, nextCheckpoint);
     if (["succeeded", "success", "completed", "ready"].includes(remoteStatus)) break;
     if (["failed", "error", "cancelled", "canceled"].includes(remoteStatus)) {
-      throw new Error(`Doc Generator failed: ${pj.error || remoteStatus}`);
+      throw nonRetryableError(`Doc Generator failed: ${pj.error || remoteStatus}`);
     }
     if (Date.now() - new Date(lastRemoteChangeAt).getTime() > STUCK_WITHOUT_CHANGE_MS) {
       throw new Error(`Doc Generator appears stuck: no status/progress change for ${Math.round(STUCK_WITHOUT_CHANGE_MS / 60000)} minutes (last: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""})`);
