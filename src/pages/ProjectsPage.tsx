@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { MetricCard } from "@/components/ui/metric-card";
 import {
-  ArrowRight, ChevronRight, Clock, FileArchive, FileText, FolderOpen,
+  ArrowLeft, ArrowRight, ChevronRight, Clock, FileArchive, FileText, FolderOpen,
   Github, LayoutGrid, List, Loader2, Plus, RefreshCw, Search, Trash2,
   CheckCircle2, AlertCircle, Loader, Zap, Network, FlaskConical,
 } from "lucide-react";
