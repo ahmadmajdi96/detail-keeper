@@ -325,33 +325,59 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               )}
             </div>
             <div className="flex items-center gap-2">
-              {canEdit && (
-                <Button
-                  size="sm"
-                  className="ai-gradient text-white"
-                  onClick={() => save.mutate()}
-                  disabled={save.isPending || !dirty}
-                >
-                  {save.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  Save
-                </Button>
-              )}
+              {(() => {
+                const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+                if (isJson) return null;
+                return canEdit ? (
+                  <Button
+                    size="sm"
+                    className="ai-gradient text-white"
+                    onClick={() => save.mutate()}
+                    disabled={save.isPending || !dirty}
+                  >
+                    {save.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    Save
+                  </Button>
+                ) : null;
+              })()}
               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedId(null)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
           <CardContent className="p-3">
-            <RichMarkdownEditor
-              value={buffer}
-              onChange={(md) => { setBuffer(md); setDirty(true); }}
-              editable={canEdit}
-              placeholder="Start writing…"
-            />
+            {(() => {
+              const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+              if (isJson) {
+                let parsed: unknown = null;
+                let parseError: string | null = null;
+                try {
+                  parsed = JSON.parse(buffer || selected.content || "null");
+                } catch (e: any) {
+                  parseError = e.message;
+                }
+                if (parseError) {
+                  return (
+                    <div className="text-xs text-destructive p-3 rounded border border-destructive/30 bg-destructive/5">
+                      Failed to parse JSON: {parseError}
+                    </div>
+                  );
+                }
+                return <DynamicJsonView json={parsed} filename={selected.filename} />;
+              }
+              return (
+                <RichMarkdownEditor
+                  value={buffer}
+                  onChange={(md) => { setBuffer(md); setDirty(true); }}
+                  editable={canEdit}
+                  placeholder="Start writing…"
+                />
+              );
+            })()}
           </CardContent>
         </Card>
       )}
