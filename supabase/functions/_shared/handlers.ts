@@ -103,9 +103,9 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
   const checkpoint = job.checkpoint || {};
   const startedAt = checkpoint.started_at || new Date().toISOString();
   const overallStarted = new Date(startedAt).getTime();
-  const MAX_TOTAL_MS = 35 * 60 * 1000;
-  const MAX_INVOCATION_POLL_MS = 45 * 1000;
-  const STUCK_WITHOUT_CHANGE_MS = 12 * 60 * 1000;
+  const MAX_TOTAL_MS = 60 * 60 * 1000;
+  const POLL_DELAY_MS = 2 * 60 * 1000;
+  const STUCK_WITHOUT_CHANGE_MS = 35 * 60 * 1000;
   let remoteJobId = checkpoint.remote_job_id as string | undefined;
   let remoteStatus = checkpoint.remote_status || "queued";
   let remoteProgress = typeof checkpoint.remote_progress === "number" ? checkpoint.remote_progress : 0;
@@ -156,63 +156,73 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
       expected_files: EXPECTED_FILES,
     };
     lastRemoteChangeAt = nextCheckpoint.last_remote_change_at;
-    await setProgress(sb, job.id, 25, "Doc Generator queued — generating test plan documents", nextCheckpoint);
+    await setProgress(sb, job.id, 25, "Doc Generator queued — waiting for documents", nextCheckpoint);
+    return waitForJob(
+      25,
+      "Doc Generator queued — waiting for documents",
+      nextCheckpoint,
+      POLL_DELAY_MS,
+    );
   }
 
-  // 2. Poll until terminal.
-  const invocationStarted = Date.now();
+  // 2. Poll once per worker invocation, then release the worker. The external
+  // service keeps running with the checkpointed remote_job_id, so platform
+  // request timeouts cannot restart generation or create duplicate remote jobs.
   let lastErr: string | null = null;
+  const pollRes = await fetchWithTimeout(`${BASE}/v1/jobs/${remoteJobId}`, {
+    headers: { Authorization: `Bearer ${KEY}` },
+  }, 20_000);
+  let pj: any = {};
 
-  while (Date.now() - invocationStarted < MAX_INVOCATION_POLL_MS) {
-    await new Promise((r) => setTimeout(r, 3500));
-    const pollRes = await fetchWithTimeout(`${BASE}/v1/jobs/${remoteJobId}`, {
-      headers: { Authorization: `Bearer ${KEY}` },
-    }, 15_000);
-    if (!pollRes.ok) { lastErr = `poll ${pollRes.status}`; continue; }
-    const pj = await pollRes.json();
-    const nextStatus = (pj.status || "").toLowerCase();
+  if (!pollRes.ok) {
+    lastErr = `poll ${pollRes.status}`;
+  } else {
+    pj = await pollRes.json();
+    const nextStatus = (pj.status || remoteStatus || "running").toLowerCase();
     const nextProgress = typeof pj.progress === "number" ? pj.progress : remoteProgress;
     if (nextStatus !== remoteStatus || nextProgress !== remoteProgress) {
       lastRemoteChangeAt = new Date().toISOString();
     }
     remoteStatus = nextStatus;
     remoteProgress = nextProgress;
-    const mapped = 25 + Math.min(60, Math.round(remoteProgress * 0.6));
-    const nextCheckpoint = {
-      started_at: startedAt,
-      remote_job_id: remoteJobId,
-      remote_status: remoteStatus,
-      remote_progress: remoteProgress,
-      last_remote_change_at: lastRemoteChangeAt,
-      expected_files: EXPECTED_FILES,
-      last_poll_at: new Date().toISOString(),
-    };
-    await setProgress(sb, job.id, mapped, `Doc Generator: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`, nextCheckpoint);
-    if (["succeeded", "success", "completed", "ready"].includes(remoteStatus)) break;
-    if (["failed", "error", "cancelled", "canceled"].includes(remoteStatus)) {
-      throw nonRetryableError(`Doc Generator failed: ${pj.error || remoteStatus}`);
-    }
+  }
+
+  const mapped = 25 + Math.min(60, Math.round(remoteProgress * 0.6));
+  const nextCheckpoint = {
+    started_at: startedAt,
+    remote_job_id: remoteJobId,
+    remote_status: remoteStatus,
+    remote_progress: remoteProgress,
+    last_remote_change_at: lastRemoteChangeAt,
+    expected_files: EXPECTED_FILES,
+    last_poll_at: new Date().toISOString(),
+    last_poll_error: lastErr,
+  };
+  await setProgress(sb, job.id, mapped, `Doc Generator: ${remoteStatus || "running"}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`, nextCheckpoint);
+
+  if (["failed", "error", "cancelled", "canceled"].includes(remoteStatus)) {
+    throw nonRetryableError(`Doc Generator failed: ${pj.error || remoteStatus}`);
+  }
+  if (!["succeeded", "success", "completed", "ready"].includes(remoteStatus)) {
     if (Date.now() - new Date(lastRemoteChangeAt).getTime() > STUCK_WITHOUT_CHANGE_MS) {
       throw new Error(`Doc Generator appears stuck: no status/progress change for ${Math.round(STUCK_WITHOUT_CHANGE_MS / 60000)} minutes (last: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""})`);
     }
     if (Date.now() - overallStarted > MAX_TOTAL_MS) {
       throw new Error(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
     }
-  }
-  if (!["succeeded", "success", "completed", "ready"].includes(remoteStatus)) {
-    const mapped = 25 + Math.min(60, Math.round(remoteProgress * 0.6));
     return waitForJob(
       mapped,
       `Doc Generator: ${remoteStatus || "running"}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`,
-      {
-        started_at: startedAt,
-        remote_job_id: remoteJobId,
-        remote_status: remoteStatus,
-        remote_progress: remoteProgress,
-        last_remote_change_at: lastRemoteChangeAt,
-        expected_files: EXPECTED_FILES,
-        last_poll_at: new Date().toISOString(),
-      },
+      nextCheckpoint,
+      POLL_DELAY_MS,
+    );
+  }
+  if (!["succeeded", "success", "completed", "ready"].includes(remoteStatus)) {
+    return waitForJob(
+      mapped,
+      `Doc Generator: ${remoteStatus || "running"}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`,
+      nextCheckpoint,
+      POLL_DELAY_MS,
     );
   }
 
