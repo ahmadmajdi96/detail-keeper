@@ -18,6 +18,28 @@ serve(async (req) => {
 
     await sb.from("test_plans").update({ ai_status: "queued" }).eq("id", test_plan_id);
 
+    const { data: existingJob } = await sb.from("jobs")
+      .select("id, status, progress, progress_message, run_after")
+      .eq("kind", "generate_test_plan_from_docs")
+      .contains("payload", { test_plan_id })
+      .in("status", ["queued", "retrying", "running", "waiting"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingJob?.id) {
+      return new Response(JSON.stringify({
+        success: true,
+        job_id: existingJob.id,
+        status: existingJob.status,
+        progress: existingJob.progress,
+        progress_message: existingJob.progress_message,
+        run_after: existingJob.run_after,
+      }), {
+        status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const idempotencyKey = `gen-plan:${test_plan_id}:${Date.now()}`;
     const { data: job, error } = await sb.from("jobs").insert({
       workspace_id: plan?.workspace_id || null,
@@ -26,7 +48,7 @@ serve(async (req) => {
       payload: { test_plan_id },
       idempotency_key: idempotencyKey,
       created_by: plan?.created_by || null,
-      max_attempts: 3,
+      max_attempts: 20,
       priority: 50,
     }).select("id").single();
 
