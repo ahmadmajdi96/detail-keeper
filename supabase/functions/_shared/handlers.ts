@@ -54,6 +54,34 @@ async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs
   }
 }
 
+// Best-effort terminate a remote Doc Generator job. Never throws — used from
+// failure paths where we must not mask the original error.
+export async function terminateRemoteDocJob(
+  base: string,
+  key: string,
+  remoteJobId: string,
+  reason: string,
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${base}/v1/jobs/${remoteJobId}/terminate`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      },
+      15_000,
+    );
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      return { ok: false, status: res.status, error: t.slice(0, 200) };
+    }
+    return { ok: true, status: res.status };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
 // ---------------- generate_test_plan_from_docs ----------------
 // New flow: send all AI-generated project docs (project_generated_docs) to the
 // external Doc Generator service, wait for it to produce the 10 test-plan docs,
@@ -112,7 +140,10 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
   let lastRemoteChangeAt = checkpoint.last_remote_change_at || startedAt;
 
   if (Date.now() - overallStarted > MAX_TOTAL_MS) {
-    throw new Error(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
+    if (remoteJobId) {
+      await terminateRemoteDocJob(BASE, KEY, remoteJobId, `Qualixa safe-runtime limit exceeded (${Math.round(MAX_TOTAL_MS / 60000)}m)`);
+    }
+    throw nonRetryableError(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
   }
 
   // 1. Build multipart with each project doc as a file, unless this job already
@@ -201,14 +232,17 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
   await setProgress(sb, job.id, mapped, `Doc Generator: ${remoteStatus || "running"}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`, nextCheckpoint);
 
   if (["failed", "error", "cancelled", "canceled"].includes(remoteStatus)) {
+    // Remote already terminal — no terminate call needed.
     throw nonRetryableError(`Doc Generator failed: ${pj.error || remoteStatus}`);
   }
   if (!["succeeded", "success", "completed", "ready"].includes(remoteStatus)) {
     if (Date.now() - new Date(lastRemoteChangeAt).getTime() > STUCK_WITHOUT_CHANGE_MS) {
-      throw new Error(`Doc Generator appears stuck: no status/progress change for ${Math.round(STUCK_WITHOUT_CHANGE_MS / 60000)} minutes (last: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""})`);
+      await terminateRemoteDocJob(BASE, KEY, remoteJobId, `Qualixa detected stuck job — no change in ${Math.round(STUCK_WITHOUT_CHANGE_MS / 60000)}m`);
+      throw nonRetryableError(`Doc Generator appears stuck: no status/progress change for ${Math.round(STUCK_WITHOUT_CHANGE_MS / 60000)} minutes (last: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""})`);
     }
     if (Date.now() - overallStarted > MAX_TOTAL_MS) {
-      throw new Error(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
+      await terminateRemoteDocJob(BASE, KEY, remoteJobId, `Qualixa safe-runtime limit exceeded (${Math.round(MAX_TOTAL_MS / 60000)}m)`);
+      throw nonRetryableError(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
     }
     return waitForJob(
       mapped,

@@ -443,14 +443,33 @@ export default function TestPlanDetailPage() {
       {genJob && (genJob.status === "queued" || genJob.status === "running" || genJob.status === "retrying" || genJob.status === "waiting") && (
         <Card className="mb-4 border-accent/40">
           <CardContent className="pt-5">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-3">
               <div className="text-sm font-medium flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-accent" />
                 Generating test cases — {genJob.progress_message || genJob.status}
               </div>
-              <span className="text-xs text-muted-foreground">
-                attempt {genJob.attempt_count}/{genJob.max_attempts} · {genJob.progress}%
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">
+                  attempt {genJob.attempt_count}/{genJob.max_attempts} · {genJob.progress}%
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!confirm("Cancel this generation? The remote Doc Generator job will be terminated safely.")) return;
+                    const { error } = await supabase.functions.invoke("cancel-test-plan-job", {
+                      body: { job_id: genJob.id, reason: "Cancelled from Test Plan UI" },
+                    });
+                    if (error) toast.error(error.message);
+                    else {
+                      toast.success("Generation cancelled");
+                      qc.invalidateQueries({ queryKey: ["test-plan", id] });
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
             <Progress value={genJob.progress} />
             <p className="text-[11px] text-muted-foreground mt-2">
