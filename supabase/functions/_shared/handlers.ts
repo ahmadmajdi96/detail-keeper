@@ -307,7 +307,7 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
     );
     if (!dlRes.ok) continue;
     const content = await dlRes.text();
-    const baseName = (d.filename || `doc-${i + 1}`).replace(/\.md$/i, "");
+    const baseName = (d.filename || `doc-${i + 1}`).replace(/\.(md|json)$/i, "");
     const slug = (d.slug || baseName).toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, 60);
     rows.push({
       test_plan_id,
