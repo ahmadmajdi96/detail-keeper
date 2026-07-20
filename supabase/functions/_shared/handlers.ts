@@ -159,21 +159,25 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
   // 1. Build multipart with each project doc as a file, unless this job already
   // has a checkpointed remote job to resume.
   if (!remoteJobId) {
-    // Doc Generator rejects any single file larger than 15 MB. Skip oversized
-    // files rather than looping forever on 400 errors.
-    const MAX_FILE_BYTES = 15 * 1024 * 1024;
+    // Doc Generator accepts up to 75 MB for JSON inventory files and 15 MB
+    // for everything else. Skip only files exceeding their applicable limit.
+    const MAX_MD_BYTES = 15 * 1024 * 1024;
+    const MAX_JSON_BYTES = 75 * 1024 * 1024;
     const skipped: string[] = [];
     const uploadable: typeof docs = [];
     for (const d of docs) {
+      const raw = d.filename || d.slug || "document";
+      const isJson = raw.toLowerCase().endsWith(".json");
       const size = new Blob([d.content || ""]).size;
-      if (size > MAX_FILE_BYTES) {
-        skipped.push(`${d.filename || d.slug} (${(size / 1024 / 1024).toFixed(1)} MB)`);
+      const limit = isJson ? MAX_JSON_BYTES : MAX_MD_BYTES;
+      if (size > limit) {
+        skipped.push(`${raw} (${(size / 1024 / 1024).toFixed(1)} MB > ${limit / 1024 / 1024} MB)`);
         continue;
       }
       uploadable.push(d);
     }
     if (!uploadable.length) {
-      throw nonRetryableError(`All ${docs.length} docs exceed the 15 MB Doc Generator limit. Oversized: ${skipped.join(", ")}`);
+      throw nonRetryableError(`All ${docs.length} docs exceed Doc Generator size limits. Oversized: ${skipped.join(", ")}`);
     }
     await setProgress(
       sb,
