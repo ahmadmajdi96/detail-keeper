@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2, RefreshCw, Save, FileText, Sparkles, ChevronRight,
-  CheckCircle2, PencilLine, Clock, X, Wand2,
+  CheckCircle2, PencilLine, Clock, X, Wand2, Download, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { DynamicJsonView } from "./DynamicJsonView";
 
