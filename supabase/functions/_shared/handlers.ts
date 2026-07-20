@@ -54,6 +54,34 @@ async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs
   }
 }
 
+// Best-effort terminate a remote Doc Generator job. Never throws — used from
+// failure paths where we must not mask the original error.
+export async function terminateRemoteDocJob(
+  base: string,
+  key: string,
+  remoteJobId: string,
+  reason: string,
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `${base}/v1/jobs/${remoteJobId}/terminate`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      },
+      15_000,
+    );
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      return { ok: false, status: res.status, error: t.slice(0, 200) };
+    }
+    return { ok: true, status: res.status };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
 // ---------------- generate_test_plan_from_docs ----------------
 // New flow: send all AI-generated project docs (project_generated_docs) to the
 // external Doc Generator service, wait for it to produce the 10 test-plan docs,
