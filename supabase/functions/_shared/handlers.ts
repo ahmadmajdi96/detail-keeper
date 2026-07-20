@@ -311,9 +311,11 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
     listJson.documents || [];
 
   if (!documents.length) throw new Error("Doc Generator returned no documents");
-  const docsByFilename = new Map(documents.map((d: any) => [d.filename || d.name, d]));
-  const orderedDocuments = EXPECTED_FILES.map((filename) => docsByFilename.get(filename)).filter(Boolean) as Array<{ filename: string; title?: string; slug?: string; bytes?: number }>;
-  if (!orderedDocuments.length) throw new Error("Doc Generator did not return the expected test plan files");
+  // Doc Generator filenames are dynamic — accept whatever it returns, sorted by
+  // filename so numeric-prefixed docs stay in order.
+  const orderedDocuments = [...documents].sort((a: any, b: any) =>
+    String(a.filename || a.name || "").localeCompare(String(b.filename || b.name || ""))
+  ) as Array<{ filename: string; title?: string; slug?: string; bytes?: number }>;
 
   // 4. Download each doc and persist to test_plan_documents_v2 (replace).
   await sb.from("test_plan_documents_v2").delete().eq("test_plan_id", test_plan_id);
