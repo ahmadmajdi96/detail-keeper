@@ -56,6 +56,40 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
   const [dirty, setDirty] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+
+  const LARGE_FILE_BYTES = 2_000_000; // 2 MB — above this we refuse to render
+
+  const downloadDoc = (d: Doc) => {
+    const mime = /\.json$/i.test(d.filename) ? "application/json" : "text/markdown";
+    const blob = new Blob([d.content ?? ""], { type: `${mime};charset=utf-8` });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = d.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const downloadMany = async (list: Doc[]) => {
+    if (list.length === 0) { toast.error("No documents selected"); return; }
+    for (let i = 0; i < list.length; i++) {
+      downloadDoc(list[i]);
+      // small stagger so browsers don't drop concurrent downloads
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    toast.success(`Downloading ${list.length} file${list.length > 1 ? "s" : ""}`);
+  };
+
+  const toggleChecked = (id: string) => {
+    setChecked((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
 
   const isReady = ["completed", "ready", "succeeded", "success"].includes((repoJobStatus || "").toLowerCase());
   const isRunning = !isReady && !!repoJobId && !["failed", "error"].includes((repoJobStatus || "").toLowerCase());
