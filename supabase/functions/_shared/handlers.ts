@@ -159,13 +159,30 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
   // 1. Build multipart with each project doc as a file, unless this job already
   // has a checkpointed remote job to resume.
   if (!remoteJobId) {
-    await setProgress(sb, job.id, 15, `Uploading ${docs.length} docs to Doc Generator`);
-    const form = new FormData();
+    // Doc Generator rejects any single file larger than 15 MB. Skip oversized
+    // files rather than looping forever on 400 errors.
+    const MAX_FILE_BYTES = 15 * 1024 * 1024;
+    const skipped: string[] = [];
+    const uploadable: typeof docs = [];
     for (const d of docs) {
-      // Preserve the original filename extension (.json, .md, etc.). Only
-      // append .md when no extension is present, otherwise a JSON inventory
-      // like `08_pages.json` becomes `08_pages.json.md` and downstream
-      // detectors (which key off suffix) misclassify it.
+      const size = new Blob([d.content || ""]).size;
+      if (size > MAX_FILE_BYTES) {
+        skipped.push(`${d.filename || d.slug} (${(size / 1024 / 1024).toFixed(1)} MB)`);
+        continue;
+      }
+      uploadable.push(d);
+    }
+    if (!uploadable.length) {
+      throw nonRetryableError(`All ${docs.length} docs exceed the 15 MB Doc Generator limit. Oversized: ${skipped.join(", ")}`);
+    }
+    await setProgress(
+      sb,
+      job.id,
+      15,
+      `Uploading ${uploadable.length} docs to Doc Generator${skipped.length ? ` (skipping ${skipped.length} oversized: ${skipped.join(", ")})` : ""}`,
+    );
+    const form = new FormData();
+    for (const d of uploadable) {
       const raw = d.filename || d.slug || "document";
       const hasExt = /\.[a-z0-9]+$/i.test(raw);
       const name = hasExt ? raw : `${raw}.md`;
