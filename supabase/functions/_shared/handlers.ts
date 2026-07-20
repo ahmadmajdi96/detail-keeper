@@ -126,6 +126,16 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
     "07_automation_backlog.md",
     "08_traceability_matrix.md",
     "09_execution_runbook.md",
+    "10_target_app_access_guide.md",
+    "11_testing_variables_secrets_template.md",
+    "12_ui_route_selector_map.md",
+    "13_api_contract_reference.md",
+    "14_test_data_management_guide.md",
+    "15_environment_dependency_guide.md",
+    "16_constraints_safety_guardrails.md",
+    "17_acceptance_user_story_criteria.md",
+    "18_bug_history_risk_notes.md",
+    "19_visual_accessibility_standards.md",
   ];
 
   const checkpoint = job.checkpoint || {};
