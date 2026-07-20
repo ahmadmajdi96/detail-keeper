@@ -162,10 +162,19 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
     await setProgress(sb, job.id, 15, `Uploading ${docs.length} docs to Doc Generator`);
     const form = new FormData();
     for (const d of docs) {
-      const name = (d.filename || `${d.slug}.md`).endsWith(".md")
-        ? (d.filename || `${d.slug}.md`)
-        : `${d.filename || d.slug}.md`;
-      form.append("files", new Blob([d.content || ""], { type: "text/markdown" }), name);
+      // Preserve the original filename extension (.json, .md, etc.). Only
+      // append .md when no extension is present, otherwise a JSON inventory
+      // like `08_pages.json` becomes `08_pages.json.md` and downstream
+      // detectors (which key off suffix) misclassify it.
+      const raw = d.filename || d.slug || "document";
+      const hasExt = /\.[a-z0-9]+$/i.test(raw);
+      const name = hasExt ? raw : `${raw}.md`;
+      const isJson = name.toLowerCase().endsWith(".json");
+      form.append(
+        "files",
+        new Blob([d.content || ""], { type: isJson ? "application/json" : "text/markdown" }),
+        name,
+      );
     }
     form.append("metadata", JSON.stringify({
       source: "qualixa",
