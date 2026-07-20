@@ -221,20 +221,15 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" disabled={busy !== null}
-            onClick={() => runStep("docs", "tp-generate-docs", { test_plan_id: testPlanId }, "Generated documents")}>
-            {busy === "docs" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
-            1. Generate 10 Documents
-          </Button>
-          <Button size="sm" variant="outline" disabled={busy !== null || docs.length === 0}
             onClick={() => runStep("cases", "tp-generate-cases", { test_plan_id: testPlanId }, "Generated test cases")}>
             {busy === "cases" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
-            2. Generate Test Cases
+            1. Generate Test Cases
           </Button>
-          <Button size="sm" variant="outline" disabled={busy !== null || cases.length === 0 || docs.length === 0}
-            title={docs.length === 0 ? "Generate documents first" : cases.length === 0 ? "Generate test cases first" : ""}
+          <Button size="sm" variant="outline" disabled={busy !== null || cases.length === 0}
+            title={cases.length === 0 ? "Generate test cases first" : ""}
             onClick={() => runStep("code", "tp-generate-code", { test_plan_id: testPlanId }, "Generated Playwright code")}>
             {busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
-            3. Generate Playwright Code
+            2. Generate Playwright Code
           </Button>
           <Popover>
             <PopoverTrigger asChild>
