@@ -470,52 +470,6 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               );
             })()}
           </CardContent>
-          <CardContent className="p-3">
-            {(() => {
-              const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
-              if (isJson) {
-                const raw = buffer || selected.content || "null";
-                const tooBig = raw.length > 5_000_000; // 5MB
-                if (tooBig) {
-                  return (
-                    <div className="space-y-2 text-xs">
-                      <div className="p-3 rounded border border-amber-500/30 bg-amber-500/5 text-amber-300">
-                        This document is very large ({(raw.length / 1024 / 1024).toFixed(1)} MB) — rendering it as an
-                        interactive view would freeze the browser. Showing a raw preview of the first 100 KB instead.
-                      </div>
-                      <pre className="max-h-[500px] overflow-auto p-3 rounded bg-muted/30 border border-border/40 font-mono text-[11px] whitespace-pre-wrap break-all">
-                        {raw.slice(0, 100_000)}
-                        {raw.length > 100_000 ? "\n\n… truncated …" : ""}
-                      </pre>
-                    </div>
-                  );
-                }
-                let parsed: unknown = null;
-                let parseError: string | null = null;
-                try {
-                  parsed = JSON.parse(raw);
-                } catch (e: any) {
-                  parseError = e.message;
-                }
-                if (parseError) {
-                  return (
-                    <div className="text-xs text-destructive p-3 rounded border border-destructive/30 bg-destructive/5">
-                      Failed to parse JSON: {parseError}
-                    </div>
-                  );
-                }
-                return <DynamicJsonView json={parsed} filename={selected.filename} />;
-              }
-              return (
-                <RichMarkdownEditor
-                  value={buffer}
-                  onChange={(md) => { setBuffer(md); setDirty(true); }}
-                  editable={canEdit}
-                  placeholder="Start writing…"
-                />
-              );
-            })()}
-          </CardContent>
         </Card>
       )}
     </div>
