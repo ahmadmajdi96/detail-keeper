@@ -276,9 +276,9 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             <div className="p-3 space-y-4">
               <div>
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
-                  <FileText className="h-3 w-3" /> Documents ({docs.length})
+                  <FileText className="h-3 w-3" /> Documents ({docs.length}/20)
                 </div>
-                {docs.length === 0 && <p className="text-xs text-muted-foreground">Run step 1 to generate.</p>}
+                {docs.length === 0 && <p className="text-xs text-muted-foreground">Generate documents from the Test Plan page to populate the 20 files.</p>}
                 <div className="space-y-0.5">
                   {docs.map(d => (
                     <button key={d.id}
