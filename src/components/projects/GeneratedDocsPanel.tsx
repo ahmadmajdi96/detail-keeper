@@ -256,7 +256,27 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
             {docs.length} documents generated from your repository · click any card to view or edit
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => downloadMany(docs.filter((d) => checked.has(d.id)))}
+            disabled={checked.size === 0}
+            title="Download the selected documents"
+          >
+            <Download className="h-3.5 w-3.5 mr-1" />
+            Download selected{checked.size > 0 ? ` (${checked.size})` : ""}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => downloadMany(docs)}
+            disabled={docs.length === 0}
+            title="Download every generated document"
+          >
+            <FileDown className="h-3.5 w-3.5 mr-1" />
+            Download all
+          </Button>
           <Button size="sm" variant="outline" onClick={resync} disabled={syncing}>
             {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
             Resync
