@@ -440,7 +440,7 @@ export default function TestPlanDetailPage() {
         }
       />
 
-      {genJob && (genJob.status === "queued" || genJob.status === "running" || genJob.status === "retrying") && (
+      {genJob && (genJob.status === "queued" || genJob.status === "running" || genJob.status === "retrying" || genJob.status === "waiting") && (
         <Card className="mb-4 border-accent/40">
           <CardContent className="pt-5">
             <div className="flex items-center justify-between mb-2">
