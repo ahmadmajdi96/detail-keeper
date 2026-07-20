@@ -177,45 +177,74 @@ function Primitive({ value }: { value: unknown }) {
   return <span className="text-xs break-words whitespace-pre-wrap">{s}</span>;
 }
 
+const PAGE_SIZE = 50;
 function ObjectTable({ rows, query }: { rows: Record<string, unknown>[]; query: string }) {
+  const [page, setPage] = useState(0);
   const columns = useMemo(() => {
     const set = new Set<string>();
-    for (const r of rows) Object.keys(r).forEach((k) => set.add(k));
+    // Sample first 200 rows to build the column set — avoids O(N*K) on huge arrays.
+    for (const r of rows.slice(0, 200)) Object.keys(r).forEach((k) => set.add(k));
     return Array.from(set);
   }, [rows]);
 
   const filtered = useMemo(() => {
     if (!query) return rows;
-    return rows.filter((r) => JSON.stringify(r).toLowerCase().includes(query));
+    // Only filter first 5000 rows to keep it responsive on massive JSON.
+    const scope = rows.length > 5000 ? rows.slice(0, 5000) : rows;
+    return scope.filter((r) => JSON.stringify(r).toLowerCase().includes(query));
   }, [rows, query]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
   return (
-    <div className="overflow-x-auto rounded border border-border/50">
-      <table className="w-full text-xs">
-        <thead className="bg-muted/40">
-          <tr>
-            <th className="text-left px-2 py-1.5 font-medium text-muted-foreground w-8">#</th>
-            {columns.map((c) => (
-              <th key={c} className="text-left px-2 py-1.5 font-mono text-muted-foreground whitespace-nowrap">{c}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((row, i) => (
-            <tr key={i} className="border-t border-border/40 hover:bg-muted/20 align-top">
-              <td className="px-2 py-1.5 text-muted-foreground font-mono">{i + 1}</td>
+    <div className="space-y-2">
+      <div className="overflow-x-auto rounded border border-border/50">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="text-left px-2 py-1.5 font-medium text-muted-foreground w-8">#</th>
               {columns.map((c) => (
-                <td key={c} className="px-2 py-1.5 max-w-[320px]">
-                  {renderCell(row[c])}
-                </td>
+                <th key={c} className="text-left px-2 py-1.5 font-mono text-muted-foreground whitespace-nowrap">{c}</th>
               ))}
             </tr>
-          ))}
-          {filtered.length === 0 && (
-            <tr><td colSpan={columns.length + 1} className="px-2 py-4 text-center text-muted-foreground">No matching rows</td></tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {pageRows.map((row, i) => {
+              const idx = safePage * PAGE_SIZE + i;
+              return (
+                <tr key={idx} className="border-t border-border/40 hover:bg-muted/20 align-top">
+                  <td className="px-2 py-1.5 text-muted-foreground font-mono">{idx + 1}</td>
+                  {columns.map((c) => (
+                    <td key={c} className="px-2 py-1.5 max-w-[320px]">
+                      {renderCell(row[c])}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr><td colSpan={columns.length + 1} className="px-2 py-4 text-center text-muted-foreground">No matching rows</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>
+            Showing {safePage * PAGE_SIZE + 1}–{Math.min(filtered.length, (safePage + 1) * PAGE_SIZE)} of {filtered.length}
+            {rows.length > filtered.length && !query ? "" : rows.length !== filtered.length ? ` (of ${rows.length} total)` : ""}
+          </span>
+          <div className="flex items-center gap-1">
+            <button className="px-2 py-0.5 rounded border border-border/60 disabled:opacity-40" onClick={() => setPage(0)} disabled={safePage === 0}>«</button>
+            <button className="px-2 py-0.5 rounded border border-border/60 disabled:opacity-40" onClick={() => setPage(safePage - 1)} disabled={safePage === 0}>Prev</button>
+            <span className="px-2">Page {safePage + 1} / {totalPages}</span>
+            <button className="px-2 py-0.5 rounded border border-border/60 disabled:opacity-40" onClick={() => setPage(safePage + 1)} disabled={safePage >= totalPages - 1}>Next</button>
+            <button className="px-2 py-0.5 rounded border border-border/60 disabled:opacity-40" onClick={() => setPage(totalPages - 1)} disabled={safePage >= totalPages - 1}>»</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
