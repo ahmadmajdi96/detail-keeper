@@ -400,6 +400,9 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => downloadDoc(selected)}>
+                <Download className="h-3.5 w-3.5 mr-1" /> Download
+              </Button>
               {(() => {
                 const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
                 if (isJson) return null;
@@ -424,6 +427,49 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               </Button>
             </div>
           </div>
+          <CardContent className="p-3">
+            {(() => {
+              const raw = buffer || selected.content || "";
+              const bytes = raw.length;
+              if (bytes > LARGE_FILE_BYTES) {
+                return (
+                  <div className="flex flex-col items-center justify-center gap-3 py-10 px-6 text-center rounded border border-amber-500/30 bg-amber-500/5">
+                    <div className="text-amber-400 text-sm font-medium">
+                      Can't view file this large
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {selected.filename} is {(bytes / 1024 / 1024).toFixed(1)} MB. Download it to inspect the contents.
+                    </div>
+                    <Button size="sm" onClick={() => downloadDoc(selected)}>
+                      <Download className="h-3.5 w-3.5 mr-1" /> Download {selected.filename}
+                    </Button>
+                  </div>
+                );
+              }
+              const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+              if (isJson) {
+                let parsed: unknown = null;
+                let parseError: string | null = null;
+                try { parsed = JSON.parse(raw || "null"); } catch (e: any) { parseError = e.message; }
+                if (parseError) {
+                  return (
+                    <div className="text-xs text-destructive p-3 rounded border border-destructive/30 bg-destructive/5">
+                      Failed to parse JSON: {parseError}
+                    </div>
+                  );
+                }
+                return <DynamicJsonView json={parsed} filename={selected.filename} />;
+              }
+              return (
+                <RichMarkdownEditor
+                  value={buffer}
+                  onChange={(md) => { setBuffer(md); setDirty(true); }}
+                  editable={canEdit}
+                  placeholder="Start writing…"
+                />
+              );
+            })()}
+          </CardContent>
           <CardContent className="p-3">
             {(() => {
               const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
