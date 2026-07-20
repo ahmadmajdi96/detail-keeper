@@ -325,11 +325,28 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               />
               <div className="relative flex items-start justify-between mb-3">
                 <div className="text-2xl">{icon}</div>
-                {d.edited && (
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-accent/40 text-accent">
-                    <PencilLine className="h-2.5 w-2.5 mr-0.5" /> edited
-                  </Badge>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {d.edited && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-accent/40 text-accent">
+                      <PencilLine className="h-2.5 w-2.5 mr-0.5" /> edited
+                    </Badge>
+                  )}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); toggleChecked(d.id); }}
+                    onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.stopPropagation(); toggleChecked(d.id); } }}
+                    className="p-0.5 rounded hover:bg-muted/50"
+                    title={checked.has(d.id) ? "Deselect" : "Select for download"}
+                  >
+                    <Checkbox
+                      checked={checked.has(d.id)}
+                      onCheckedChange={() => toggleChecked(d.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-3.5 w-3.5"
+                    />
+                  </span>
+                </div>
               </div>
               <div className="relative">
                 <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
