@@ -1,0 +1,1 @@
+UPDATE jobs SET status='cancelled' WHERE kind='generate_test_plan_from_docs' AND status IN ('waiting','queued','retrying','running');
