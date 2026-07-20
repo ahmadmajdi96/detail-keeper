@@ -1,0 +1,2 @@
+UPDATE public.jobs SET status = 'cancelled', error = '"Cancelled: retrying with raised JSON limit (75 MB)"'::jsonb, updated_at = now() WHERE kind = 'generate_test_plan_from_docs' AND status IN ('waiting','running','failed','retrying');
+UPDATE public.test_plans SET ai_status = 'cancelled', updated_at = now() WHERE ai_status IN ('queued','running','failed');
