@@ -300,12 +300,15 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
           const icon = DOC_ICONS[d.slug] || "📄";
           const active = selectedId === d.id;
           return (
-            <button
+            <div
               key={d.id}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedId(d.id)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedId(d.id); } }}
               style={{ animationDelay: `${i * 45}ms` }}
               className={cn(
-                "group relative text-left rounded-xl p-4 border transition-all duration-300 animate-fade-in",
+                "group relative text-left rounded-xl p-4 border transition-all duration-300 animate-fade-in cursor-pointer",
                 "hover:scale-[1.03] hover:-translate-y-0.5 will-change-transform",
                 "hover:shadow-[0_10px_40px_-10px_hsl(var(--accent)/0.4)]",
                 active
