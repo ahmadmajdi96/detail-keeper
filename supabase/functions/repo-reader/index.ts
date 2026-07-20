@@ -45,7 +45,7 @@ async function syncDocuments(admin: any, projectId: string, jobId: string) {
     let synced = 0;
     for (const d of docs) {
       const filename = d.filename || d.slug + ".md";
-      const slug = d.slug || filename.replace(/\.md$/, "");
+      const slug = d.slug || filename.replace(/\.(md|json)$/i, "");
       const title = d.title || slug;
 
       // Skip if user has edited this doc already

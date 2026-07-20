@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
+import { DynamicJsonView } from "./DynamicJsonView";
 
 interface Props {
   projectId: string;
@@ -31,21 +32,20 @@ type Doc = {
   source_bytes: number | null;
 };
 
+const EXPECTED_DOC_COUNT = 11;
+
 const DOC_ICONS: Record<string, string> = {
-  "00_repository_brief": "📘",
-  "01_architecture_and_component_map": "🏗️",
-  "02_codebase_inventory": "📚",
-  "03_api_and_interface_spec": "🔌",
-  "04_data_models_and_persistence": "🗄️",
-  "05_runtime_configuration_and_deployment": "🚀",
-  "06_security_and_trust_boundaries": "🛡️",
-  "07_observability_and_operations": "📊",
-  "08_quality_testing_and_risk_register": "🧪",
-  "09_test_doc_service_handoff": "🤝",
-  "10_endpoint_testing_sequence": "🔗",
-  "11_ui_page_testing_sequence": "🖥️",
-  "12_system_testing_requirements": "📋",
-  "13_testing_data_catalog": "🗂️",
+  "00_repo_scan_evidence_summary": "🔍",
+  "01_validated_api_surface": "🔌",
+  "02_validated_ui_route_map": "🗺️",
+  "03_database_schema_inventory": "🗄️",
+  "04_env_var_inventory": "🔐",
+  "05_selector_and_accessibility_inventory": "♿",
+  "06_existing_tests_inventory": "🧪",
+  "07_security_and_external_dependency_guide": "🛡️",
+  "08_pages": "🖥️",
+  "09_testing_data_catalog": "🗂️",
+  "10_system_testing_requirements": "📋",
 };
 
 export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJobProgress, canEdit }: Props) {
@@ -92,8 +92,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
     refetchInterval: isReady && !docsQ_hasData() ? 4000 : false,
   });
   function docsQ_hasData() {
-    // stable helper for lint
-    try { return (qc.getQueryData<Doc[]>(["generated-docs", projectId])?.length ?? 0) >= 14; } catch { return false; }
+    try { return (qc.getQueryData<Doc[]>(["generated-docs", projectId])?.length ?? 0) >= EXPECTED_DOC_COUNT; } catch { return false; }
   }
 
   const selected = useMemo(
@@ -182,7 +181,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
             <Loader2 className="h-7 w-7 animate-spin text-accent" />
             <div className="absolute inset-0 rounded-full animate-ping bg-accent/20" />
           </div>
-          <div className="text-lg font-semibold mb-1">Generating 14 technical documents…</div>
+          <div className="text-lg font-semibold mb-1">Generating {EXPECTED_DOC_COUNT} technical documents…</div>
           <div className="text-xs text-muted-foreground mb-4">
             Status: <span className="text-accent font-mono">{repoJobStatus || "queued"}</span>
             {repoJobProgress != null ? <> · {repoJobProgress}%</> : null}
@@ -326,33 +325,59 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               )}
             </div>
             <div className="flex items-center gap-2">
-              {canEdit && (
-                <Button
-                  size="sm"
-                  className="ai-gradient text-white"
-                  onClick={() => save.mutate()}
-                  disabled={save.isPending || !dirty}
-                >
-                  {save.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  Save
-                </Button>
-              )}
+              {(() => {
+                const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+                if (isJson) return null;
+                return canEdit ? (
+                  <Button
+                    size="sm"
+                    className="ai-gradient text-white"
+                    onClick={() => save.mutate()}
+                    disabled={save.isPending || !dirty}
+                  >
+                    {save.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    Save
+                  </Button>
+                ) : null;
+              })()}
               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedId(null)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
           <CardContent className="p-3">
-            <RichMarkdownEditor
-              value={buffer}
-              onChange={(md) => { setBuffer(md); setDirty(true); }}
-              editable={canEdit}
-              placeholder="Start writing…"
-            />
+            {(() => {
+              const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+              if (isJson) {
+                let parsed: unknown = null;
+                let parseError: string | null = null;
+                try {
+                  parsed = JSON.parse(buffer || selected.content || "null");
+                } catch (e: any) {
+                  parseError = e.message;
+                }
+                if (parseError) {
+                  return (
+                    <div className="text-xs text-destructive p-3 rounded border border-destructive/30 bg-destructive/5">
+                      Failed to parse JSON: {parseError}
+                    </div>
+                  );
+                }
+                return <DynamicJsonView json={parsed} filename={selected.filename} />;
+              }
+              return (
+                <RichMarkdownEditor
+                  value={buffer}
+                  onChange={(md) => { setBuffer(md); setDirty(true); }}
+                  editable={canEdit}
+                  placeholder="Start writing…"
+                />
+              );
+            })()}
           </CardContent>
         </Card>
       )}
