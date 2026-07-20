@@ -353,10 +353,26 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
             {(() => {
               const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
               if (isJson) {
+                const raw = buffer || selected.content || "null";
+                const tooBig = raw.length > 5_000_000; // 5MB
+                if (tooBig) {
+                  return (
+                    <div className="space-y-2 text-xs">
+                      <div className="p-3 rounded border border-amber-500/30 bg-amber-500/5 text-amber-300">
+                        This document is very large ({(raw.length / 1024 / 1024).toFixed(1)} MB) — rendering it as an
+                        interactive view would freeze the browser. Showing a raw preview of the first 100 KB instead.
+                      </div>
+                      <pre className="max-h-[500px] overflow-auto p-3 rounded bg-muted/30 border border-border/40 font-mono text-[11px] whitespace-pre-wrap break-all">
+                        {raw.slice(0, 100_000)}
+                        {raw.length > 100_000 ? "\n\n… truncated …" : ""}
+                      </pre>
+                    </div>
+                  );
+                }
                 let parsed: unknown = null;
                 let parseError: string | null = null;
                 try {
-                  parsed = JSON.parse(buffer || selected.content || "null");
+                  parsed = JSON.parse(raw);
                 } catch (e: any) {
                   parseError = e.message;
                 }
