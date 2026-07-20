@@ -1,0 +1,2 @@
+update jobs set status='cancelled', error=jsonb_build_object('message','Cancelled: 08_pages.json 27MB exceeds 15MB Doc Generator per-file limit. Handler updated to skip oversized files — please re-run.'), updated_at=now() where id='1b717c67-75b9-4e45-8661-33f765b8107a';
+update test_plans set ai_status='cancelled' where id='bce9ac2a-7a28-419f-b66c-fa421f898e15';
