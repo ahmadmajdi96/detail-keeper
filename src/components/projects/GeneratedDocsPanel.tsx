@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2, RefreshCw, Save, FileText, Sparkles, ChevronRight,
-  CheckCircle2, PencilLine, Clock, X, Wand2,
+  CheckCircle2, PencilLine, Clock, X, Wand2, Download, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { DynamicJsonView } from "./DynamicJsonView";
 
@@ -55,6 +56,40 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
   const [dirty, setDirty] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+
+  const LARGE_FILE_BYTES = 2_000_000; // 2 MB — above this we refuse to render
+
+  const downloadDoc = (d: Doc) => {
+    const mime = /\.json$/i.test(d.filename) ? "application/json" : "text/markdown";
+    const blob = new Blob([d.content ?? ""], { type: `${mime};charset=utf-8` });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = d.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const downloadMany = async (list: Doc[]) => {
+    if (list.length === 0) { toast.error("No documents selected"); return; }
+    for (let i = 0; i < list.length; i++) {
+      downloadDoc(list[i]);
+      // small stagger so browsers don't drop concurrent downloads
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    toast.success(`Downloading ${list.length} file${list.length > 1 ? "s" : ""}`);
+  };
+
+  const toggleChecked = (id: string) => {
+    setChecked((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
 
   const isReady = ["completed", "ready", "succeeded", "success"].includes((repoJobStatus || "").toLowerCase());
   const isRunning = !isReady && !!repoJobId && !["failed", "error"].includes((repoJobStatus || "").toLowerCase());
@@ -221,7 +256,27 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
             {docs.length} documents generated from your repository · click any card to view or edit
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => downloadMany(docs.filter((d) => checked.has(d.id)))}
+            disabled={checked.size === 0}
+            title="Download the selected documents"
+          >
+            <Download className="h-3.5 w-3.5 mr-1" />
+            Download selected{checked.size > 0 ? ` (${checked.size})` : ""}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => downloadMany(docs)}
+            disabled={docs.length === 0}
+            title="Download every generated document"
+          >
+            <FileDown className="h-3.5 w-3.5 mr-1" />
+            Download all
+          </Button>
           <Button size="sm" variant="outline" onClick={resync} disabled={syncing}>
             {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
             Resync
@@ -245,12 +300,15 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
           const icon = DOC_ICONS[d.slug] || "📄";
           const active = selectedId === d.id;
           return (
-            <button
+            <div
               key={d.id}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedId(d.id)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedId(d.id); } }}
               style={{ animationDelay: `${i * 45}ms` }}
               className={cn(
-                "group relative text-left rounded-xl p-4 border transition-all duration-300 animate-fade-in",
+                "group relative text-left rounded-xl p-4 border transition-all duration-300 animate-fade-in cursor-pointer",
                 "hover:scale-[1.03] hover:-translate-y-0.5 will-change-transform",
                 "hover:shadow-[0_10px_40px_-10px_hsl(var(--accent)/0.4)]",
                 active
@@ -270,11 +328,28 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               />
               <div className="relative flex items-start justify-between mb-3">
                 <div className="text-2xl">{icon}</div>
-                {d.edited && (
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-accent/40 text-accent">
-                    <PencilLine className="h-2.5 w-2.5 mr-0.5" /> edited
-                  </Badge>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {d.edited && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-accent/40 text-accent">
+                      <PencilLine className="h-2.5 w-2.5 mr-0.5" /> edited
+                    </Badge>
+                  )}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); toggleChecked(d.id); }}
+                    onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.stopPropagation(); toggleChecked(d.id); } }}
+                    className="p-0.5 rounded hover:bg-muted/50"
+                    title={checked.has(d.id) ? "Deselect" : "Select for download"}
+                  >
+                    <Checkbox
+                      checked={checked.has(d.id)}
+                      onCheckedChange={() => toggleChecked(d.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-3.5 w-3.5"
+                    />
+                  </span>
+                </div>
               </div>
               <div className="relative">
                 <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
@@ -294,7 +369,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
                   />
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -325,6 +400,9 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => downloadDoc(selected)}>
+                <Download className="h-3.5 w-3.5 mr-1" /> Download
+              </Button>
               {(() => {
                 const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
                 if (isJson) return null;
@@ -351,31 +429,28 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
           </div>
           <CardContent className="p-3">
             {(() => {
+              const raw = buffer || selected.content || "";
+              const bytes = raw.length;
+              if (bytes > LARGE_FILE_BYTES) {
+                return (
+                  <div className="flex flex-col items-center justify-center gap-3 py-10 px-6 text-center rounded border border-amber-500/30 bg-amber-500/5">
+                    <div className="text-amber-400 text-sm font-medium">
+                      Can't view file this large
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {selected.filename} is {(bytes / 1024 / 1024).toFixed(1)} MB. Download it to inspect the contents.
+                    </div>
+                    <Button size="sm" onClick={() => downloadDoc(selected)}>
+                      <Download className="h-3.5 w-3.5 mr-1" /> Download {selected.filename}
+                    </Button>
+                  </div>
+                );
+              }
               const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
               if (isJson) {
-                const raw = buffer || selected.content || "null";
-                const tooBig = raw.length > 5_000_000; // 5MB
-                if (tooBig) {
-                  return (
-                    <div className="space-y-2 text-xs">
-                      <div className="p-3 rounded border border-amber-500/30 bg-amber-500/5 text-amber-300">
-                        This document is very large ({(raw.length / 1024 / 1024).toFixed(1)} MB) — rendering it as an
-                        interactive view would freeze the browser. Showing a raw preview of the first 100 KB instead.
-                      </div>
-                      <pre className="max-h-[500px] overflow-auto p-3 rounded bg-muted/30 border border-border/40 font-mono text-[11px] whitespace-pre-wrap break-all">
-                        {raw.slice(0, 100_000)}
-                        {raw.length > 100_000 ? "\n\n… truncated …" : ""}
-                      </pre>
-                    </div>
-                  );
-                }
                 let parsed: unknown = null;
                 let parseError: string | null = null;
-                try {
-                  parsed = JSON.parse(raw);
-                } catch (e: any) {
-                  parseError = e.message;
-                }
+                try { parsed = JSON.parse(raw || "null"); } catch (e: any) { parseError = e.message; }
                 if (parseError) {
                   return (
                     <div className="text-xs text-destructive p-3 rounded border border-destructive/30 bg-destructive/5">
