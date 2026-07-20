@@ -369,7 +369,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
                   />
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
