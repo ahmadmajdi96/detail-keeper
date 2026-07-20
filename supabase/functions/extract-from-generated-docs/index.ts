@@ -5,10 +5,11 @@ import { corsHeaders } from "../_shared/cors.ts";
 // Extracts endpoints, test cases, and requirements from the 4 latest generated
 // technical documents (slugs 10-13) for a project.
 const TARGET_SLUGS = [
-  "10_endpoint_testing_sequence",
-  "11_ui_page_testing_sequence",
-  "12_system_testing_requirements",
-  "13_testing_data_catalog",
+  "01_validated_api_surface",
+  "02_validated_ui_route_map",
+  "08_pages",
+  "09_testing_data_catalog",
+  "10_system_testing_requirements",
 ];
 
 async function callAI(system: string, user: string, toolName: string, schema: any) {
