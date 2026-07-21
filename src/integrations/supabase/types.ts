@@ -3058,9 +3058,11 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          notification_config: Json
           owner_id: string | null
           require_mfa: boolean
           settings: Json
+          slack_webhook_url: string | null
           slug: string | null
           updated_at: string
         }
@@ -3069,9 +3071,11 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          notification_config?: Json
           owner_id?: string | null
           require_mfa?: boolean
           settings?: Json
+          slack_webhook_url?: string | null
           slug?: string | null
           updated_at?: string
         }
@@ -3080,9 +3084,11 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          notification_config?: Json
           owner_id?: string | null
           require_mfa?: boolean
           settings?: Json
+          slack_webhook_url?: string | null
           slug?: string | null
           updated_at?: string
         }
@@ -3306,6 +3312,8 @@ export type Database = {
           repo_job_meta: Json | null
           repo_job_progress: number | null
           repo_job_status: string | null
+          slack_channel_id: string | null
+          slack_channel_name: string | null
           source_type: Database["public"]["Enums"]["project_source"]
           status: Database["public"]["Enums"]["project_status"]
           test_cases_count: number | null
@@ -3333,6 +3341,8 @@ export type Database = {
           repo_job_meta?: Json | null
           repo_job_progress?: number | null
           repo_job_status?: string | null
+          slack_channel_id?: string | null
+          slack_channel_name?: string | null
           source_type?: Database["public"]["Enums"]["project_source"]
           status?: Database["public"]["Enums"]["project_status"]
           test_cases_count?: number | null
@@ -3360,6 +3370,8 @@ export type Database = {
           repo_job_meta?: Json | null
           repo_job_progress?: number | null
           repo_job_status?: string | null
+          slack_channel_id?: string | null
+          slack_channel_name?: string | null
           source_type?: Database["public"]["Enums"]["project_source"]
           status?: Database["public"]["Enums"]["project_status"]
           test_cases_count?: number | null
