@@ -40,7 +40,7 @@ const NOTIFICATIONS: { id: NotificationId; label: string; desc: string; icon: Re
   { id: "jira",     label: "Jira",     desc: "Auto-create issues on deployment events", icon: <Briefcase size={18} />,     color: "#0052CC" },
 ];
 
-const STEPS = ["Project Identity", "Project Source", "Notifications", "Review"];
+const STEPS = ["Project Identity", "Project Source", "Review"];
 
 function MonoLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -323,7 +323,7 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
                   ))}
                 </div>
                 <div className="flex-1 mx-3 h-[22px] rounded px-3 flex items-center" style={{ background: "rgba(0,180,200,0.05)", border: "1px solid rgba(0,180,200,0.09)" }}>
-                  <span className="font-mono text-[10px] text-[#1e3548]">setup://project/{done ? "complete" : ["identity", "source", "notifications", "review"][step]}</span>
+                  <span className="font-mono text-[10px] text-[#1e3548]">setup://project/{done ? "complete" : ["identity", "source", "review"][step]}</span>
                 </div>
                 {!done && <span className="font-mono text-[10px] text-[#1e3548]">{step + 1} / {STEPS.length}</span>}
               </div>
@@ -516,45 +516,6 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
                       </div>
                     )}
 
-                    {step === 2 && (
-                      <div className="flex flex-col gap-5">
-                        <p className="font-sans text-sm text-[#4a6a88] leading-relaxed">
-                          Select channels to receive deployment alerts and status updates.
-                        </p>
-                        <div className="flex flex-col gap-3">
-                          {NOTIFICATIONS.map((n) => {
-                            const active = notifications.includes(n.id);
-                            return (
-                              <button key={n.id} onClick={() => setNotifications(active ? notifications.filter((s) => s !== n.id) : [...notifications, n.id])}
-                                className="flex items-center gap-4 px-5 py-4 rounded border text-left transition-all duration-150"
-                                style={{ borderColor: active ? n.color : "rgba(0,200,220,0.12)", background: active ? `${n.color}10` : "rgba(7,14,28,0.5)", boxShadow: active ? `0 0 20px ${n.color}14` : "none" }}>
-                                <div className="shrink-0 w-9 h-9 rounded flex items-center justify-center" style={{ background: active ? `${n.color}20` : "rgba(0,180,200,0.06)", color: active ? n.color : "#2a4860" }}>
-                                  {n.icon}
-                                </div>
-                                <div className="flex-1">
-                                  <p className="font-mono text-sm" style={{ color: active ? "#dde8f0" : "#4a6a88" }}>{n.label}</p>
-                                  <p className="font-sans text-xs mt-0.5" style={{ color: active ? "#4a6a88" : "#1a2e40" }}>{n.desc}</p>
-                                </div>
-                                <div className="shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center" style={{ borderColor: active ? n.color : "rgba(0,180,200,0.2)", background: active ? n.color : "transparent" }}>
-                                  {active && <Check size={10} className="text-white" strokeWidth={3} />}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {notifications.length > 0 && (
-                          <div className="flex items-center gap-2 px-3 py-2.5 rounded bg-[#050b16] border border-[rgba(0,180,200,0.1)]">
-                            <Bell size={11} className="text-[#00cfe0]" />
-                            <span className="font-mono text-[10px] text-[#4a6a88]">
-                              {notifications.length} channel{notifications.length > 1 ? "s" : ""} active:{" "}
-                              <span className="text-[#00cfe0]">{notifications.map((s) => s.toUpperCase()).join(" · ")}</span>
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {step === 3 && (
                       <div className="flex flex-col gap-5">
                         <p className="font-sans text-sm text-[#4a6a88]">Confirm your configuration before initializing.</p>
                         <div className="rounded border border-[rgba(0,200,220,0.12)] overflow-hidden">
