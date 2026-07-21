@@ -67,36 +67,11 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const busyRef = useRef(busy);
   useEffect(() => { busyRef.current = busy; }, [busy]);
 
-  // Warn on browser navigation / reload while a generation is running.
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (!busyRef.current) return;
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, []);
+  // Note: no navigation guards. Generations run server-side (edge function
+  // background task) and are tracked globally by <GenerationJobTracker /> —
+  // the user is free to navigate away while a job is in flight.
 
-  // Intercept in-app anchor clicks while locked (BrowserRouter has no useBlocker).
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (!busyRef.current) return;
-      const a = (e.target as HTMLElement)?.closest?.("a");
-      if (!a) return;
-      const href = a.getAttribute("href");
-      if (!href || href.startsWith("http") || href.startsWith("#") || a.target === "_blank") return;
-      if (href === window.location.pathname) return;
-      const proceed = window.confirm(
-        `${busyRef.current ? busyLabels[busyRef.current] : "Generation"} is still running. Leaving now will cancel the request. Leave anyway?`,
-      );
-      if (!proceed) { e.preventDefault(); e.stopPropagation(); }
-      else setBusy(null);
-    };
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   const cfgKey = `wb-cfg-${testPlanId}`;
   const initialCfg = (() => { try { return JSON.parse(localStorage.getItem(cfgKey) || "{}"); } catch { return {}; } })();
