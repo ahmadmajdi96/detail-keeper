@@ -18,6 +18,42 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+type ConfirmButtonProps = {
+  size?: "sm" | "default"; variant?: "outline" | "default";
+  disabled?: boolean; title?: string; label: string; icon: React.ReactNode;
+  confirmTitle: string; confirmDescription: string; confirmLabel: string;
+  onConfirm: () => void;
+};
+function ConfirmButton({
+  size = "sm", variant = "outline", disabled, title, label, icon,
+  confirmTitle, confirmDescription, confirmLabel, onConfirm,
+}: ConfirmButtonProps) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button size={size} variant={variant} disabled={disabled} title={title}>
+          {icon}{label}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
+          <AlertDialogDescription>{confirmDescription}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 type Doc = { id: string; slug: string; title: string; kind: string; content: string; sort_order: number };
 type Spec = { id: string; filename: string; content: string; document_id: string | null; test_case_id: string | null };
