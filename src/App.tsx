@@ -63,6 +63,7 @@ import AuditLogPage from "./pages/AuditLogPage";
 import ShareLinksAdminPage from "./pages/ShareLinksAdminPage";
 import SharePage from "./pages/SharePage";
 import { MfaGate } from "@/components/security/MfaGate";
+import { GenerationJobTracker } from "@/components/testplans/GenerationJobTracker";
 
 
 const queryClient = new QueryClient();
@@ -78,6 +79,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <GenerationJobTracker />
               <MfaGate>
               <Routes>
               {/* Landing Page - Main Route */}
