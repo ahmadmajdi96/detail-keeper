@@ -9,9 +9,10 @@ import { useQueryClient } from "@tanstack/react-query";
 // while server-side generation runs. Shows a toast when a job finishes.
 
 const BUSY_PREFIX = "wb-busy-";
-const MAX_AGE_MS = 30 * 60 * 1000; // stop tracking after 30 min
-const STALE_MS = 12 * 60 * 1000;   // treat 'running' longer than this as stalled
+const MAX_AGE_MS = 45 * 60 * 1000; // stop tracking after 45 min
+const STALE_MS = 25 * 60 * 1000;   // treat 'running' longer than 25 min as stalled
 const POLL_MS = 6000;
+
 
 
 type BusyEntry = { kind: string; startedAt: number };
