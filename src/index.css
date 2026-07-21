@@ -127,14 +127,8 @@
     --landing-gradient-end: 262 83% 65%;
   }
   
-  /* Apply dark mode by default to match landing page */
-  :root {
-    color-scheme: dark;
-  }
-  
-  body {
-    @apply dark;
-  }
+  :root { color-scheme: light; }
+  .dark { color-scheme: dark; }
 }
 
 @layer base {
