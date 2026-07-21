@@ -321,9 +321,14 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Sparkles className="h-4 w-4 text-accent" /> AI Workbench
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {(() => {
+            const casesRunning = busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued";
+            const codeRunning = busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued";
+            const anyRunning = busy !== null || casesRunning || codeRunning;
+            return <>
           <ConfirmButton
-            size="sm" variant="outline" disabled={busy !== null}
-            icon={busy === "cases" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
+            size="sm" variant="outline" disabled={anyRunning}
+            icon={casesRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
             label="1. Generate Test Cases"
             title="Sends plan documents + variable sets to testgenerator.qualixa.cortanexai.com"
             confirmTitle={cases.length > 0 ? "Regenerate test cases?" : "Generate test cases?"}
@@ -334,8 +339,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId }, "Generation started")}
           />
           <ConfirmButton
-            size="sm" variant="outline" disabled={busy !== null || cases.length === 0}
-            icon={busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
+            size="sm" variant="outline" disabled={anyRunning || cases.length === 0}
+            icon={codeRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
             label="2. Generate Playwright Code"
             title={cases.length === 0 ? "Generate test cases first" : "Sends test cases + env-var names to the code generator"}
             confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
@@ -345,6 +350,9 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             confirmLabel="Start codegen"
             onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId }, "Codegen started")}
           />
+          </>;
+          })()}
+
 
           <Popover>
             <PopoverTrigger asChild>
