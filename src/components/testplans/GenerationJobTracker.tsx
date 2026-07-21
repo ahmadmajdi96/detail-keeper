@@ -60,6 +60,7 @@ export function GenerationJobTracker() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const seen = useRef<Record<string, string>>({}); // planId -> last known status
+  const adopted = useRef<Set<string>>(new Set());  // planIds we've already announced this session
 
   useEffect(() => {
     let cancelled = false;
