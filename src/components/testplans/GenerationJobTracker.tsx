@@ -10,7 +10,9 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const BUSY_PREFIX = "wb-busy-";
 const MAX_AGE_MS = 30 * 60 * 1000; // stop tracking after 30 min
+const STALE_MS = 12 * 60 * 1000;   // treat 'running' longer than this as stalled
 const POLL_MS = 6000;
+
 
 type BusyEntry = { kind: string; startedAt: number };
 
