@@ -63,7 +63,7 @@ export function GenerationJobTracker() {
 
       const { data, error } = await supabase
         .from("test_plans")
-        .select("id, name, ai_status")
+        .select("id, name, ai_status, ai_last_run_at")
         .in("id", ids);
       if (error || !data) return;
 
@@ -74,7 +74,12 @@ export function GenerationJobTracker() {
         const kindLabel = LABELS[busy?.kind] || "generation";
         const age = busy ? Date.now() - busy.startedAt : 0;
 
-        const isTerminal = status === "ready" || status === "failed";
+        const lastRunAt = row.ai_last_run_at ? new Date(row.ai_last_run_at as any).getTime() : 0;
+        // Only trust a terminal state if the server has recorded a run that
+        // started at/after this click (minus small clock skew). Otherwise the
+        // status still reflects the previous generation.
+        const runIsCurrent = busy ? lastRunAt >= busy.startedAt - CLICK_SKEW_MS : true;
+        const isTerminal = (status === "ready" || status === "failed") && runIsCurrent;
         const isStale = status === "running" && age > STALE_MS;
 
         // Record status for next tick.
