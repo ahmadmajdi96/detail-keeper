@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
     const userId = claims.claims.sub as string;
 
-    const { test_plan_id, base_url, env } = await req.json();
+    const { test_plan_id, base_url, env, timeout_ms } = await req.json();
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
     if (!base_url || typeof base_url !== "string") return j({ error: "base_url required" }, 400);
 
@@ -60,7 +60,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    const forgeBody = { codegenJobId, baseUrl: base_url, env: runtimeEnv };
+    const options: Record<string, unknown> = {
+      baseUrl: base_url,
+      env: runtimeEnv,
+    };
+    const timeoutMs = Number(timeout_ms);
+    if (Number.isFinite(timeoutMs)) {
+      options.timeoutMs = Math.max(30_000, Math.min(3_600_000, Math.trunc(timeoutMs)));
+    }
+
+    const forgeBody = { codegenJobId, options };
     const submit = await fetch(`${FORGE_BASE}/v1/test-runs`, {
       method: "POST",
       headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
