@@ -61,6 +61,15 @@ export function GenerationJobTracker() {
       const ids = Object.keys(active);
       if (ids.length === 0) return;
 
+      // Ask the server to poll Forge for each plan currently generating cases.
+      // This is what actually advances the job to 'ready'/'failed' because
+      // Forge runs can take ~25 min and outlive any single edge-function call.
+      await Promise.all(ids.map(async (id) => {
+        if (active[id]?.kind !== "cases") return;
+        try { await supabase.functions.invoke("tp-forge-check", { body: { test_plan_id: id } }); }
+        catch { /* ignore, next tick retries */ }
+      }));
+
       const { data, error } = await supabase
         .from("test_plans")
         .select("id, name, ai_status, ai_last_run_at")
