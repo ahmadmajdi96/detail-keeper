@@ -1,0 +1,1 @@
+ALTER TABLE public.test_plans ADD COLUMN IF NOT EXISTS ai_job_ref text;
