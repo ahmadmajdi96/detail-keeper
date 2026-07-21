@@ -114,8 +114,9 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const [browser, setBrowser] = useState<string>(initialCfg.browser || "chromium");
   const [headless, setHeadless] = useState<boolean>(initialCfg.headless ?? true);
   const [retries, setRetries] = useState<number>(initialCfg.retries ?? 0);
-  const [activeSuiteRunId, setActiveSuiteRunId] = useState<string | null>(null);
-  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries })); }, [cfgKey, browser, headless, retries]);
+  const [baseUrl, setBaseUrl] = useState<string>(initialCfg.baseUrl || "");
+  const [activePlanRunId, setActivePlanRunId] = useState<string | null>(null);
+  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries, baseUrl })); }, [cfgKey, browser, headless, retries, baseUrl]);
 
   const { data: docs = [] } = useQuery<Doc[]>({
     queryKey: ["tp-docs", testPlanId],
