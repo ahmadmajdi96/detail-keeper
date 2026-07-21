@@ -60,9 +60,10 @@ export default function TestPlanDetailPage() {
     title: "", description: "", priority: "2", type: "functional", expected_result: "",
   });
 
-  // Variables editor state
+  // Variable Sets editor state — each set groups a description + dynamic key/value list.
   type PlanVar = { key: string; value: string };
-  const [vars, setVars] = useState<PlanVar[]>([]);
+  type PlanVarSet = { id: string; name: string; description: string; variables: PlanVar[] };
+  const [varSets, setVarSets] = useState<PlanVarSet[]>([]);
   const [varsLoaded, setVarsLoaded] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [impWs, setImpWs] = useState("");
@@ -181,11 +182,29 @@ export default function TestPlanDetailPage() {
     },
   });
 
-  // Hydrate variables when plan loads
+  // Hydrate variable sets when plan loads (supports legacy flat list)
   useEffect(() => {
     if (!plan || varsLoaded) return;
     const arr = Array.isArray((plan as any).variables) ? (plan as any).variables : [];
-    setVars(arr.map((v: any) => ({ key: String(v?.key ?? ""), value: String(v?.value ?? "") })));
+    const isNewShape = arr.length > 0 && arr.every((r: any) => r && Array.isArray(r.variables));
+    if (isNewShape) {
+      setVarSets(arr.map((s: any) => ({
+        id: String(s.id || (crypto?.randomUUID?.() ?? Math.random().toString(36))),
+        name: String(s.name || "Untitled Set"),
+        description: String(s.description || ""),
+        variables: (s.variables || []).map((v: any) => ({ key: String(v?.key ?? ""), value: String(v?.value ?? "") })),
+      })));
+    } else if (arr.length > 0) {
+      // Legacy flat [{key,value}] -> single "Default" set
+      setVarSets([{
+        id: crypto?.randomUUID?.() ?? "default",
+        name: "Default",
+        description: "",
+        variables: arr.map((v: any) => ({ key: String(v?.key ?? ""), value: String(v?.value ?? "") })),
+      }]);
+    } else {
+      setVarSets([]);
+    }
     setVarsLoaded(true);
   }, [plan, varsLoaded]);
 
@@ -228,12 +247,19 @@ export default function TestPlanDetailPage() {
 
   const saveVars = useMutation({
     mutationFn: async () => {
-      const clean = vars.filter((v) => v.key.trim().length > 0).map((v) => ({ key: v.key.trim(), value: v.value ?? "" }));
+      const clean = varSets
+        .map((s) => ({
+          id: s.id,
+          name: s.name.trim() || "Untitled Set",
+          description: s.description || "",
+          variables: s.variables.filter((v) => v.key.trim()).map((v) => ({ key: v.key.trim(), value: v.value ?? "" })),
+        }))
+        .filter((s) => s.variables.length > 0 || s.name.trim() || s.description.trim());
       const { error } = await supabase.from("test_plans").update({ variables: clean as any }).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Variables saved");
+      toast.success("Variable sets saved");
       qc.invalidateQueries({ queryKey: ["test-plan", id] });
     },
     onError: (e: any) => toast.error(e.message || "Save failed"),
@@ -259,10 +285,23 @@ export default function TestPlanDetailPage() {
     const src: any = impPlans.find((p: any) => p.id === impPlan);
     const arr = Array.isArray(src?.variables) ? src.variables : [];
     if (!arr.length) { toast.error("Selected plan has no variables"); return; }
-    const map = new Map<string, PlanVar>();
-    [...vars, ...arr].forEach((v: any) => v?.key && map.set(v.key, { key: v.key, value: v.value ?? "" }));
-    setVars(Array.from(map.values()));
-    toast.success(`Imported ${arr.length} variable${arr.length === 1 ? "" : "s"}`);
+    const isNewShape = arr.every((r: any) => r && Array.isArray(r.variables));
+    const imported: PlanVarSet[] = isNewShape
+      ? arr.map((s: any) => ({
+          id: crypto?.randomUUID?.() ?? String(Math.random()),
+          name: String(s.name || "Imported Set"),
+          description: String(s.description || ""),
+          variables: (s.variables || []).map((v: any) => ({ key: String(v.key ?? ""), value: String(v.value ?? "") })),
+        }))
+      : [{
+          id: crypto?.randomUUID?.() ?? String(Math.random()),
+          name: `Imported from ${src?.name || "plan"}`,
+          description: "",
+          variables: arr.map((v: any) => ({ key: String(v.key ?? ""), value: String(v.value ?? "") })),
+        }];
+    setVarSets((prev) => [...prev, ...imported]);
+    const total = imported.reduce((n, s) => n + s.variables.length, 0);
+    toast.success(`Imported ${imported.length} set(s) · ${total} variable(s)`);
     setImportOpen(false); setImpWs(""); setImpProj(""); setImpPlan("");
   };
 
