@@ -743,7 +743,7 @@ export function PlanLivePanel({ testPlanId }: { testPlanId: string }) {
                   className={`text-[11px] px-2 py-1 rounded border transition-colors flex items-center gap-1.5 ${isActive ? "bg-accent/20 border-accent text-accent" : "bg-card border-border hover:border-accent/40"}`}>
                   {live && <Loader2 className="h-3 w-3 animate-spin" />}
                   <span className="font-mono">{r.id.slice(0, 8)}</span>
-                  <StatusBadge status={r.status} />
+                  <span className="uppercase text-[10px] opacity-80">{r.status}</span>
                   <span className="opacity-60">{(r.passed_tests || 0)}✓/{(r.failed_tests || 0)}✗</span>
                 </button>
               );
