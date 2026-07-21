@@ -9,9 +9,13 @@ import { useQueryClient } from "@tanstack/react-query";
 // while server-side generation runs. Shows a toast when a job finishes.
 
 const BUSY_PREFIX = "wb-busy-";
-const MAX_AGE_MS = 45 * 60 * 1000; // stop tracking after 45 min
-const STALE_MS = 25 * 60 * 1000;   // treat 'running' longer than 25 min as stalled
+const MAX_AGE_MS = 60 * 60 * 1000; // stop tracking after 60 min
+const STALE_MS = 35 * 60 * 1000;   // treat 'running' longer than 35 min as stalled
 const POLL_MS = 6000;
+// Ignore terminal statuses observed before the server actually recorded a new
+// run for this click — prevents a stale "ready" from a previous generation
+// firing a fake success toast the moment the user clicks Generate.
+const CLICK_SKEW_MS = 15_000;
 
 
 
