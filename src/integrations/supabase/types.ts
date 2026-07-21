@@ -5584,6 +5584,7 @@ export type Database = {
       }
       test_plans: {
         Row: {
+          ai_job_ref: string | null
           ai_last_run_at: string | null
           ai_status: string | null
           ai_suggested: boolean | null
@@ -5605,6 +5606,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          ai_job_ref?: string | null
           ai_last_run_at?: string | null
           ai_status?: string | null
           ai_suggested?: boolean | null
@@ -5626,6 +5628,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          ai_job_ref?: string | null
           ai_last_run_at?: string | null
           ai_status?: string | null
           ai_suggested?: boolean | null
