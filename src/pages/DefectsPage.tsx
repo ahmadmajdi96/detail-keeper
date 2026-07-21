@@ -727,14 +727,54 @@ export default function DefectsPage() {
             )}
             <div className="space-y-2">
               <Label>Evidence (screenshots, logs)</Label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const files = Array.from(e.dataTransfer.files || []);
+                  if (files.length) setEvidenceFiles((prev) => [...prev, ...files]);
+                }}
+                className="rounded-lg border border-dashed border-border/60 p-4 text-center text-xs text-muted-foreground cursor-pointer hover:border-cyan-400/70 hover:bg-cyan-500/5 transition-colors"
+              >
+                Drop images or files here, or click to select
+              </div>
               <Input
                 ref={fileInputRef}
                 type="file"
                 multiple
-                onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
+                accept="image/*,application/pdf,text/*,.log,.json,.zip"
+                className="hidden"
+                onChange={(e) => setEvidenceFiles((prev) => [...prev, ...Array.from(e.target.files || [])])}
               />
               {evidenceFiles.length > 0 && (
-                <p className="text-xs text-muted-foreground">{evidenceFiles.length} file(s) selected</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {evidenceFiles.map((file, i) => {
+                    const isImg = file.type.startsWith("image/");
+                    const url = isImg ? URL.createObjectURL(file) : null;
+                    return (
+                      <div key={i} className="relative group aspect-square rounded-md overflow-hidden border border-border/50 bg-muted/30">
+                        {url ? (
+                          <img src={url} alt={file.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] px-1 text-center break-all">
+                            {file.name}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEvidenceFiles((prev) => prev.filter((_, idx) => idx !== i));
+                          }}
+                          className="absolute top-1 right-1 bg-destructive/90 hover:bg-destructive text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
