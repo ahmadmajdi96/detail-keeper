@@ -33,7 +33,65 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<"docs" | "cases" | "code" | "suite" | null>(null);
+
+  // Persisted "in-flight" generation lock. Kept in localStorage so a refresh
+  // still shows the lock, and so we can guard navigation while a generation
+  // request is pending (edge-function invokes are aborted on navigation).
+  type BusyKind = "docs" | "cases" | "code" | "suite";
+  const busyKey = `wb-busy-${testPlanId}`;
+  const busyLabels: Record<BusyKind, string> = {
+    docs: "Generating documents",
+    cases: "Generating test cases",
+    code: "Generating Playwright code",
+    suite: "Dispatching suite run",
+  };
+  const readBusy = (): { kind: BusyKind; startedAt: number } | null => {
+    try {
+      const raw = localStorage.getItem(busyKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Auto-expire stale locks after 20 minutes so a hard crash can't lock forever.
+      if (!parsed?.kind || Date.now() - parsed.startedAt > 20 * 60 * 1000) {
+        localStorage.removeItem(busyKey);
+        return null;
+      }
+      return parsed;
+    } catch { return null; }
+  };
+  const [busy, setBusyState] = useState<BusyKind | null>(() => readBusy()?.kind ?? null);
+  const setBusy = (kind: BusyKind | null) => {
+    if (kind) localStorage.setItem(busyKey, JSON.stringify({ kind, startedAt: Date.now() }));
+    else localStorage.removeItem(busyKey);
+    setBusyState(kind);
+  };
+  const busyRef = useRef(busy);
+  useEffect(() => { busyRef.current = busy; }, [busy]);
+
+  // Warn on browser navigation / reload while a generation is running.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!busyRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
+  // Intercept in-app route changes while locked.
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    !!busy && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+    const proceed = window.confirm(
+      `${busy ? busyLabels[busy] : "Generation"} is still running. Leaving now will cancel the request. Leave anyway?`,
+    );
+    if (proceed) { setBusy(null); blocker.proceed?.(); }
+    else blocker.reset?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker.state]);
+
   const cfgKey = `wb-cfg-${testPlanId}`;
   const initialCfg = (() => { try { return JSON.parse(localStorage.getItem(cfgKey) || "{}"); } catch { return {}; } })();
   const [browser, setBrowser] = useState<string>(initialCfg.browser || "chromium");
