@@ -555,7 +555,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </section>
       </div>
 
-      {activeSuiteRunId && <SuiteRunProgress suiteRunId={activeSuiteRunId} projectId={projectId} />}
+      {activePlanRunId && <ForgeRunProgress planRunId={activePlanRunId} onClose={() => setActivePlanRunId(null)} />}
 
       <div className="p-3 border-t border-border/50">
         <ArtifactViewer testPlanId={testPlanId} />
