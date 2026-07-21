@@ -3094,6 +3094,106 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_test_runs: {
+        Row: {
+          artifacts: Json
+          base_url: string | null
+          codegen_job_ref: string | null
+          created_at: string
+          created_by: string | null
+          events: Json
+          exit_code: number | null
+          failed_tests: number
+          finished_at: string | null
+          forge_run_id: string | null
+          id: string
+          last_polled_at: string | null
+          passed_tests: number
+          progress_message: string | null
+          project_id: string | null
+          result: Json | null
+          running_tests: number
+          started_at: string | null
+          status: string
+          test_plan_id: string
+          total_tests: number
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          artifacts?: Json
+          base_url?: string | null
+          codegen_job_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          events?: Json
+          exit_code?: number | null
+          failed_tests?: number
+          finished_at?: string | null
+          forge_run_id?: string | null
+          id?: string
+          last_polled_at?: string | null
+          passed_tests?: number
+          progress_message?: string | null
+          project_id?: string | null
+          result?: Json | null
+          running_tests?: number
+          started_at?: string | null
+          status?: string
+          test_plan_id: string
+          total_tests?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          artifacts?: Json
+          base_url?: string | null
+          codegen_job_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          events?: Json
+          exit_code?: number | null
+          failed_tests?: number
+          finished_at?: string | null
+          forge_run_id?: string | null
+          id?: string
+          last_polled_at?: string | null
+          passed_tests?: number
+          progress_message?: string | null
+          project_id?: string | null
+          result?: Json | null
+          running_tests?: number
+          started_at?: string | null
+          status?: string
+          test_plan_id?: string
+          total_tests?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_test_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_test_runs_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_test_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           created_at: string

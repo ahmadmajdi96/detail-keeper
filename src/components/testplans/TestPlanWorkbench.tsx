@@ -11,7 +11,7 @@ import {
   ListChecks, FolderTree, Rocket, Settings2,
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
-import { SuiteRunProgress } from "./SuiteRunProgress";
+import { ForgeRunProgress } from "./ForgeRunProgress";
 import { ArtifactViewer } from "./ArtifactViewer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
@@ -114,8 +114,9 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const [browser, setBrowser] = useState<string>(initialCfg.browser || "chromium");
   const [headless, setHeadless] = useState<boolean>(initialCfg.headless ?? true);
   const [retries, setRetries] = useState<number>(initialCfg.retries ?? 0);
-  const [activeSuiteRunId, setActiveSuiteRunId] = useState<string | null>(null);
-  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries })); }, [cfgKey, browser, headless, retries]);
+  const [baseUrl, setBaseUrl] = useState<string>(initialCfg.baseUrl || "");
+  const [activePlanRunId, setActivePlanRunId] = useState<string | null>(null);
+  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries, baseUrl })); }, [cfgKey, browser, headless, retries, baseUrl]);
 
   const { data: docs = [] } = useQuery<Doc[]>({
     queryKey: ["tp-docs", testPlanId],
@@ -261,47 +262,26 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   }
 
   const runSuite = async () => {
-    if (specs.length === 0) { toast.error("No specs to run"); return; }
+    if (!baseUrl.trim()) { toast.error("Set a Base URL first (target app under test)"); return; }
     setBusy("suite");
     try {
-      // Create parent suite_run with chosen config
-      const projectId2 = (specs[0] as any)?.project_id || projectId;
-      const { data: suite, error: sErr } = await supabase.from("suite_runs" as any).insert({
-        test_plan_id: testPlanId, project_id: projectId2,
-        browser, headless, retries,
-        config_json: { browser, headless, retries, spec_count: specs.length },
-        total_specs: specs.length,
-      }).select("id").single();
-      if (sErr) throw sErr;
-      const suiteRunId = (suite as any).id as string;
-      setActiveSuiteRunId(suiteRunId);
-
-      let ok = 0;
-      for (const s of specs) {
-        const { error } = await supabase.functions.invoke("spec-run-dispatch", {
-          body: { spec_id: s.id, suite_run_id: suiteRunId, browser, headless, retries },
-        });
-        if (!error) ok++;
-      }
-      toast.success(`Dispatched ${ok}/${specs.length} specs · live progress below`);
-      qc.invalidateQueries({ queryKey: ["spec-runs"] });
-      qc.invalidateQueries({ queryKey: ["suite-spec-runs", suiteRunId] });
+      const { data, error } = await supabase.functions.invoke("tp-forge-run-start", {
+        body: { test_plan_id: testPlanId, base_url: baseUrl.trim() },
+      });
+      if (error) throw error;
+      const id = (data as any)?.plan_test_run_id as string | undefined;
+      if (!id) throw new Error("Forge did not return a run id");
+      setActivePlanRunId(id);
+      toast.success("Suite dispatched to Forge — live progress below");
+      qc.invalidateQueries({ queryKey: ["plan-test-runs", testPlanId] });
     } catch (e: any) {
       toast.error(e.message || "Suite run failed");
     } finally { setBusy(null); }
   };
 
   const runSpec = async () => {
-    if (!currentFile || currentFile.kind !== "spec") return;
-    try {
-      const { error } = await supabase.functions.invoke("spec-run-dispatch", {
-        body: { spec_id: currentFile.id, browser, headless, retries },
-      });
-      if (error) throw error;
-      toast.success("Spec dispatched");
-    } catch (e: any) {
-      toast.error(e.message || "Run failed");
-    }
+    // Forge executes the whole codegen bundle; a single-spec run reuses the same dispatch.
+    await runSuite();
   };
 
   // Group specs by test case
@@ -357,14 +337,22 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" disabled={busy !== null || specs.length === 0}
-                className="bg-accent text-accent-foreground hover:bg-accent/90">
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                title={specs.length === 0 ? "Generate Playwright code first" : "Execute suite via TestCase Forge"}>
                 {busy === "suite" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1" />}
                 Run Suite ({specs.length})
                 <Settings2 className="h-3 w-3 ml-1.5 opacity-70" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-72 space-y-3">
-              <div className="text-xs font-semibold flex items-center gap-1"><Settings2 className="h-3 w-3" /> Run configuration</div>
+            <PopoverContent align="end" className="w-80 space-y-3">
+              <div className="text-xs font-semibold flex items-center gap-1"><Settings2 className="h-3 w-3" /> Forge run configuration</div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Base URL <span className="text-red-400">*</span></Label>
+                <Input placeholder="https://staging.myapp.com" value={baseUrl}
+                  className="h-8 font-mono text-xs"
+                  onChange={(e) => setBaseUrl(e.target.value)} />
+                <p className="text-[10px] text-muted-foreground">Target app the Playwright suite will hit. Env variable values from your variable sets are sent to Forge in-memory (never stored).</p>
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Browser</Label>
                 <Select value={browser} onValueChange={setBrowser}>
@@ -385,8 +373,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                 <Input type="number" min={0} max={5} value={retries} className="h-8"
                   onChange={(e) => setRetries(Math.max(0, Math.min(5, parseInt(e.target.value) || 0)))} />
               </div>
-              <Button size="sm" className="w-full" onClick={runSuite} disabled={busy !== null}>
-                <Rocket className="h-3.5 w-3.5 mr-1" /> Dispatch suite
+              <Button size="sm" className="w-full" onClick={runSuite} disabled={busy !== null || !baseUrl.trim()}>
+                <Rocket className="h-3.5 w-3.5 mr-1" /> Dispatch to Forge
               </Button>
             </PopoverContent>
           </Popover>
@@ -567,7 +555,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </section>
       </div>
 
-      {activeSuiteRunId && <SuiteRunProgress suiteRunId={activeSuiteRunId} projectId={projectId} />}
+      {activePlanRunId && <ForgeRunProgress planRunId={activePlanRunId} onClose={() => setActivePlanRunId(null)} />}
 
       <div className="p-3 border-t border-border/50">
         <ArtifactViewer testPlanId={testPlanId} />

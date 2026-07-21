@@ -683,67 +683,76 @@ export function PlanReportsPanel({ testPlanId, projectId }: { testPlanId: string
   );
 }
 
-/* ---------- Live (Chromium stream) ---------- */
+/* ---------- Live (Forge test-runs) ---------- */
+import { ForgeRunProgress } from "./ForgeRunProgress";
+
 export function PlanLivePanel({ testPlanId }: { testPlanId: string }) {
-  const [activeSpec, setActiveSpec] = useState<string | null>(null);
-  const [specs, setSpecs] = useState<any[]>([]);
+  const qc = useQueryClient();
+  const { data: runs = [] } = useQuery<any[]>({
+    queryKey: ["plan-test-runs", testPlanId],
+    queryFn: async () => {
+      const { data } = await supabase.from("plan_test_runs" as any)
+        .select("id, status, base_url, total_tests, passed_tests, failed_tests, created_at, finished_at")
+        .eq("test_plan_id", testPlanId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return (data as any[]) || [];
+    },
+    refetchInterval: 5000,
+  });
 
-  const refresh = async () => {
-    const { data: rowsData } = await supabase.from("test_plan_specs" as any)
-      .select("id, filename, status").eq("test_plan_id", testPlanId)
-      .order("updated_at", { ascending: false });
-    const rows: any[] = (rowsData as any[]) || [];
-    setSpecs(rows);
-    const { data: runsData } = await supabase.from("spec_runs" as any)
-      .select("spec_id, status, created_at")
-      .in("spec_id", rows.map((r) => r.id))
-      .order("created_at", { ascending: false }).limit(50);
-    const runs: any[] = (runsData as any[]) || [];
-    const live = runs.find((r) => ["queued", "dispatched", "running"].includes(r.status));
-    setActiveSpec(live?.spec_id || runs[0]?.spec_id || rows[0]?.id || null);
-  };
-
-  useEffect(() => { refresh(); }, [testPlanId]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const activeId = selected || runs[0]?.id || null;
 
   useEffect(() => {
-    const ch = supabase.channel(`plan-live-${testPlanId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "spec_runs" }, () => refresh())
+    const ch = supabase.channel(`plan-live-${testPlanId}-${Math.random().toString(36).slice(2, 6)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "plan_test_runs", filter: `test_plan_id=eq.${testPlanId}` },
+        () => qc.invalidateQueries({ queryKey: ["plan-test-runs", testPlanId] }))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [testPlanId]);
+  }, [testPlanId, qc]);
 
-  if (!specs.length) {
+  if (!runs.length) {
     return (
       <Card>
         <CardContent className="py-16 text-center text-muted-foreground">
           <Monitor className="mx-auto h-10 w-10 mb-3 opacity-50" />
-          <p className="text-sm">No Playwright specs generated for this plan yet.</p>
-          <p className="text-xs mt-1">Generate specs from the <strong>AI Workbench</strong> tab, then dispatch a Run Suite to see the live Chromium stream here.</p>
+          <p className="text-sm">No Forge test runs yet for this plan.</p>
+          <p className="text-xs mt-1">Generate Playwright code in <strong>AI Workbench</strong>, set a Base URL, and press <strong>Run Suite</strong> to dispatch to TestCase Forge.</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Radio className="h-4 w-4 text-red-400 animate-pulse" /> Live Chromium View
-        </CardTitle>
-        <CardDescription>Latest streaming run for this plan. Switch specs to inspect another stream.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap gap-1.5">
-          {specs.map(s => (
-            <button key={s.id}
-              onClick={() => setActiveSpec(s.id)}
-              className={`text-[11px] font-mono px-2 py-1 rounded border transition-colors ${activeSpec === s.id ? "bg-accent/20 border-accent text-accent" : "bg-card border-border hover:border-accent/40"}`}>
-              {s.filename}
-            </button>
-          ))}
-        </div>
-        {activeSpec ? <SpecRunPanel specId={activeSpec} /> : <p className="text-sm text-muted-foreground">Pick a spec to view its live stream.</p>}
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Radio className="h-4 w-4 text-red-400 animate-pulse" /> Forge Live Runs
+          </CardTitle>
+          <CardDescription>Every dispatched Forge suite for this plan. Select a run to inspect live events and artifacts.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {runs.map((r: any) => {
+              const isActive = activeId === r.id;
+              const live = ["queued", "running"].includes(r.status);
+              return (
+                <button key={r.id} onClick={() => setSelected(r.id)}
+                  className={`text-[11px] px-2 py-1 rounded border transition-colors flex items-center gap-1.5 ${isActive ? "bg-accent/20 border-accent text-accent" : "bg-card border-border hover:border-accent/40"}`}>
+                  {live && <Loader2 className="h-3 w-3 animate-spin" />}
+                  <span className="font-mono">{r.id.slice(0, 8)}</span>
+                  <span className="uppercase text-[10px] opacity-80">{r.status}</span>
+                  <span className="opacity-60">{(r.passed_tests || 0)}✓/{(r.failed_tests || 0)}✗</span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+      {activeId && <Card className="overflow-hidden"><ForgeRunProgress planRunId={activeId} compact /></Card>}
+    </div>
   );
 }
+
