@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Bug, Loader2 } from "lucide-react";
 import { DefectCommentsPanel } from "@/components/defects/DefectCommentsPanel";
+import { DefectEvidenceGallery } from "@/components/defects/DefectEvidenceGallery";
 
 export default function DefectDetailPage() {
   const { id } = useParams();
