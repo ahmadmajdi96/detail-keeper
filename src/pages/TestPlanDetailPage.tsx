@@ -730,7 +730,7 @@ export default function TestPlanDetailPage() {
             </Card>
           </Collapsible>
 
-          {/* Collapsible: Variables */}
+          {/* Collapsible: Variable Sets */}
           <Collapsible open={openVars} onOpenChange={setOpenVars}>
             <Card className="overflow-hidden transition-all hover:border-accent/40">
               <CollapsibleTrigger className="w-full">
@@ -741,10 +741,12 @@ export default function TestPlanDetailPage() {
                     </div>
                     <div className="text-left">
                       <CardTitle className="text-base flex items-center gap-2">
-                        Variables
-                        <Badge variant="secondary" className="text-[10px]">{vars.filter((v) => v.key.trim()).length}</Badge>
+                        Variable Sets
+                        <Badge variant="secondary" className="text-[10px]">
+                          {varSets.length} set{varSets.length === 1 ? "" : "s"} · {varSets.reduce((n, s) => n + s.variables.filter((v) => v.key.trim()).length, 0)} vars
+                        </Badge>
                       </CardTitle>
-                      <CardDescription>Dynamic key/value pairs available to every case & execution</CardDescription>
+                      <CardDescription>Group related variables into named sets — each with a description and its own key/value pairs. All sets are sent to the test-case generator.</CardDescription>
                     </div>
                   </div>
                   <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 ${openVars ? "rotate-180" : ""}`} />
@@ -756,8 +758,12 @@ export default function TestPlanDetailPage() {
                     <Button variant="outline" size="sm" onClick={() => setImportOpen((v) => !v)} className="gap-1.5">
                       <Download className="h-4 w-4" /> Import
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => setVars((p) => [...p, { key: "", value: "" }])} className="gap-1.5">
-                      <Plus className="h-4 w-4" /> Add
+                    <Button variant="outline" size="sm" className="gap-1.5"
+                      onClick={() => setVarSets((p) => [...p, {
+                        id: crypto?.randomUUID?.() ?? String(Math.random()),
+                        name: `Set ${p.length + 1}`, description: "", variables: [],
+                      }])}>
+                      <Plus className="h-4 w-4" /> Add Set
                     </Button>
                     <Button size="sm" onClick={() => saveVars.mutate()} disabled={saveVars.isPending} className="gap-1.5">
                       {saveVars.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -766,7 +772,7 @@ export default function TestPlanDetailPage() {
                   </div>
                   {importOpen && (
                     <div className="rounded-lg border border-accent/40 bg-accent/5 p-4 space-y-3">
-                      <p className="text-xs font-mono tracking-wider text-accent uppercase">Import variables from another plan</p>
+                      <p className="text-xs font-mono tracking-wider text-accent uppercase">Import variable sets from another plan</p>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                         <Select value={impWs} onValueChange={(v) => { setImpWs(v); setImpProj(""); setImpPlan(""); }}>
                           <SelectTrigger><SelectValue placeholder="Workspace…" /></SelectTrigger>
@@ -778,30 +784,66 @@ export default function TestPlanDetailPage() {
                         </Select>
                         <Select value={impPlan} onValueChange={setImpPlan} disabled={!impProj}>
                           <SelectTrigger><SelectValue placeholder="Test Plan…" /></SelectTrigger>
-                          <SelectContent>{impPlans.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name} ({Array.isArray(p.variables) ? p.variables.length : 0})</SelectItem>)}</SelectContent>
+                          <SelectContent>{impPlans.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       <div className="flex justify-end gap-2">
                         <Button size="sm" variant="ghost" onClick={() => setImportOpen(false)}>Cancel</Button>
-                        <Button size="sm" onClick={doImport} disabled={!impPlan}>Import Variables</Button>
+                        <Button size="sm" onClick={doImport} disabled={!impPlan}>Import Sets</Button>
                       </div>
                     </div>
                   )}
-                  {vars.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">No variables yet — click "Add" or import from another plan.</p>
+                  {varSets.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">No variable sets yet — click "Add Set" to create one.</p>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs uppercase tracking-wider text-muted-foreground">
-                        <span>Key</span><span>Value</span><span className="w-9" />
-                      </div>
-                      {vars.map((v, i) => (
-                        <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                          <Input value={v.key} placeholder="BASE_URL"
-                            onChange={(e) => setVars((p) => p.map((x, idx) => idx === i ? { ...x, key: e.target.value } : x))} />
-                          <Input value={v.value} placeholder="https://api.example.com"
-                            onChange={(e) => setVars((p) => p.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x))} />
-                          <Button variant="ghost" size="icon" onClick={() => setVars((p) => p.filter((_, idx) => idx !== i))}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                    <div className="space-y-3">
+                      {varSets.map((set) => (
+                        <div key={set.id} className="rounded-lg border bg-card/60 p-3 space-y-3 hover:border-accent/40 transition-colors">
+                          <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                            <Input
+                              className="font-medium"
+                              placeholder="Set name (e.g. Staging Environment)"
+                              value={set.name}
+                              onChange={(e) => setVarSets((p) => p.map((s) => s.id === set.id ? { ...s, name: e.target.value } : s))}
+                            />
+                            <Button variant="ghost" size="icon" className="h-9 w-9"
+                              onClick={() => setVarSets((p) => p.filter((s) => s.id !== set.id))}
+                              title="Delete set">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                          <Textarea
+                            rows={2}
+                            placeholder="What is this set for? (optional)"
+                            value={set.description}
+                            onChange={(e) => setVarSets((p) => p.map((s) => s.id === set.id ? { ...s, description: e.target.value } : s))}
+                          />
+                          {set.variables.length > 0 && (
+                            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                              <span>Key</span><span>Value</span><span className="w-9" />
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            {set.variables.map((v, i) => (
+                              <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                                <Input value={v.key} placeholder="BASE_URL"
+                                  onChange={(e) => setVarSets((p) => p.map((s) => s.id === set.id
+                                    ? { ...s, variables: s.variables.map((x, idx) => idx === i ? { ...x, key: e.target.value } : x) } : s))} />
+                                <Input value={v.value} placeholder="https://api.example.com"
+                                  onChange={(e) => setVarSets((p) => p.map((s) => s.id === set.id
+                                    ? { ...s, variables: s.variables.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x) } : s))} />
+                                <Button variant="ghost" size="icon"
+                                  onClick={() => setVarSets((p) => p.map((s) => s.id === set.id
+                                    ? { ...s, variables: s.variables.filter((_, idx) => idx !== i) } : s))}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                          <Button variant="outline" size="sm" className="gap-1.5"
+                            onClick={() => setVarSets((p) => p.map((s) => s.id === set.id
+                              ? { ...s, variables: [...s.variables, { key: "", value: "" }] } : s))}>
+                            <Plus className="h-3.5 w-3.5" /> Add Variable
                           </Button>
                         </div>
                       ))}
