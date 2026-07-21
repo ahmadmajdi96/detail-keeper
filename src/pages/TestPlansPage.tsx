@@ -45,6 +45,7 @@ import {
   ChevronRight,
   Loader2,
   Trash2,
+  FileEdit,
 } from "lucide-react";
 import { useProjectScope } from "@/hooks/useProjectScope";
 import { useActiveTestPlan } from "@/contexts/ActiveTestPlanContext";
