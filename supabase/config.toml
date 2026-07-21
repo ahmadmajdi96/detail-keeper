@@ -49,5 +49,11 @@ project_id = "seqnkjuoilkrrazvgoae"
     verify_jwt = true
   [functions.tp-forge-codegen-check]
     verify_jwt = true
+  [functions.tp-forge-run-start]
+    verify_jwt = true
+  [functions.tp-forge-run-check]
+    verify_jwt = false
+  [functions.tp-forge-run-cancel]
+    verify_jwt = true
 
 
