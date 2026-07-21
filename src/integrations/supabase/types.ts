@@ -5591,6 +5591,12 @@ export type Database = {
           ai_progress_updated_at: string | null
           ai_status: string | null
           ai_suggested: boolean | null
+          codegen_job_ref: string | null
+          codegen_last_run_at: string | null
+          codegen_progress: number | null
+          codegen_progress_message: string | null
+          codegen_progress_updated_at: string | null
+          codegen_status: string | null
           created_at: string
           created_by: string | null
           current_version: number
@@ -5616,6 +5622,12 @@ export type Database = {
           ai_progress_updated_at?: string | null
           ai_status?: string | null
           ai_suggested?: boolean | null
+          codegen_job_ref?: string | null
+          codegen_last_run_at?: string | null
+          codegen_progress?: number | null
+          codegen_progress_message?: string | null
+          codegen_progress_updated_at?: string | null
+          codegen_status?: string | null
           created_at?: string
           created_by?: string | null
           current_version?: number
@@ -5641,6 +5653,12 @@ export type Database = {
           ai_progress_updated_at?: string | null
           ai_status?: string | null
           ai_suggested?: boolean | null
+          codegen_job_ref?: string | null
+          codegen_last_run_at?: string | null
+          codegen_progress?: number | null
+          codegen_progress_message?: string | null
+          codegen_progress_updated_at?: string | null
+          codegen_status?: string | null
           created_at?: string
           created_by?: string | null
           current_version?: number

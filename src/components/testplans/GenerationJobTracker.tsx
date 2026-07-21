@@ -6,24 +6,21 @@ import { useQueryClient } from "@tanstack/react-query";
 
 // Global background-job tracker. Two responsibilities:
 //   1. Never lose a created job: on every tick we ADOPT any test plan the
-//      user can see whose ai_status is 'running' with an ai_job_ref, even
-//      if no localStorage entry exists (e.g. job was started on another
-//      device or a previous session).
-//   2. Drive live progress: we call `tp-forge-check` for each active plan
-//      which polls Forge, writes progress into `test_plans.ai_progress`,
-//      and (on completion) persists cases and flips status. The detail
-//      page subscribes to that row for a live progress bar.
+//      user can see whose ai_status OR codegen_status is 'running',
+//      even if no localStorage entry exists (e.g. job started on another
+//      device / previous session).
+//   2. Drive live progress: call `tp-forge-check` for cases and
+//      `tp-forge-codegen-check` for Playwright code. Both write progress
+//      into test_plans (ai_* / codegen_*) which the workbench renders live.
 
 const BUSY_PREFIX = "wb-busy-";
-const MAX_AGE_MS = 6 * 60 * 60 * 1000;  // keep tracking long Forge runs across sessions
-const STALE_MS   = 45 * 60 * 1000;  // only warn when progress heartbeat is silent this long
+const MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const STALE_MS   = 45 * 60 * 1000;
 const POLL_MS    = 6000;
-// Ignore terminal statuses observed before the server actually recorded a new
-// run for this click — prevents a stale "ready" from a previous generation
-// firing a fake success toast the moment the user clicks Generate.
 const CLICK_SKEW_MS = 15_000;
 
-type BusyEntry = { kind: string; startedAt: number; adopted?: boolean };
+type BusyKind = "docs" | "cases" | "code" | "suite";
+type BusyEntry = { kind: BusyKind; startedAt: number; adopted?: boolean };
 
 function readAllBusy(): Record<string, BusyEntry> {
   const out: Record<string, BusyEntry> = {};
@@ -56,102 +53,133 @@ const LABELS: Record<string, string> = {
   suite: "suite run",
 };
 
+// Unified key so the tracker can operate on both ai_* and codegen_* columns
+// through the same code path.
+type JobKind = "cases" | "code";
+const JOB_COLS: Record<JobKind, {
+  status: string; jobRef: string; lastRun: string; progress: string;
+  progressMsg: string; progressAt: string; checkFn: string;
+  casesInvalidateKeys?: string[]; specsInvalidateKey?: string;
+}> = {
+  cases: {
+    status: "ai_status", jobRef: "ai_job_ref",
+    lastRun: "ai_last_run_at", progress: "ai_progress",
+    progressMsg: "ai_progress_message", progressAt: "ai_progress_updated_at",
+    checkFn: "tp-forge-check",
+    casesInvalidateKeys: ["tp-cases", "tp-wb-cases", "test-plan-cases"],
+  },
+  code: {
+    status: "codegen_status", jobRef: "codegen_job_ref",
+    lastRun: "codegen_last_run_at", progress: "codegen_progress",
+    progressMsg: "codegen_progress_message", progressAt: "codegen_progress_updated_at",
+    checkFn: "tp-forge-codegen-check",
+    specsInvalidateKey: "tp-specs",
+  },
+};
+
 export function GenerationJobTracker() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const seen = useRef<Record<string, string>>({}); // planId -> last known status
-  const adopted = useRef<Set<string>>(new Set());  // planIds we've already announced this session
-  const stalled = useRef<Set<string>>(new Set());  // planIds we've warned about this session
+  // seen key = `${kind}:${planId}` — track cases and code independently.
+  const seen = useRef<Record<string, string>>({});
+  const adopted = useRef<Set<string>>(new Set());
+  const stalled = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
 
-    async function tick() {
-      // (1) Adopt any orphan running jobs the user can see. RLS scopes this
-      // to plans the current session has access to.
-      let orphanIds: string[] = [];
+    async function adoptOrphans(kind: JobKind): Promise<string[]> {
+      const cols = JOB_COLS[kind];
+      const orphanIds: string[] = [];
       try {
-        const { data: running } = await supabase
-          .from("test_plans")
-          .select("id, ai_job_ref, ai_last_run_at, ai_progress_updated_at")
-          .eq("ai_status", "running")
-          .not("ai_job_ref", "is", null)
+        const { data: running } = await (supabase
+          .from("test_plans") as any)
+          .select(`id, name, ${cols.jobRef}, ${cols.lastRun}, ${cols.progressAt}`)
+          .eq(cols.status, "running")
+          .not(cols.jobRef, "is", null)
           .limit(50);
-        for (const row of running ?? []) {
+
+        for (const row of (running ?? []) as any[]) {
           const key = BUSY_PREFIX + row.id;
-          if (!localStorage.getItem(key)) {
-            // Adopt from "now" so old-but-still-live jobs get a fresh polling
-            // window; staleness is based on ai_progress_updated_at below.
-            writeBusy(row.id, { kind: "cases", startedAt: Date.now(), adopted: true });
-            if (!adopted.current.has(row.id)) {
-              adopted.current.add(row.id);
-              orphanIds.push(row.id);
-            }
+          const existing = (() => { try { return JSON.parse(localStorage.getItem(key) || ""); } catch { return null; } })();
+          if (existing?.kind === kind) continue; // already tracked for this kind
+          if (existing && existing.kind !== kind) continue; // another kind holds the lock; skip
+          writeBusy(row.id, { kind, startedAt: Date.now(), adopted: true });
+          const adoptKey = `${kind}:${row.id}`;
+          if (!adopted.current.has(adoptKey)) {
+            adopted.current.add(adoptKey);
+            orphanIds.push(row.id);
           }
         }
-      } catch { /* offline / rls — skip */ }
+      } catch { /* offline / rls */ }
+      return orphanIds;
+    }
+
+    async function tick() {
+      const orphanCase = await adoptOrphans("cases");
+      const orphanCode = await adoptOrphans("code");
 
       const active = readAllBusy();
       const ids = Object.keys(active);
       if (ids.length === 0) return;
 
-      // (2) Ask the server to poll Forge for each plan currently generating
-      // cases. This advances the job to 'ready'/'failed' and writes progress.
+      // Ask the appropriate server function for each active plan.
       await Promise.all(ids.map(async (id) => {
-        if (active[id]?.kind !== "cases") return;
-        try { await supabase.functions.invoke("tp-forge-check", { body: { test_plan_id: id } }); }
-        catch { /* ignore, next tick retries */ }
+        const kind = active[id]?.kind;
+        if (kind !== "cases" && kind !== "code") return;
+        const fn = JOB_COLS[kind].checkFn;
+        try { await supabase.functions.invoke(fn, { body: { test_plan_id: id } }); }
+        catch { /* next tick retries */ }
       }));
 
       const { data, error } = await supabase
         .from("test_plans")
-        .select("id, name, ai_status, ai_last_run_at, ai_progress, ai_progress_message, ai_progress_updated_at")
+        .select("id, name, ai_status, ai_last_run_at, ai_progress, ai_progress_message, ai_progress_updated_at, codegen_status, codegen_last_run_at, codegen_progress, codegen_progress_message, codegen_progress_updated_at")
         .in("id", ids);
       if (error || !data) return;
 
-      for (const row of data) {
-        const status = String(row.ai_status || "").toLowerCase();
-        const prev = seen.current[row.id];
+      for (const row of data as any[]) {
         const busy = active[row.id];
-        const kindLabel = LABELS[busy?.kind] || "generation";
-        const age = busy ? Date.now() - busy.startedAt : 0;
+        const kind = busy?.kind;
+        if (kind !== "cases" && kind !== "code") continue;
+        const cols = JOB_COLS[kind];
+        const kindLabel = LABELS[kind] || "generation";
 
-        // Keep the row fresh in react-query so any open panel reflects
-        // ai_progress / ai_progress_message immediately.
+        // Keep react-query row fresh regardless of kind.
         qc.setQueryData(["test-plan", row.id], (old: any) => old ? { ...old, ...row } : old);
 
-        const lastRunAt = row.ai_last_run_at ? new Date(row.ai_last_run_at as any).getTime() : 0;
-        // For adopted jobs we haven't clicked in this session, always trust the
-        // terminal state. Otherwise require the server to have recorded a run
-        // at/after our click (minus small clock skew).
-        const runIsCurrent = busy?.adopted
-          ? true
-          : (busy ? lastRunAt >= busy.startedAt - CLICK_SKEW_MS : true);
+        const status = String(row[cols.status] || "").toLowerCase();
+        const seenKey = `${kind}:${row.id}`;
+        const prev = seen.current[seenKey];
+        const age = Date.now() - busy.startedAt;
+
+        const lastRunAt = row[cols.lastRun] ? new Date(row[cols.lastRun]).getTime() : 0;
+        const runIsCurrent = busy.adopted ? true : lastRunAt >= busy.startedAt - CLICK_SKEW_MS;
         const isTerminal = (status === "ready" || status === "failed") && runIsCurrent;
-        const progressUpdatedAt = (row as any).ai_progress_updated_at
-          ? new Date((row as any).ai_progress_updated_at).getTime()
-          : 0;
-        const heartbeatAt = Math.max(progressUpdatedAt, runIsCurrent ? lastRunAt : 0, busy?.startedAt ?? 0);
+        const progressUpdatedAt = row[cols.progressAt] ? new Date(row[cols.progressAt]).getTime() : 0;
+        const heartbeatAt = Math.max(progressUpdatedAt, runIsCurrent ? lastRunAt : 0, busy.startedAt);
         const heartbeatAge = heartbeatAt ? Date.now() - heartbeatAt : age;
         const isStale = status === "running" && age > STALE_MS && heartbeatAge > STALE_MS;
 
-        seen.current[row.id] = status;
+        seen.current[seenKey] = status;
 
         if (isTerminal) {
           localStorage.removeItem(BUSY_PREFIX + row.id);
           stalled.current.delete(row.id);
-          qc.invalidateQueries({ queryKey: ["tp-cases", row.id] });
-          qc.invalidateQueries({ queryKey: ["tp-wb-cases", row.id] });
-          qc.invalidateQueries({ queryKey: ["test-plan-cases", row.id] });
+          if (cols.casesInvalidateKeys) {
+            for (const k of cols.casesInvalidateKeys) qc.invalidateQueries({ queryKey: [k, row.id] });
+          }
+          if (cols.specsInvalidateKey) qc.invalidateQueries({ queryKey: [cols.specsInvalidateKey, row.id] });
           qc.invalidateQueries({ queryKey: ["test-plan", row.id] });
           if (prev !== status) {
             if (status === "ready") {
               toast.success(`Generated ${kindLabel} for “${row.name}”`, {
+                description: row[cols.progressMsg] || undefined,
                 action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
               });
             } else {
-              toast.error(`Generation failed for “${row.name}”`, {
-                description: (row as any).ai_progress_message || undefined,
+              toast.error(`${kindLabel} generation failed for “${row.name}”`, {
+                description: row[cols.progressMsg] || undefined,
                 action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
               });
             }
@@ -162,9 +190,9 @@ export function GenerationJobTracker() {
         if (isStale) {
           if (!stalled.current.has(row.id)) {
             stalled.current.add(row.id);
-            seen.current[row.id] = "__stale__";
-            toast.warning(`Still tracking generation for “${row.name}”`, {
-              description: "No new progress has been recorded recently. I’ll keep polling and update this automatically.",
+            seen.current[seenKey] = "__stale__";
+            toast.warning(`Still tracking ${kindLabel} for “${row.name}”`, {
+              description: "No new progress recorded recently. I’ll keep polling.",
               action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
             });
           }
@@ -173,12 +201,12 @@ export function GenerationJobTracker() {
         }
       }
 
-      // Surface adoption once so the user knows we picked things back up.
-      for (const id of orphanIds) {
-        const row = data.find((r) => r.id === id);
+      for (const id of [...orphanCase, ...orphanCode]) {
+        const row = (data as any[]).find((r) => r.id === id);
         if (!row) continue;
-        toast.info(`Resuming generation for “${row.name}”`, {
-          description: (row as any).ai_progress_message || "Live progress restored.",
+        const kind = active[id]?.kind === "code" ? "Playwright code" : "test cases";
+        toast.info(`Resuming ${kind} generation for “${row.name}”`, {
+          description: "Live progress restored.",
           action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
         });
       }

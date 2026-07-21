@@ -1,11 +1,13 @@
 // Client-triggered Playwright codegen via testcase-forge.
-// POSTs to /v1/codegen with the source test-generation jobId + env-var NAMES
-// from the test plan's variable sets, then polls until terminal and persists
-// every returned file into test_plan_specs.
+// Submits a codegen job to Forge and immediately returns. The job is
+// then tracked via `tp-forge-codegen-check` (polled by the global
+// GenerationJobTracker), which writes live progress into
+// test_plans.codegen_* and — on success — fetches the file bundle and
+// persists every file into `test_plan_specs`.
 //
-// The remote endpoint requires `sourceJobId` to be a UUID (the id of a
-// completed /v1/test-generations job on the same tenant), and env vars to be
-// UPPER_SNAKE_CASE names — values are never sent.
+// The remote endpoint requires `sourceJobId` (a UUID from a completed
+// /v1/test-generations job) and UPPER_SNAKE_CASE env-var NAMES — values
+// are never sent.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -28,7 +30,6 @@ Deno.serve(async (req) => {
     );
     const { data: claims } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
-    const userId = claims.claims.sub;
 
     const { test_plan_id, base_url } = await req.json();
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
@@ -44,13 +45,10 @@ Deno.serve(async (req) => {
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
+
     const sourceJobId = (plan as any).ai_job_ref as string | null;
-    if (!sourceJobId) {
-      return j({ error: "Generate test cases first — no Forge sourceJobId on this plan." }, 400);
-    }
-    if ((plan as any).ai_status !== "ready") {
-      return j({ error: "Test case generation must finish before codegen." }, 400);
-    }
+    if (!sourceJobId) return j({ error: "Generate test cases first — no Forge sourceJobId on this plan." }, 400);
+    if ((plan as any).ai_status !== "ready") return j({ error: "Test case generation must finish before codegen." }, 400);
 
     // Extract env-var NAMES (values are never sent) from all variable sets.
     const rawSets = Array.isArray((plan as any).variables) ? (plan as any).variables : [];
@@ -82,94 +80,32 @@ Deno.serve(async (req) => {
     });
     if (!submit.ok) {
       const t = await submit.text();
+      await admin.from("test_plans").update({
+        codegen_status: "failed",
+        codegen_progress_message: `Submit failed (${submit.status})`,
+        codegen_progress_updated_at: new Date().toISOString(),
+      }).eq("id", test_plan_id);
       return j({ error: `Forge codegen submit failed (${submit.status}): ${t.slice(0, 500)}` }, 502);
     }
     const submitBody = await submit.json().catch(() => ({}));
     const codegenJobId: string | undefined = submitBody?.id || submitBody?.jobId;
     if (!codegenJobId) return j({ error: "Forge did not return a codegen job id", raw: submitBody }, 502);
 
-    // Poll + persist in background so the client can return immediately.
-    const work = pollAndPersist({
-      admin, apiKey, test_plan_id,
-      project_id: (plan as any).project_id,
-      codegenJobId, userId,
-    }).catch((e) => console.error("codegen work failed", (e as Error).message));
-
-    // @ts-ignore EdgeRuntime is available in Supabase functions
-    if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(work);
+    const now = new Date().toISOString();
+    await admin.from("test_plans").update({
+      codegen_status: "running",
+      codegen_job_ref: codegenJobId,
+      codegen_progress: 0,
+      codegen_progress_message: "Queued at Forge",
+      codegen_progress_updated_at: now,
+      codegen_last_run_at: now,
+    }).eq("id", test_plan_id);
 
     return j({ status: "accepted", codegenJobId, envVarsSent: envVars.length }, 202);
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
 });
-
-async function pollAndPersist(args: {
-  admin: any; apiKey: string; test_plan_id: string;
-  project_id: string; codegenJobId: string; userId: string;
-}) {
-  const { admin, apiKey, test_plan_id, project_id, codegenJobId, userId } = args;
-  const started = Date.now();
-  const MAX_MS = 30 * 60 * 1000; // 30 minutes
-  let terminal = false;
-  let status = "queued";
-
-  while (Date.now() - started < MAX_MS) {
-    await sleep(5000);
-    try {
-      const r = await fetch(`${FORGE_BASE}/v1/codegen/${codegenJobId}`, {
-        headers: { authorization: `Bearer ${apiKey}` },
-      });
-      if (!r.ok) continue;
-      const s = await r.json().catch(() => ({}));
-      status = String(s?.status || "").toLowerCase();
-      if (["completed", "completed_with_errors", "succeeded", "failed", "cancelled"].includes(status)
-          || status.startsWith("completed")) {
-        terminal = true;
-        break;
-      }
-    } catch { /* retry */ }
-  }
-
-  if (!terminal || ["failed", "cancelled"].includes(status)) {
-    console.warn("codegen not persisted", codegenJobId, status);
-    return;
-  }
-
-  // Fetch bundle: {files: {path: content}}
-  const b = await fetch(`${FORGE_BASE}/v1/codegen/${codegenJobId}/bundle`, {
-    headers: { authorization: `Bearer ${apiKey}` },
-  });
-  if (!b.ok) {
-    console.warn("bundle fetch failed", codegenJobId, b.status);
-    return;
-  }
-  const bundle = await b.json().catch(() => ({}));
-  const files: Record<string, string> = (bundle && typeof bundle.files === "object") ? bundle.files : {};
-
-  let inserted = 0;
-  for (const [path, content] of Object.entries(files)) {
-    const filename = String(path).split("/").pop()!.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 200);
-    const text = typeof content === "string" ? content : JSON.stringify(content, null, 2);
-    const language = filename.endsWith(".json") ? "json"
-      : filename.endsWith(".ts") || filename.endsWith(".tsx") ? "typescript"
-      : filename.endsWith(".js") ? "javascript" : "text";
-
-    const { data: existing } = await admin.from("test_plan_specs")
-      .select("id").eq("test_plan_id", test_plan_id).eq("filename", filename).maybeSingle();
-    if (existing) {
-      await admin.from("test_plan_specs").update({ content: text, language }).eq("id", existing.id);
-    } else {
-      await admin.from("test_plan_specs").insert({
-        test_plan_id, project_id, filename, content: text, language, created_by: userId,
-      });
-    }
-    inserted++;
-  }
-  console.log(`codegen persisted ${inserted} files for plan ${test_plan_id}`);
-}
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function j(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

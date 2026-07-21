@@ -159,16 +159,18 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("test_plans")
-        .select("ai_status, ai_progress, ai_progress_message")
+        .select("ai_status, ai_progress, ai_progress_message, codegen_status, codegen_progress, codegen_progress_message")
         .eq("id", testPlanId)
         .maybeSingle();
       return data as any;
     },
     refetchInterval: (q) => {
-      const s = (q.state.data as any)?.ai_status;
-      return (s === "running" || s === "queued") ? 4000 : false;
+      const d: any = q.state.data;
+      const s = d?.ai_status; const c = d?.codegen_status;
+      return (s === "running" || s === "queued" || c === "running" || c === "queued") ? 4000 : false;
     },
   });
+
 
   useEffect(() => {
     if (!testPlanId) return;
@@ -319,9 +321,14 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Sparkles className="h-4 w-4 text-accent" /> AI Workbench
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {(() => {
+            const casesRunning = busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued";
+            const codeRunning = busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued";
+            const anyRunning = busy !== null || casesRunning || codeRunning;
+            return <>
           <ConfirmButton
-            size="sm" variant="outline" disabled={busy !== null}
-            icon={busy === "cases" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
+            size="sm" variant="outline" disabled={anyRunning}
+            icon={casesRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
             label="1. Generate Test Cases"
             title="Sends plan documents + variable sets to testgenerator.qualixa.cortanexai.com"
             confirmTitle={cases.length > 0 ? "Regenerate test cases?" : "Generate test cases?"}
@@ -332,8 +339,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId }, "Generation started")}
           />
           <ConfirmButton
-            size="sm" variant="outline" disabled={busy !== null || cases.length === 0}
-            icon={busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
+            size="sm" variant="outline" disabled={anyRunning || cases.length === 0}
+            icon={codeRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
             label="2. Generate Playwright Code"
             title={cases.length === 0 ? "Generate test cases first" : "Sends test cases + env-var names to the code generator"}
             confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
@@ -343,6 +350,9 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             confirmLabel="Start codegen"
             onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId }, "Codegen started")}
           />
+          </>;
+          })()}
+
 
           <Popover>
             <PopoverTrigger asChild>
@@ -383,13 +393,13 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </div>
       </div>
 
-      {(busy || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued") && (
+      {(busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued") && (
         <div className="border-b border-accent/40 bg-accent/10 px-3 py-2 space-y-1.5">
           <div className="flex items-center gap-2 text-xs text-accent">
             <Lock className="h-3.5 w-3.5" />
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             <span className="font-medium">
-              {busy ? busyLabels[busy] : "Generating test cases"} — safe to navigate; we'll notify you when it finishes.
+              Generating test cases — safe to navigate; we'll notify you when it finishes.
             </span>
             <span className="ml-auto font-mono text-accent/80">
               {typeof planProgress?.ai_progress === "number" ? `${planProgress.ai_progress}%` : "…"}
@@ -406,6 +416,31 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           )}
         </div>
       )}
+
+      {(busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued") && (
+        <div className="border-b border-cyan-500/40 bg-cyan-500/10 px-3 py-2 space-y-1.5">
+          <div className="flex items-center gap-2 text-xs text-cyan-300">
+            <FileCode2 className="h-3.5 w-3.5" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className="font-medium">
+              Generating Playwright code — safe to navigate; we'll notify you when it finishes.
+            </span>
+            <span className="ml-auto font-mono text-cyan-300/80">
+              {typeof planProgress?.codegen_progress === "number" ? `${planProgress.codegen_progress}%` : "…"}
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-background/40">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-[width] duration-700"
+              style={{ width: `${Math.max(4, Math.min(100, Number(planProgress?.codegen_progress) || 8))}%` }}
+            />
+          </div>
+          {planProgress?.codegen_progress_message && (
+            <p className="text-[11px] text-cyan-300/70 truncate">{planProgress.codegen_progress_message}</p>
+          )}
+        </div>
+      )}
+
 
       <div className="grid grid-cols-12 min-h-[600px]">
         <aside className="col-span-3 border-r border-border/50 bg-muted/10">
