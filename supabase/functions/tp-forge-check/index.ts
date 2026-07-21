@@ -79,7 +79,9 @@ Deno.serve(async (req) => {
       return j({ status: "failed", remote_status: rstatus });
     }
 
-    if (!["succeeded", "completed", "success"].includes(rstatus)) {
+    const isSuccess = ["succeeded", "completed", "success", "completed_with_gaps", "partial"].includes(rstatus)
+      || rstatus.startsWith("completed");
+    if (!isSuccess) {
       // Only write when something changed so we don't hammer the row.
       if (percent !== null && percent !== (plan as any).ai_progress) {
         await admin.from("test_plans").update({
