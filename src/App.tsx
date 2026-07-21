@@ -79,6 +79,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <GenerationJobTracker />
               <MfaGate>
               <Routes>
               {/* Landing Page - Main Route */}
