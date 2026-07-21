@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { DynamicJsonView } from "./DynamicJsonView";
+import JSZip from "jszip";
 
 interface Props {
   projectId: string;
@@ -71,16 +72,29 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast.success(`Downloaded ${d.filename}`);
   };
 
   const downloadMany = async (list: Doc[]) => {
     if (list.length === 0) { toast.error("No documents selected"); return; }
-    for (let i = 0; i < list.length; i++) {
-      downloadDoc(list[i]);
-      // small stagger so browsers don't drop concurrent downloads
-      await new Promise((r) => setTimeout(r, 150));
+    try {
+      const zip = new JSZip();
+      for (const d of list) {
+        zip.file(d.filename, d.content ?? "");
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `qualixa-docs-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`Downloaded ${list.length} file${list.length > 1 ? "s" : ""} as zip`);
+    } catch (e: any) {
+      toast.error(e.message || "Download failed");
     }
-    toast.success(`Downloading ${list.length} file${list.length > 1 ? "s" : ""}`);
   };
 
   const toggleChecked = (id: string) => {
@@ -280,16 +294,6 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
           <Button size="sm" variant="outline" onClick={resync} disabled={syncing}>
             {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
             Resync
-          </Button>
-          <Button
-            size="sm"
-            className="ai-gradient text-white"
-            onClick={extract}
-            disabled={extracting || docs.length === 0}
-            title="Extract endpoints, test cases, and requirements from the 4 testing docs (10–13)"
-          >
-            {extracting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
-            Extract endpoints, tests & requirements
           </Button>
         </div>
       </div>

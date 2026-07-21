@@ -1,75 +1,59 @@
-# Jira + GitHub Integration: Sync, Mapping, Settings, Activity
+# Overhaul Plan — 10 Items
 
-## 1. Schema (one migration)
+Big scope, so I'm bundling by system to avoid rework. Two DB migrations, ~20 file edits, 3 new/updated edge functions. Nothing here is mocked — every button will call a real backend.
 
-New / extended tables (workspace-scoped, RLS via `is_workspace_member`):
+## 1. Navigation cleanup
+- **Remove** `Users` from sidebar (`AppSidebar.tsx`); keep the route redirecting to `/organization` (People tab).
+- **Remove** `Test Cycles` from sidebar. Keep route accessible from Test Plan detail.
+- **Reorder** sidebar so `Integrations` sits directly below `Audit Log`.
 
-- `integration_connections` — add columns:
-  - `sync_enabled boolean default true`
-  - `last_error text`, `last_error_at timestamptz`
-- `jira_project_mappings` — links a Qualixa project to a Jira project key
-  - `workspace_id, project_id, jira_cloud_id, jira_project_key, auto_link_rule jsonb` (e.g. `{ "match": "summary", "labels": ["bug"] }`)
-- `github_repo_mappings` — links a Qualixa project to a GitHub repo
-  - `workspace_id, project_id, owner, repo, default_branch, test_plan_id (nullable)`
-- `integration_activity_log` — every connect / sync / OAuth attempt
-  - `workspace_id, provider, kind ('oauth_connect'|'oauth_callback'|'sync'|'disconnect'), status ('ok'|'error'), message, counts jsonb, user_id, occurred_at`
-- `defects` — add `jira_issue_key text`, `jira_issue_url text` (nullable)
-- `builds` — already has `commit_sha`; add `gh_run_id bigint`, `gh_workflow text` if absent
+## 2. Organization page — People/Users tab
+- Move the full `UsersPage` content into a new **People** tab in `OrganizationPage.tsx`.
+- Real membership CRUD via `organization_members`: invite by email (creates `workspace_invitations` row scoped to org's default workspace + sends real email), change role (owner/billing_admin/security_admin/member), remove.
+- Real **usage** cards: seats used (count distinct `organization_members`), projects (count), AI jobs this month (sum from `usage_events`), runner minutes this month.
 
-GRANTs and RLS per Lovable rules; all log writes via `service_role` from edge fns.
+## 3. Real Google sign-up
+- Wire `GoogleAuthButton` to `supabase.auth.signInWithOAuth({ provider: 'google' })` using Lovable Cloud's managed Google OAuth (no keys needed).
+- Add button to both `LoginPage` and `RegisterPage` (register currently missing it).
+- Ensure `handle_new_user` trigger creates profile + personal org on first Google sign-in (verify existing trigger covers this path).
 
-## 2. Edge functions
+## 4. Real email + in-app notifications on key events
+- New edge function `notify-event` (or extend existing `dispatch-notification`) called from:
+  - `WorkspaceWizard` after workspace create
+  - `ProjectWizard` after project create
+  - `TestPlanWizard` after test plan create
+  - `PlanPeoplePanel` / project member add after assignment
+- Each event inserts into `notifications` (for every relevant recipient) AND queues an email via the existing Lovable Emails infra (`enqueue_email` → templated).
+- New transactional email templates: `workspace-created`, `project-created`, `testplan-created`, `member-assigned` (in `_shared/transactional-email-templates/`, registered).
 
-- `oauth-start` (exists) — extend to log to `integration_activity_log` and surface popup-blocked / bad-state errors
-- `oauth-github-callback`, `oauth-jira-callback` (exist) — write activity log row on success/failure
-- `integrations-disconnect` (new, JWT) — `{provider}` → flips status='disconnected', wipes `config.access_token`, logs row
-- `integrations-reconnect` (new, JWT) — alias of disconnect + returns fresh `oauth-start` URL in one round trip
-- `github-sync` (new, JWT) — pulls workflow runs for each mapped repo, upserts into `builds` (matched on `gh_run_id`), links to `test_plan_id` when the mapping sets one. Returns counts.
-- `jira-sync` (new, JWT) — for each mapping: fetches issues with JQL (default: `updated >= -7d`), upserts a `defect_links` row keyed by `jira_issue_key`, refreshes `defects.jira_issue_key/url` for any defect whose summary matches the configured rule.
-- `integrations-callback-info` (new, public read) — returns the two callback URLs the user must register, so the UI can render them (no hard-coded Supabase URLs in the React code).
+## 5. Global (org-level) notification configuration on Integrations page
+- Remove the Notifications step from `ProjectWizard`.
+- New card on `IntegrationsPage`: **Notification Delivery** — toggles for Email/Slack, category matrix, applied org-wide (stored on `organizations.notification_config` JSONB).
+- `dispatch-notification` reads org-level config instead of per-user only.
 
-All sync edge fns: rate-limit per workspace (1/min), capture errors into `integration_activity_log`, refresh Jira access token via `refresh_token` when expired.
+## 6. Real Slack integration + per-project channel
+- Slack: use the built-in Slack App Connector via `standard_connectors`. Add connect button on `IntegrationsPage`; on success we store `slack_workspace_id` + `slack_bot_token` env is provided by connector.
+- On project create, edge function `slack-provision-channel` calls Slack `conversations.create` with slugified project name → stores channel id on `projects.slack_channel_id`.
+- `dispatch-notification` posts to the project's channel for any project-scoped event (falls back to org default channel).
+- Note: real Slack requires the workspace admin to connect Slack in the connector UI. I'll wire the UI + backend; the user completes the one-click connect.
 
-## 3. New page: `/integrations/settings`
+## 7. Project AI Docs page cleanup
+- `GeneratedDocsPanel.tsx`: remove the second "Extract endpoints, tests & requirements" button (keep the top-header one).
+- **Wire real downloads**: replace the toast-only handler with actual blob download for single file + zip via `jszip` for bulk (already used elsewhere or add).
 
-Three tabs:
+## 8. Settings → Appearance
+- Remove "System" theme option, activate real Light mode toggle (currently disabled).
+- Remove Language selector entirely from `SettingsPage`.
 
-- **Connections** — GitHub and Jira cards with:
-  - "Connected / Not connected" pill (green/grey)
-  - Connect / Disconnect / Reconnect buttons
-  - Sync toggle (writes `sync_enabled`)
-  - **Callback URLs** block with copy buttons — fetched from `integrations-callback-info`
-- **Project Mapping** — per Qualixa project:
-  - Jira: pick `jira_cloud_id` from connection's `sites`, type a Jira project key, configure auto-link rule (`match summary` / `match labels` / both)
-  - GitHub: pick `owner/repo` from connection's repos (fetched on-demand via gateway), set default branch, optionally bind to a Test Plan
-- **Sync / Activity** — table of last 50 rows from `integration_activity_log`, with manual "Sync now" buttons for GitHub and Jira; shows counts (e.g. "12 builds, 4 issues, 0 errors") and per-row error details.
+## 9. Migrations
+- `organizations`: add `notification_config JSONB`, `slack_team_id TEXT`, `default_slack_channel_id TEXT`.
+- `projects`: add `slack_channel_id TEXT`.
+- Trigger `on_notification_insert` (already exists) — extend payload to include project_id for channel routing.
 
-## 4. Existing pages
+## Technical Notes
+- Email uses Lovable Emails (`enqueue_email` RPC). Domain must be set; if not, emails silently no-op and only in-app notifications fire.
+- Slack channel creation requires `channels:manage` scope on the connector — I'll surface a scope-missing warning in the UI if not present.
+- Google OAuth uses managed credentials; user does not need to configure anything.
+- Usage calculations query `usage_events` (already metered).
 
-- `IntegrationsPage.tsx` — keep cards, add real-time status pill from `integration_connections.status` and "Open Settings" link to `/integrations/settings`.
-- `DefectsPage.tsx` — when `jira_issue_key` is set, render `[PROJ-123]` chip linking to `jira_issue_url`.
-- `defects` insert path — call edge fn `jira-auto-link` (or run inline RPC) to find a Jira issue per the project's `auto_link_rule` and set `jira_issue_key` / `jira_issue_url`.
-
-## 5. Frontend polish
-
-- `src/lib/oauth-popup.ts` — refine error toasts:
-  - popup blocked → "Please allow popups for this site and try again"
-  - timeout (>5 min) → "OAuth timed out, please try again"
-  - explicit "denied" / "access_denied" → "You declined the request"
-- Status hook `useIntegrationStatus(workspaceId)` returning `{ github, jira }` with live updates via Supabase Realtime on `integration_connections`.
-
-## Out of scope (ask if needed)
-
-- Writing back to Jira (creating issues from defects)
-- GitHub Issues sync (only workflow runs as requested)
-- Cron-scheduled sync (manual "Sync now" only this round; can add `schedules` rows next iteration)
-- Encryption-at-rest for `config.access_token` (relying on RLS + service-role isolation)
-
-## Order of execution
-
-1. Schema migration (single SQL)
-2. Edge functions (5 new + 1 callback-info)
-3. Hook + UI: `useIntegrationStatus`, new `/integrations/settings` page, defect chip, popup polish
-4. Smoke: `supabase--curl_edge_functions` against `integrations-callback-info` and `github-sync` (dry-run)
-
-Estimated diff: ~1,400 lines, mostly new files.
+Proceed?

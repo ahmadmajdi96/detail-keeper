@@ -237,10 +237,10 @@ const App = () => (
                 </ProtectedRoute>
               } />
               
-              {/* Admin Routes - QA Manager and Admin only */}
+              {/* Users page merged into Organization → Members */}
               <Route path="/users" element={
                 <ProtectedRoute allowedRoles={["qa_manager", "admin"]}>
-                  <UsersPage />
+                  <OrganizationPage />
                 </ProtectedRoute>
               } />
               <Route path="/integrations" element={

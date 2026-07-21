@@ -19,9 +19,11 @@ import { Building2, Trash2, UserPlus, Loader2, Link2, ShieldAlert } from "lucide
 import { Link } from "react-router-dom";
 import { OrgSsoPanel } from "@/components/organization/OrgSsoPanel";
 import { OrgDangerZone } from "@/components/organization/OrgDangerZone";
-import { useEntitlements } from "@/hooks/useEntitlements";
+import { useEntitlements, useOrgUsage } from "@/hooks/useEntitlements";
 import { ApiKeysPanel } from "@/components/organization/ApiKeysPanel";
 import { WebhooksPanel } from "@/components/organization/WebhooksPanel";
+import { Progress } from "@/components/ui/progress";
+import { Users, Zap, FolderKanban, Building } from "lucide-react";
 
 const ROLES: OrgRole[] = ["owner", "billing_admin", "security_admin", "member"];
 
@@ -80,27 +82,42 @@ export default function OrganizationPage() {
 
   const addMember = useMutation({
     mutationFn: async () => {
-      if (!orgId) return;
+      if (!orgId) return { invited: false };
       const email = newEmail.trim().toLowerCase();
       if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Invalid email");
       const { data: ok } = await supabase.rpc("within_quota", { _org_id: orgId, _kind: "seats", _additional: 1 });
-      if (ok === false) throw new Error("quota_exceeded:seats");
-      const { data: prof, error: pErr } = await supabase
-        .from("profiles")
-        .select("id,email")
-        .ilike("email", email)
-        .maybeSingle();
-      if (pErr) throw pErr;
-      if (!prof) throw new Error("No user with that email yet. Ask them to sign up first.");
-      const { error } = await supabase
-        .from("organization_members")
-        .insert({ org_id: orgId, user_id: prof.id, role: newRole });
-      if (error) throw error;
+      if (ok === false) throw new Error("Seat quota exceeded — upgrade your plan to add more members");
+      const { data: prof } = await supabase.from("profiles").select("id,email").ilike("email", email).maybeSingle();
+      if (prof) {
+        const { error } = await supabase
+          .from("organization_members")
+          .insert({ org_id: orgId, user_id: prof.id, role: newRole });
+        if (error) throw error;
+        return { invited: false };
+      }
+      // User doesn't exist — create a workspace invitation on the first workspace of this org and email it.
+      const { data: ws } = await supabase.from("workspaces").select("id").eq("organization_id", orgId).limit(1).maybeSingle();
+      if (!ws) throw new Error("Create a workspace before inviting new users");
+      const { data: inv, error: iErr } = await supabase
+        .from("workspace_invitations")
+        .insert({ workspace_id: ws.id, email, role: "editor", invited_by: user?.id, expires_at: new Date(Date.now() + 7 * 864e5).toISOString() } as any)
+        .select("id, token")
+        .single();
+      if (iErr) throw iErr;
+      const acceptUrl = `${window.location.origin}/invitations/accept?token=${inv.token}`;
+      await supabase.functions.invoke("send-invitation-email", { body: { invitation_id: inv.id, accept_url: acceptUrl } });
+      return { invited: true, acceptUrl };
     },
-    onSuccess: () => {
-      toast.success("Member added");
+    onSuccess: (r: any) => {
+      if (r?.invited) {
+        toast.success("Invitation email sent");
+        navigator.clipboard?.writeText(r.acceptUrl).catch(() => {});
+      } else {
+        toast.success("Member added");
+      }
       setNewEmail("");
       qc.invalidateQueries({ queryKey: ["org-members", orgId] });
+      qc.invalidateQueries({ queryKey: ["org-usage", orgId] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -193,14 +210,16 @@ export default function OrganizationPage() {
         </TabsContent>
 
         <TabsContent value="members" className="mt-4 space-y-4">
+          <OrgUsageCard />
+
           {isOwner && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Add member</CardTitle>
+                <CardTitle className="text-base">Invite member</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap items-end gap-2">
                 <div className="flex-1 min-w-[220px] space-y-2">
-                  <Label>Email of an existing user</Label>
+                  <Label>Email</Label>
                   <Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="user@example.com" />
                 </div>
                 <div className="space-y-2">
@@ -213,8 +232,14 @@ export default function OrganizationPage() {
                   </Select>
                 </div>
                 <Button onClick={() => addMember.mutate()} disabled={addMember.isPending}>
-                  <UserPlus className="h-4 w-4 mr-2" /> Add
+                  {addMember.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                  Send invite
                 </Button>
+              </CardContent>
+              <CardContent className="pt-0">
+                <p className="text-xs text-muted-foreground">
+                  Existing users are added immediately. Unknown emails receive an invitation link — accepting it adds them to your organization.
+                </p>
               </CardContent>
             </Card>
           )}
@@ -345,3 +370,41 @@ function SsoTabBody({ orgId, canManage }: { orgId: string; canManage: boolean })
   if (loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   return <OrgSsoPanel orgId={orgId} canManage={canManage} ssoEnabled={can("sso")} />;
 }
+
+function OrgUsageCard() {
+  const { data: usage } = useOrgUsage();
+  const { entitlements } = useEntitlements();
+  const items = [
+    { icon: Users, label: "Seats", used: usage?.seats ?? 0, limit: entitlements.seats },
+    { icon: Building, label: "Workspaces", used: usage?.workspaces ?? 0, limit: entitlements.max_workspaces },
+    { icon: FolderKanban, label: "Projects", used: usage?.projects ?? 0, limit: entitlements.max_projects },
+    { icon: Zap, label: "AI jobs this period", used: usage?.ai_jobs ?? 0, limit: entitlements.ai_jobs_per_month },
+  ];
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((it) => {
+        const pct = it.limit ? Math.min(100, Math.round((it.used / it.limit) * 100)) : 0;
+        const near = pct >= 80;
+        return (
+          <Card key={it.label} className="border-border/50">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <it.icon className="h-3.5 w-3.5" /> {it.label}
+              </div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {it.used}
+                <span className="text-sm text-muted-foreground font-normal">
+                  {" / "}{it.limit ?? "∞"}
+                </span>
+              </div>
+              {it.limit != null && (
+                <Progress value={pct} className={near ? "[&>div]:bg-orange-500" : ""} />
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+

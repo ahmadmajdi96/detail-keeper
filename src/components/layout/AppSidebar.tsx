@@ -61,7 +61,7 @@ const mainNavItems: NavItem[] = [
   { title: "Test Plans", href: "/test-plans", icon: ClipboardList, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
   // Requirements hidden from sidebar (still available within Test Plan tabs)
   { title: "Test Cases", href: "/test-cases", icon: TestTube, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
-  { title: "Test Cycles", href: "/cycles", icon: Repeat, roles: ["qa_engineer", "qa_manager", "admin"] },
+  // Test Cycles hidden — managed within Test Plans
   { title: "Executions", href: "/executions", icon: Play, roles: ["qa_engineer", "qa_manager", "admin"] },
   { title: "Defects", href: "/defects", icon: Bug, roles: ["qa_engineer", "qa_manager", "admin"] },
   // Releases, Runners, Quality Gates managed within Test Plans now.
@@ -75,15 +75,14 @@ const viewerNavItems: NavItem[] = [
   { title: "View Reports", href: "/reporting", icon: Eye },
 ];
 
-const adminNavItems: NavItem[] = [
-  { title: "Users", href: "/users", icon: Users, roles: ["admin", "qa_manager"] },
-  { title: "Integrations", href: "/integrations", icon: Plug, roles: ["admin"] },
-];
+// Users removed — now under Organization → Members
+const adminNavItems: NavItem[] = [];
 
 const bottomNavItems: NavItem[] = [
   { title: "Notifications", href: "/notifications", icon: Bell },
   { title: "Organization", href: "/organization", icon: Building2 },
   { title: "Audit Log", href: "/organization/audit", icon: ShieldCheck },
+  { title: "Integrations", href: "/integrations", icon: Plug, roles: ["admin"] },
   { title: "Billing & Plan", href: "/billing", icon: CreditCard },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
