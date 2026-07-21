@@ -3,38 +3,28 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEntitlements, useOrgUsage } from "@/hooks/useEntitlements";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, CreditCard, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, CreditCard, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
+import { getPaddleEnvironment } from "@/lib/paddle";
 
-function StripeModeBadge({ onConfigured }: { onConfigured: (v: boolean) => void }) {
-  const { data } = useQuery({
-    queryKey: ["stripe-mode"],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("stripe-mode", { method: "GET" as any });
-      if (error) throw error;
-      return data as { configured: boolean; mode: "test" | "live" | "unknown"; webhook_configured: boolean };
-    },
-    staleTime: 60_000,
-  });
-  useEffect(() => { if (data) onConfigured(data.configured); }, [data, onConfigured]);
-  if (!data?.configured) return null;
-  const isTest = data.mode === "test";
+function ModeBadge() {
+  const isTest = getPaddleEnvironment() === "sandbox";
   return (
     <Badge variant="outline" className={isTest ? "border-amber-500/60 text-amber-500" : "border-emerald-500/60 text-emerald-500"}>
-      {isTest ? "Stripe: Test mode" : data.mode === "live" ? "Stripe: Live" : "Stripe"}
-      {!data.webhook_configured && " · webhook missing"}
+      {isTest ? "Payments: Test mode" : "Payments: Live"}
     </Badge>
   );
 }
+
 
 const FEATURE_ROWS: Array<{ key: string; label: string }> = [
   { key: "sso", label: "SSO / SAML" },
