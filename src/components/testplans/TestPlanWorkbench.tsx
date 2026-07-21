@@ -11,7 +11,7 @@ import {
   ListChecks, FolderTree, Rocket, Settings2,
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
-import { SuiteRunProgress } from "./SuiteRunProgress";
+import { ForgeRunProgress } from "./ForgeRunProgress";
 import { ArtifactViewer } from "./ArtifactViewer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
