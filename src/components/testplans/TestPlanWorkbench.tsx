@@ -337,14 +337,22 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" disabled={busy !== null || specs.length === 0}
-                className="bg-accent text-accent-foreground hover:bg-accent/90">
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                title={specs.length === 0 ? "Generate Playwright code first" : "Execute suite via TestCase Forge"}>
                 {busy === "suite" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1" />}
                 Run Suite ({specs.length})
                 <Settings2 className="h-3 w-3 ml-1.5 opacity-70" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-72 space-y-3">
-              <div className="text-xs font-semibold flex items-center gap-1"><Settings2 className="h-3 w-3" /> Run configuration</div>
+            <PopoverContent align="end" className="w-80 space-y-3">
+              <div className="text-xs font-semibold flex items-center gap-1"><Settings2 className="h-3 w-3" /> Forge run configuration</div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Base URL <span className="text-red-400">*</span></Label>
+                <Input placeholder="https://staging.myapp.com" value={baseUrl}
+                  className="h-8 font-mono text-xs"
+                  onChange={(e) => setBaseUrl(e.target.value)} />
+                <p className="text-[10px] text-muted-foreground">Target app the Playwright suite will hit. Env variable values from your variable sets are sent to Forge in-memory (never stored).</p>
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Browser</Label>
                 <Select value={browser} onValueChange={setBrowser}>
@@ -365,8 +373,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                 <Input type="number" min={0} max={5} value={retries} className="h-8"
                   onChange={(e) => setRetries(Math.max(0, Math.min(5, parseInt(e.target.value) || 0)))} />
               </div>
-              <Button size="sm" className="w-full" onClick={runSuite} disabled={busy !== null}>
-                <Rocket className="h-3.5 w-3.5 mr-1" /> Dispatch suite
+              <Button size="sm" className="w-full" onClick={runSuite} disabled={busy !== null || !baseUrl.trim()}>
+                <Rocket className="h-3.5 w-3.5 mr-1" /> Dispatch to Forge
               </Button>
             </PopoverContent>
           </Popover>
