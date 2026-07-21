@@ -15,8 +15,8 @@ import { useQueryClient } from "@tanstack/react-query";
 //      page subscribes to that row for a live progress bar.
 
 const BUSY_PREFIX = "wb-busy-";
-const MAX_AGE_MS = 60 * 60 * 1000;  // stop tracking after 60 min
-const STALE_MS   = 35 * 60 * 1000;  // treat 'running' longer than 35 min as stalled
+const MAX_AGE_MS = 6 * 60 * 60 * 1000;  // keep tracking long Forge runs across sessions
+const STALE_MS   = 45 * 60 * 1000;  // only warn when progress heartbeat is silent this long
 const POLL_MS    = 6000;
 // Ignore terminal statuses observed before the server actually recorded a new
 // run for this click — prevents a stale "ready" from a previous generation
@@ -61,6 +61,7 @@ export function GenerationJobTracker() {
   const qc = useQueryClient();
   const seen = useRef<Record<string, string>>({}); // planId -> last known status
   const adopted = useRef<Set<string>>(new Set());  // planIds we've already announced this session
+  const stalled = useRef<Set<string>>(new Set());  // planIds we've warned about this session
 
   useEffect(() => {
     let cancelled = false;
@@ -72,17 +73,16 @@ export function GenerationJobTracker() {
       try {
         const { data: running } = await supabase
           .from("test_plans")
-          .select("id, ai_job_ref, ai_last_run_at")
+          .select("id, ai_job_ref, ai_last_run_at, ai_progress_updated_at")
           .eq("ai_status", "running")
           .not("ai_job_ref", "is", null)
           .limit(50);
         for (const row of running ?? []) {
           const key = BUSY_PREFIX + row.id;
           if (!localStorage.getItem(key)) {
-            const startedAt = row.ai_last_run_at
-              ? new Date(row.ai_last_run_at as any).getTime()
-              : Date.now() - 60_000;
-            writeBusy(row.id, { kind: "cases", startedAt, adopted: true });
+            // Adopt from "now" so old-but-still-live jobs get a fresh polling
+            // window; staleness is based on ai_progress_updated_at below.
+            writeBusy(row.id, { kind: "cases", startedAt: Date.now(), adopted: true });
             if (!adopted.current.has(row.id)) {
               adopted.current.add(row.id);
               orphanIds.push(row.id);
@@ -105,7 +105,7 @@ export function GenerationJobTracker() {
 
       const { data, error } = await supabase
         .from("test_plans")
-        .select("id, name, ai_status, ai_last_run_at, ai_progress, ai_progress_message")
+        .select("id, name, ai_status, ai_last_run_at, ai_progress, ai_progress_message, ai_progress_updated_at")
         .in("id", ids);
       if (error || !data) return;
 
@@ -128,12 +128,18 @@ export function GenerationJobTracker() {
           ? true
           : (busy ? lastRunAt >= busy.startedAt - CLICK_SKEW_MS : true);
         const isTerminal = (status === "ready" || status === "failed") && runIsCurrent;
-        const isStale = status === "running" && age > STALE_MS;
+        const progressUpdatedAt = (row as any).ai_progress_updated_at
+          ? new Date((row as any).ai_progress_updated_at).getTime()
+          : 0;
+        const heartbeatAt = Math.max(progressUpdatedAt, runIsCurrent ? lastRunAt : 0, busy?.startedAt ?? 0);
+        const heartbeatAge = heartbeatAt ? Date.now() - heartbeatAt : age;
+        const isStale = status === "running" && age > STALE_MS && heartbeatAge > STALE_MS;
 
         seen.current[row.id] = status;
 
         if (isTerminal) {
           localStorage.removeItem(BUSY_PREFIX + row.id);
+          stalled.current.delete(row.id);
           qc.invalidateQueries({ queryKey: ["tp-cases", row.id] });
           qc.invalidateQueries({ queryKey: ["tp-wb-cases", row.id] });
           qc.invalidateQueries({ queryKey: ["test-plan-cases", row.id] });
@@ -154,14 +160,16 @@ export function GenerationJobTracker() {
         }
 
         if (isStale) {
-          localStorage.removeItem(BUSY_PREFIX + row.id);
-          if (prev !== "__stale__") {
+          if (!stalled.current.has(row.id)) {
+            stalled.current.add(row.id);
             seen.current[row.id] = "__stale__";
-            toast.error(`Generation stalled for “${row.name}”`, {
-              description: "The background job didn't finish in time. Please try again.",
+            toast.warning(`Still tracking generation for “${row.name}”`, {
+              description: "No new progress has been recorded recently. I’ll keep polling and update this automatically.",
               action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
             });
           }
+        } else {
+          stalled.current.delete(row.id);
         }
       }
 
