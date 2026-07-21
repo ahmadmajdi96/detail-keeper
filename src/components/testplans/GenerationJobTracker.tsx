@@ -83,7 +83,10 @@ export function GenerationJobTracker() {
               ? new Date(row.ai_last_run_at as any).getTime()
               : Date.now() - 60_000;
             writeBusy(row.id, { kind: "cases", startedAt, adopted: true });
-            orphanIds.push(row.id);
+            if (!adopted.current.has(row.id)) {
+              adopted.current.add(row.id);
+              orphanIds.push(row.id);
+            }
           }
         }
       } catch { /* offline / rls — skip */ }
