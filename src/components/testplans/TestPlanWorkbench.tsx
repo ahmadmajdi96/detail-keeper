@@ -262,47 +262,26 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   }
 
   const runSuite = async () => {
-    if (specs.length === 0) { toast.error("No specs to run"); return; }
+    if (!baseUrl.trim()) { toast.error("Set a Base URL first (target app under test)"); return; }
     setBusy("suite");
     try {
-      // Create parent suite_run with chosen config
-      const projectId2 = (specs[0] as any)?.project_id || projectId;
-      const { data: suite, error: sErr } = await supabase.from("suite_runs" as any).insert({
-        test_plan_id: testPlanId, project_id: projectId2,
-        browser, headless, retries,
-        config_json: { browser, headless, retries, spec_count: specs.length },
-        total_specs: specs.length,
-      }).select("id").single();
-      if (sErr) throw sErr;
-      const suiteRunId = (suite as any).id as string;
-      setActiveSuiteRunId(suiteRunId);
-
-      let ok = 0;
-      for (const s of specs) {
-        const { error } = await supabase.functions.invoke("spec-run-dispatch", {
-          body: { spec_id: s.id, suite_run_id: suiteRunId, browser, headless, retries },
-        });
-        if (!error) ok++;
-      }
-      toast.success(`Dispatched ${ok}/${specs.length} specs · live progress below`);
-      qc.invalidateQueries({ queryKey: ["spec-runs"] });
-      qc.invalidateQueries({ queryKey: ["suite-spec-runs", suiteRunId] });
+      const { data, error } = await supabase.functions.invoke("tp-forge-run-start", {
+        body: { test_plan_id: testPlanId, base_url: baseUrl.trim() },
+      });
+      if (error) throw error;
+      const id = (data as any)?.plan_test_run_id as string | undefined;
+      if (!id) throw new Error("Forge did not return a run id");
+      setActivePlanRunId(id);
+      toast.success("Suite dispatched to Forge — live progress below");
+      qc.invalidateQueries({ queryKey: ["plan-test-runs", testPlanId] });
     } catch (e: any) {
       toast.error(e.message || "Suite run failed");
     } finally { setBusy(null); }
   };
 
   const runSpec = async () => {
-    if (!currentFile || currentFile.kind !== "spec") return;
-    try {
-      const { error } = await supabase.functions.invoke("spec-run-dispatch", {
-        body: { spec_id: currentFile.id, browser, headless, retries },
-      });
-      if (error) throw error;
-      toast.success("Spec dispatched");
-    } catch (e: any) {
-      toast.error(e.message || "Run failed");
-    }
+    // Forge executes the whole codegen bundle; a single-spec run reuses the same dispatch.
+    await runSuite();
   };
 
   // Group specs by test case
