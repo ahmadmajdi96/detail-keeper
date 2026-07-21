@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useBlocker } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
-  FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X,
+  FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X, Lock,
   ListChecks, FolderTree, Rocket, Settings2,
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
