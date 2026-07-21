@@ -92,12 +92,13 @@ export function GenerationJobTracker() {
       const cols = JOB_COLS[kind];
       const orphanIds: string[] = [];
       try {
-        const { data: running } = await supabase
-          .from("test_plans")
-          .select(`id, ${cols.jobRef}, ${cols.lastRun}, ${cols.progressAt}`)
-          .eq(cols.status as any, "running")
-          .not(cols.jobRef as any, "is", null)
+        const { data: running } = await (supabase
+          .from("test_plans") as any)
+          .select(`id, name, ${cols.jobRef}, ${cols.lastRun}, ${cols.progressAt}`)
+          .eq(cols.status, "running")
+          .not(cols.jobRef, "is", null)
           .limit(50);
+
         for (const row of (running ?? []) as any[]) {
           const key = BUSY_PREFIX + row.id;
           const existing = (() => { try { return JSON.parse(localStorage.getItem(key) || ""); } catch { return null; } })();
