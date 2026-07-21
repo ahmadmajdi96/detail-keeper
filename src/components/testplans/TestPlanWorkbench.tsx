@@ -116,6 +116,24 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   });
   const cases = caseRows.map(r => r.test_case).filter(Boolean);
 
+  // Live progress row driven by the background AI job. React-query cache is
+  // kept fresh by GenerationJobTracker + realtime, so this stays in sync.
+  const { data: planProgress } = useQuery({
+    queryKey: ["tp-progress", testPlanId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("test_plans")
+        .select("ai_status, ai_progress, ai_progress_message")
+        .eq("id", testPlanId)
+        .maybeSingle();
+      return data as any;
+    },
+    refetchInterval: (q) => {
+      const s = (q.state.data as any)?.ai_status;
+      return (s === "running" || s === "queued") ? 4000 : false;
+    },
+  });
+
   useEffect(() => {
     if (!testPlanId) return;
     // Hardened: unique channel name per mount, scoped strictly to this plan
