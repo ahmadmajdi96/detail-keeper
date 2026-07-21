@@ -221,7 +221,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" disabled={busy !== null}
-            onClick={() => runStep("cases", "tp-generate-cases", { test_plan_id: testPlanId }, "Generated test cases")}>
+            title="Sends plan documents + variable sets to testgenerator.qualixa.cortanexai.com"
+            onClick={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId }, "Generated test cases")}>
             {busy === "cases" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
             1. Generate Test Cases
           </Button>
