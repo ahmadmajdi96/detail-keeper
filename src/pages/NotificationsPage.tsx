@@ -4,14 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useEntitlements, useOrgUsage } from "@/hooks/useEntitlements";
 import { SentinelStyles, Scanline, GridBackdrop, ML, Pill } from "@/components/sentinel/primitives";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   Bell, Bug, Check, CheckCheck, FileText, FolderOpen, Loader2, Mail,
   Play, ShieldCheck, Smartphone, Sparkles, Trash2, Users, Zap, BellOff,
+  Activity, Gauge, HardDrive, Layers,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
