@@ -57,6 +57,7 @@ import PricingPage from "./pages/PricingPage";
 import DocsPage from "./pages/DocsPage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import RefundsPage from "./pages/RefundsPage";
 import SecurityPage from "./pages/SecurityPage";
 import AuditLogPage from "./pages/AuditLogPage";
 import ShareLinksAdminPage from "./pages/ShareLinksAdminPage";
@@ -93,6 +94,8 @@ const App = () => (
               <Route path="/docs" element={<DocsPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/refunds" element={<RefundsPage />} />
+              <Route path="/refund-policy" element={<RefundsPage />} />
               <Route path="/security" element={<SecurityPage />} />
               <Route path="/share/:token" element={<SharePage />} />
 

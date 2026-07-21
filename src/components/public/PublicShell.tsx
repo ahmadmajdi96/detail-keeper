@@ -34,6 +34,7 @@ export function PublicShell({ title, children }: { title?: string; children: Rea
           <div className="flex items-center gap-6">
             <Link to="/terms" className="hover:text-white">Terms</Link>
             <Link to="/privacy" className="hover:text-white">Privacy</Link>
+            <Link to="/refunds" className="hover:text-white">Refunds</Link>
             <Link to="/security" className="hover:text-white">Security</Link>
             <Link to="/docs" className="hover:text-white">Docs</Link>
           </div>
