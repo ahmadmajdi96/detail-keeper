@@ -451,3 +451,58 @@ export default function TestPlansPage() {
     </AppLayout>
   );
 }
+
+// ---- Summary cards ----
+function TestPlanStatCards({
+  plans, activeFilter, onSelect,
+}: { plans: TestPlan[]; activeFilter: string; onSelect: (s: string) => void }) {
+  const total = plans.length;
+  const draft = plans.filter((p) => p.status === "draft").length;
+  const active = plans.filter((p) => p.status === "active").length;
+  const completed = plans.filter((p) => p.status === "completed").length;
+  const aiGenerated = plans.filter((p) => p.ai_suggested).length;
+  const avgProgress = total
+    ? Math.round(plans.reduce((s, p) => s + (p.progress || 0), 0) / total)
+    : 0;
+
+  const cards = [
+    { key: "all",       label: "Total plans",   value: total,       hint: "All statuses",    grad: "from-accent/20 to-transparent",    icon: ClipboardList },
+    { key: "draft",     label: "Draft",         value: draft,       hint: "Not started",     grad: "from-warning/20 to-transparent",   icon: FileEdit },
+    { key: "active",    label: "In progress",   value: active,      hint: "Currently running",grad: "from-success/20 to-transparent",  icon: Play },
+    { key: "completed", label: "Completed",     value: completed,   hint: "Signed off",      grad: "from-info/20 to-transparent",      icon: CheckCircle2 },
+    { key: "all",       label: "AI generated",  value: aiGenerated, hint: `${total ? Math.round(aiGenerated/total*100) : 0}% of plans`, grad: "from-purple-500/20 to-transparent", icon: Sparkles },
+    { key: "all",       label: "Avg progress",  value: `${avgProgress}%`, hint: "Across all plans", grad: "from-cyan-500/20 to-transparent", icon: Target },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6 mb-6"
+    >
+      {cards.map((c, i) => {
+        const Icon = c.icon;
+        const isActive = activeFilter === c.key && c.key !== "all";
+        return (
+          <motion.button
+            key={c.label}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
+            whileHover={{ y: -2 }}
+            onClick={() => onSelect(c.key)}
+            className={`text-left rounded-lg border p-3 bg-gradient-to-br ${c.grad} transition-all
+              ${isActive ? "border-accent ring-1 ring-accent/40" : "border-border/50 hover:border-accent/40"}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <Icon className="h-4 w-4 text-accent" />
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{c.label}</span>
+            </div>
+            <div className="text-2xl font-semibold">{c.value}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{c.hint}</div>
+          </motion.button>
+        );
+      })}
+    </motion.div>
+  );
+}
