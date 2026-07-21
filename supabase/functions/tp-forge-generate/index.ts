@@ -5,8 +5,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const FORGE_BASE = "https://testgenerator.qualixa.cortanexai.com";
-const POLL_INTERVAL_MS = 3000;
-const POLL_TIMEOUT_MS = 180_000; // 3 minutes soft cap
+const POLL_INTERVAL_MS = 5000;
+const POLL_TIMEOUT_MS = 20 * 60_000; // 20 minutes — bg runs via waitUntil
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
