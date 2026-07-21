@@ -40,6 +40,16 @@ export function PlanPeoplePanel({ planId, projectId, workspaceId }: Props) {
 
   const wsId = project?.workspace_id || workspaceId;
 
+  // Workspace -> organization link (used to widen the candidate pool)
+  const { data: workspace } = useQuery({
+    queryKey: ["plan-people-workspace", wsId],
+    enabled: !!wsId,
+    queryFn: async () => {
+      const { data } = await supabase.from("workspaces").select("id, organization_id").eq("id", wsId!).single();
+      return data;
+    },
+  });
+
   const { data: assignees = [] } = useQuery({
     queryKey: ["plan-people", planId],
     queryFn: async () => {
@@ -58,30 +68,56 @@ export function PlanPeoplePanel({ planId, projectId, workspaceId }: Props) {
     },
   });
 
-  // Candidate pool: project_members (for restricted) OR workspace_members (for inherited)
+  // Candidate pool: union of project_members, workspace_members and organization_members
+  // so assignees can be added dynamically even when the workspace membership table is sparse.
   const { data: projectMembers = [] } = useQuery({
     queryKey: ["plan-people-project-members", projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      const { data: rows } = await supabase
-        .from("project_members").select("user_id, role").eq("project_id", projectId!);
-      if (!rows?.length) return [];
-      const ids = rows.map((r: any) => r.user_id);
-      const { data: profs } = await supabase.from("profiles").select("id, name, email").in("id", ids);
-      return rows.map((r: any) => ({ ...r, profile: profs?.find((p: any) => p.id === r.user_id) }));
+      const { data } = await supabase.from("project_members").select("user_id, role").eq("project_id", projectId!);
+      return data || [];
     },
   });
 
   const { data: workspaceMembers = [] } = useQuery({
     queryKey: ["plan-people-workspace-members", wsId],
-    enabled: !!wsId && project?.visibility !== "restricted",
+    enabled: !!wsId,
     queryFn: async () => {
-      const { data: rows } = await supabase
-        .from("workspace_members").select("user_id, role").eq("workspace_id", wsId!);
-      if (!rows?.length) return [];
-      const ids = rows.map((r: any) => r.user_id);
+      const { data } = await supabase.from("workspace_members").select("user_id, role").eq("workspace_id", wsId!);
+      return data || [];
+    },
+  });
+
+  const { data: orgMembers = [] } = useQuery({
+    queryKey: ["plan-people-org-members", workspace?.organization_id],
+    enabled: !!workspace?.organization_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("organization_members")
+        .select("user_id, role")
+        .eq("organization_id", workspace!.organization_id!);
+      return data || [];
+    },
+  });
+
+  // Deduped candidate pool + profiles. For restricted projects only project_members are eligible.
+  const { data: pool = [] } = useQuery({
+    queryKey: ["plan-people-pool", projectId, wsId, workspace?.organization_id, project?.visibility, projectMembers.length, workspaceMembers.length, orgMembers.length],
+    enabled: !!(projectMembers || workspaceMembers || orgMembers),
+    queryFn: async () => {
+      const raw = project?.visibility === "restricted"
+        ? projectMembers
+        : [...projectMembers, ...workspaceMembers, ...orgMembers];
+      const map = new Map<string, { user_id: string; role?: string }>();
+      raw.forEach((m: any) => { if (m?.user_id && !map.has(m.user_id)) map.set(m.user_id, m); });
+      const ids = Array.from(map.keys());
+      if (!ids.length) return [];
       const { data: profs } = await supabase.from("profiles").select("id, name, email").in("id", ids);
-      return rows.map((r: any) => ({ ...r, profile: profs?.find((p: any) => p.id === r.user_id) }));
+      return ids.map((uid) => ({
+        user_id: uid,
+        role: map.get(uid)?.role,
+        profile: profs?.find((p: any) => p.id === uid),
+      }));
     },
   });
 
@@ -95,7 +131,6 @@ export function PlanPeoplePanel({ planId, projectId, workspaceId }: Props) {
 
   const ownerCount = assignees.filter((a: any) => a.role === "owner").length;
 
-  const pool = project?.visibility === "restricted" ? projectMembers : workspaceMembers;
   const available = useMemo(() => {
     const taken = new Set(assignees.map((a: any) => a.user_id));
     return pool.filter((m: any) => !taken.has(m.user_id));
