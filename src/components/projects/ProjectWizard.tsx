@@ -516,6 +516,7 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
                       </div>
                     )}
 
+                    {step === 2 && (
                       <div className="flex flex-col gap-5">
                         <p className="font-sans text-sm text-[#4a6a88]">Confirm your configuration before initializing.</p>
                         <div className="rounded border border-[rgba(0,200,220,0.12)] overflow-hidden">
@@ -526,7 +527,6 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
                             ...(locator === "github" ? [["Repository", repoUrl || "—"], ["Secrets", `${secrets.filter((s) => s.key).length} configured`]] as [string, string][] : []),
                             ...(locator === "zip" ? [["Archive", zipFile?.name ?? "—"]] as [string, string][] : []),
                             ...(locator === "documentation" ? [["Documents", `${docFiles.length} file(s)`]] as [string, string][] : []),
-                            ["Notifications", notifications.length ? notifications.map((n) => n.toUpperCase()).join(" · ") : "None"],
                           ] as [string, string][]).map(([k, v], i) => (
                             <div key={i} className="flex items-start gap-4 px-5 py-3 border-b border-[rgba(0,180,200,0.07)] last:border-0"
                               style={{ background: i % 2 === 0 ? "rgba(7,14,28,0.5)" : "rgba(5,10,20,0.4)" }}>
