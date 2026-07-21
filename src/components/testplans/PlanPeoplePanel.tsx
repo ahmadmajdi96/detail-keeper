@@ -95,7 +95,7 @@ export function PlanPeoplePanel({ planId, projectId, workspaceId }: Props) {
       const { data } = await supabase
         .from("organization_members")
         .select("user_id, role")
-        .eq("organization_id", workspace!.organization_id!);
+        .eq("org_id", workspace!.organization_id!);
       return data || [];
     },
   });
