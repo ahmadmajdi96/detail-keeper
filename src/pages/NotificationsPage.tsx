@@ -290,3 +290,51 @@ export default function NotificationsPage() {
     </AppLayout>
   );
 }
+
+// ---- Usage strip (replaces old mentions area) ----
+function UsageStrip() {
+  const { data: usage } = useOrgUsage();
+  const { entitlements } = useEntitlements();
+  const pct = (used: number, cap: number | null) =>
+    cap === null || cap === 0 ? 0 : Math.min(100, Math.round((used / cap) * 100));
+
+  const items = [
+    { label: "SEATS", used: usage?.seats ?? 0, cap: entitlements.seats, icon: Users, color: "#00cfe0" },
+    { label: "WORKSPACES", used: usage?.workspaces ?? 0, cap: entitlements.max_workspaces, icon: Layers, color: "#a855f7" },
+    { label: "PROJECTS", used: usage?.projects ?? 0, cap: entitlements.max_projects, icon: FolderOpen, color: "#f97316" },
+    { label: "AI JOBS / MO", used: usage?.ai_jobs ?? 0, cap: entitlements.ai_jobs_per_month, icon: Sparkles, color: "#22c55e" },
+    { label: "RUNNER MIN / MO", used: usage?.runner_minutes ?? 0, cap: entitlements.runner_minutes_per_month, icon: Gauge, color: "#eab308" },
+  ];
+
+  return (
+    <div className="px-6 md:px-8 pt-6 pb-2" style={{ background: "rgba(5,9,18,0.98)" }}>
+      <div className="flex items-center gap-2 mb-3">
+        <Activity size={13} className="text-[#00cfe0]" />
+        <ML>Usage · current billing period</ML>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {items.map((it) => {
+          const Icon = it.icon;
+          const p = pct(it.used, it.cap);
+          return (
+            <div key={it.label}
+              className="rounded-lg border border-[rgba(0,190,215,0.12)] bg-[rgba(7,14,28,0.6)] p-3 sn-slide-up">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="h-7 w-7 rounded-md flex items-center justify-center"
+                  style={{ background: `${it.color}12`, border: `1px solid ${it.color}30` }}>
+                  <Icon size={13} style={{ color: it.color }} />
+                </div>
+                <span className="sn-mono text-[9px] text-[#4a6a88]">{it.label}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="sn-mono text-lg font-semibold" style={{ color: it.color }}>{it.used}</span>
+                <span className="sn-mono text-[10px] text-[#4a6a88]">/ {it.cap ?? "∞"}</span>
+              </div>
+              <Progress value={p} className="h-1 mt-2" />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
