@@ -5586,6 +5586,9 @@ export type Database = {
         Row: {
           ai_job_ref: string | null
           ai_last_run_at: string | null
+          ai_progress: number | null
+          ai_progress_message: string | null
+          ai_progress_updated_at: string | null
           ai_status: string | null
           ai_suggested: boolean | null
           created_at: string
@@ -5608,6 +5611,9 @@ export type Database = {
         Insert: {
           ai_job_ref?: string | null
           ai_last_run_at?: string | null
+          ai_progress?: number | null
+          ai_progress_message?: string | null
+          ai_progress_updated_at?: string | null
           ai_status?: string | null
           ai_suggested?: boolean | null
           created_at?: string
@@ -5630,6 +5636,9 @@ export type Database = {
         Update: {
           ai_job_ref?: string | null
           ai_last_run_at?: string | null
+          ai_progress?: number | null
+          ai_progress_message?: string | null
+          ai_progress_updated_at?: string | null
           ai_status?: string | null
           ai_suggested?: boolean | null
           created_at?: string

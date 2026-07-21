@@ -116,6 +116,24 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   });
   const cases = caseRows.map(r => r.test_case).filter(Boolean);
 
+  // Live progress row driven by the background AI job. React-query cache is
+  // kept fresh by GenerationJobTracker + realtime, so this stays in sync.
+  const { data: planProgress } = useQuery({
+    queryKey: ["tp-progress", testPlanId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("test_plans")
+        .select("ai_status, ai_progress, ai_progress_message")
+        .eq("id", testPlanId)
+        .maybeSingle();
+      return data as any;
+    },
+    refetchInterval: (q) => {
+      const s = (q.state.data as any)?.ai_status;
+      return (s === "running" || s === "queued") ? 4000 : false;
+    },
+  });
+
   useEffect(() => {
     if (!testPlanId) return;
     // Hardened: unique channel name per mount, scoped strictly to this plan
@@ -132,6 +150,11 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         () => {
           qc.invalidateQueries({ queryKey: ["tp-wb-cases", testPlanId] });
           qc.invalidateQueries({ queryKey: ["test-plan-cases", testPlanId] });
+        })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "test_plans", filter: `id=eq.${testPlanId}` },
+        (payload) => {
+          qc.setQueryData(["tp-progress", testPlanId], (old: any) => ({ ...(old || {}), ...(payload.new as any) }));
+          qc.invalidateQueries({ queryKey: ["test-plan", testPlanId] });
         })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -311,12 +334,27 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </div>
       </div>
 
-      {busy && (
-        <div className="flex items-center gap-2 border-b border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent">
-          <Lock className="h-3.5 w-3.5" />
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          <span className="font-medium">{busyLabels[busy]} — please keep this tab open.</span>
-          <span className="text-accent/70">Navigation is blocked until this completes.</span>
+      {(busy || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued") && (
+        <div className="border-b border-accent/40 bg-accent/10 px-3 py-2 space-y-1.5">
+          <div className="flex items-center gap-2 text-xs text-accent">
+            <Lock className="h-3.5 w-3.5" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className="font-medium">
+              {busy ? busyLabels[busy] : "Generating test cases"} — safe to navigate; we'll notify you when it finishes.
+            </span>
+            <span className="ml-auto font-mono text-accent/80">
+              {typeof planProgress?.ai_progress === "number" ? `${planProgress.ai_progress}%` : "…"}
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-background/40">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 transition-[width] duration-700"
+              style={{ width: `${Math.max(4, Math.min(100, Number(planProgress?.ai_progress) || 8))}%` }}
+            />
+          </div>
+          {planProgress?.ai_progress_message && (
+            <p className="text-[11px] text-accent/70 truncate">{planProgress.ai_progress_message}</p>
+          )}
         </div>
       )}
 

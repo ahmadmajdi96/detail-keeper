@@ -1149,6 +1149,47 @@ export default function TestPlanDetailPage() {
                         </div>
                       </div>
                     </div>
+
+                    {(plan.ai_status === "running" || plan.ai_status === "queued") && (
+                      <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 space-y-2 animate-fade-in">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="flex items-center gap-1.5 font-medium text-accent">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Live progress
+                          </span>
+                          <span className="font-mono text-muted-foreground">
+                            {typeof (plan as any).ai_progress === "number" ? `${(plan as any).ai_progress}%` : "…"}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 transition-[width] duration-700"
+                            style={{ width: `${Math.max(4, Math.min(100, Number((plan as any).ai_progress) || 8))}%` }}
+                          />
+                        </div>
+                        {(plan as any).ai_progress_message && (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {(plan as any).ai_progress_message}
+                          </p>
+                        )}
+                        <div className="flex justify-end pt-1">
+                          <Button size="sm" variant="ghost" className="h-7 text-xs"
+                            onClick={async () => {
+                              try {
+                                await supabase.functions.invoke("tp-forge-cancel", { body: { test_plan_id: id } });
+                                toast.success("Cancellation requested");
+                                try { localStorage.removeItem(`wb-busy-${id}`); } catch { /* ignore */ }
+                                qc.invalidateQueries({ queryKey: ["test-plan", id] });
+                              } catch (e: any) {
+                                toast.error(e.message || "Cancel failed");
+                              }
+                            }}>
+                            Cancel generation
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     <Button className="ai-gradient text-white w-full" onClick={() => generate.mutate()} disabled={generate.isPending || plan.ai_status === "running"}>
                       {generate.isPending || plan.ai_status === "running" ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running…</>

@@ -4,22 +4,26 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 
-// Polls every active generation job (recorded by TestPlanWorkbench in
-// localStorage under `wb-busy-<testPlanId>`) so the user can navigate freely
-// while server-side generation runs. Shows a toast when a job finishes.
+// Global background-job tracker. Two responsibilities:
+//   1. Never lose a created job: on every tick we ADOPT any test plan the
+//      user can see whose ai_status is 'running' with an ai_job_ref, even
+//      if no localStorage entry exists (e.g. job was started on another
+//      device or a previous session).
+//   2. Drive live progress: we call `tp-forge-check` for each active plan
+//      which polls Forge, writes progress into `test_plans.ai_progress`,
+//      and (on completion) persists cases and flips status. The detail
+//      page subscribes to that row for a live progress bar.
 
 const BUSY_PREFIX = "wb-busy-";
-const MAX_AGE_MS = 60 * 60 * 1000; // stop tracking after 60 min
-const STALE_MS = 35 * 60 * 1000;   // treat 'running' longer than 35 min as stalled
-const POLL_MS = 6000;
+const MAX_AGE_MS = 60 * 60 * 1000;  // stop tracking after 60 min
+const STALE_MS   = 35 * 60 * 1000;  // treat 'running' longer than 35 min as stalled
+const POLL_MS    = 6000;
 // Ignore terminal statuses observed before the server actually recorded a new
 // run for this click — prevents a stale "ready" from a previous generation
 // firing a fake success toast the moment the user clicks Generate.
 const CLICK_SKEW_MS = 15_000;
 
-
-
-type BusyEntry = { kind: string; startedAt: number };
+type BusyEntry = { kind: string; startedAt: number; adopted?: boolean };
 
 function readAllBusy(): Record<string, BusyEntry> {
   const out: Record<string, BusyEntry> = {};
@@ -41,6 +45,10 @@ function readAllBusy(): Record<string, BusyEntry> {
   return out;
 }
 
+function writeBusy(planId: string, entry: BusyEntry) {
+  try { localStorage.setItem(BUSY_PREFIX + planId, JSON.stringify(entry)); } catch { /* ignore */ }
+}
+
 const LABELS: Record<string, string> = {
   docs: "documents",
   cases: "test cases",
@@ -57,13 +65,34 @@ export function GenerationJobTracker() {
     let cancelled = false;
 
     async function tick() {
+      // (1) Adopt any orphan running jobs the user can see. RLS scopes this
+      // to plans the current session has access to.
+      let orphanIds: string[] = [];
+      try {
+        const { data: running } = await supabase
+          .from("test_plans")
+          .select("id, ai_job_ref, ai_last_run_at")
+          .eq("ai_status", "running")
+          .not("ai_job_ref", "is", null)
+          .limit(50);
+        for (const row of running ?? []) {
+          const key = BUSY_PREFIX + row.id;
+          if (!localStorage.getItem(key)) {
+            const startedAt = row.ai_last_run_at
+              ? new Date(row.ai_last_run_at as any).getTime()
+              : Date.now() - 60_000;
+            writeBusy(row.id, { kind: "cases", startedAt, adopted: true });
+            orphanIds.push(row.id);
+          }
+        }
+      } catch { /* offline / rls — skip */ }
+
       const active = readAllBusy();
       const ids = Object.keys(active);
       if (ids.length === 0) return;
 
-      // Ask the server to poll Forge for each plan currently generating cases.
-      // This is what actually advances the job to 'ready'/'failed' because
-      // Forge runs can take ~25 min and outlive any single edge-function call.
+      // (2) Ask the server to poll Forge for each plan currently generating
+      // cases. This advances the job to 'ready'/'failed' and writes progress.
       await Promise.all(ids.map(async (id) => {
         if (active[id]?.kind !== "cases") return;
         try { await supabase.functions.invoke("tp-forge-check", { body: { test_plan_id: id } }); }
@@ -72,7 +101,7 @@ export function GenerationJobTracker() {
 
       const { data, error } = await supabase
         .from("test_plans")
-        .select("id, name, ai_status, ai_last_run_at")
+        .select("id, name, ai_status, ai_last_run_at, ai_progress, ai_progress_message")
         .in("id", ids);
       if (error || !data) return;
 
@@ -83,23 +112,27 @@ export function GenerationJobTracker() {
         const kindLabel = LABELS[busy?.kind] || "generation";
         const age = busy ? Date.now() - busy.startedAt : 0;
 
+        // Keep the row fresh in react-query so any open panel reflects
+        // ai_progress / ai_progress_message immediately.
+        qc.setQueryData(["test-plan", row.id], (old: any) => old ? { ...old, ...row } : old);
+
         const lastRunAt = row.ai_last_run_at ? new Date(row.ai_last_run_at as any).getTime() : 0;
-        // Only trust a terminal state if the server has recorded a run that
-        // started at/after this click (minus small clock skew). Otherwise the
-        // status still reflects the previous generation.
-        const runIsCurrent = busy ? lastRunAt >= busy.startedAt - CLICK_SKEW_MS : true;
+        // For adopted jobs we haven't clicked in this session, always trust the
+        // terminal state. Otherwise require the server to have recorded a run
+        // at/after our click (minus small clock skew).
+        const runIsCurrent = busy?.adopted
+          ? true
+          : (busy ? lastRunAt >= busy.startedAt - CLICK_SKEW_MS : true);
         const isTerminal = (status === "ready" || status === "failed") && runIsCurrent;
         const isStale = status === "running" && age > STALE_MS;
 
-        // Record status for next tick.
         seen.current[row.id] = status;
 
         if (isTerminal) {
-          // Fire once per plan when we observe a terminal state while a
-          // busy lock exists — even if this is the first tick after reload
-          // (prev === undefined). Prevents "job silently disappeared".
           localStorage.removeItem(BUSY_PREFIX + row.id);
           qc.invalidateQueries({ queryKey: ["tp-cases", row.id] });
+          qc.invalidateQueries({ queryKey: ["tp-wb-cases", row.id] });
+          qc.invalidateQueries({ queryKey: ["test-plan-cases", row.id] });
           qc.invalidateQueries({ queryKey: ["test-plan", row.id] });
           if (prev !== status) {
             if (status === "ready") {
@@ -108,6 +141,7 @@ export function GenerationJobTracker() {
               });
             } else {
               toast.error(`Generation failed for “${row.name}”`, {
+                description: (row as any).ai_progress_message || undefined,
                 action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
               });
             }
@@ -116,8 +150,6 @@ export function GenerationJobTracker() {
         }
 
         if (isStale) {
-          // Background worker appears to have died — clear the lock so the
-          // user can retry, and surface a toast once.
           localStorage.removeItem(BUSY_PREFIX + row.id);
           if (prev !== "__stale__") {
             seen.current[row.id] = "__stale__";
@@ -129,6 +161,15 @@ export function GenerationJobTracker() {
         }
       }
 
+      // Surface adoption once so the user knows we picked things back up.
+      for (const id of orphanIds) {
+        const row = data.find((r) => r.id === id);
+        if (!row) continue;
+        toast.info(`Resuming generation for “${row.name}”`, {
+          description: (row as any).ai_progress_message || "Live progress restored.",
+          action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
+        });
+      }
     }
 
     const interval = setInterval(() => { if (!cancelled) void tick(); }, POLL_MS);

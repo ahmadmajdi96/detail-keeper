@@ -1,7 +1,9 @@
-// Poll the testcase-forge job stored on a test plan. When the remote job
-// succeeds, fetch the UI-view test cases and persist them, then flip
-// ai_status to 'ready'. On explicit failure, flip to 'failed'. Idempotent —
-// safe to call every few seconds from the client.
+// Poll the testcase-forge job stored on a test plan. Writes live progress
+// back to test_plans (ai_progress, ai_progress_message) so any client
+// subscribed to that row sees a live progress bar. When the remote job
+// succeeds, fetches the UI-view test cases and persists them, then flips
+// ai_status to 'ready'. On explicit failure, flips to 'failed'.
+// Idempotent — safe to call every few seconds from the client.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -35,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: plan } = await admin
       .from("test_plans")
-      .select("id, project_id, workspace_id, ai_status, ai_job_ref")
+      .select("id, project_id, workspace_id, ai_status, ai_job_ref, ai_progress")
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
@@ -52,15 +54,44 @@ Deno.serve(async (req) => {
     }
     const body = await s.json().catch(() => ({}));
     const rstatus = String(body?.status || body?.state || "").toLowerCase();
-    const progress = body?.progress ?? body?.percent ?? null;
+    // Forge exposes counters — turn them into a stable percent + message so
+    // the client can render a real progress bar instead of an indeterminate
+    // spinner during the ~25 min run.
+    const totalUnits = Number(body?.totalUnits ?? body?.total_units ?? 0);
+    const completedUnits = Number(body?.completedUnits ?? body?.completed_units ?? 0);
+    const totalCases = Number(body?.totalTestCases ?? body?.total_test_cases ?? 0);
+    let percent: number | null = null;
+    if (typeof body?.progress === "number") percent = clampPct(body.progress);
+    else if (typeof body?.percent === "number") percent = clampPct(body.percent);
+    else if (totalUnits > 0) percent = clampPct((completedUnits / totalUnits) * 100);
+    const stage = body?.stage || body?.phase || null;
+    const message = buildMessage(rstatus, stage, completedUnits, totalUnits, totalCases);
 
     if (["failed", "error", "cancelled"].includes(rstatus)) {
-      await admin.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
+      await admin.from("test_plans").update({
+        ai_status: "failed",
+        ai_progress: percent ?? 0,
+        ai_progress_message: message,
+        ai_progress_updated_at: new Date().toISOString(),
+      }).eq("id", test_plan_id);
       return j({ status: "failed", remote_status: rstatus });
     }
 
     if (!["succeeded", "completed", "success"].includes(rstatus)) {
-      return j({ status: "running", remote_status: rstatus, progress });
+      // Only write when something changed so we don't hammer the row.
+      if (percent !== null && percent !== (plan as any).ai_progress) {
+        await admin.from("test_plans").update({
+          ai_progress: percent,
+          ai_progress_message: message,
+          ai_progress_updated_at: new Date().toISOString(),
+        }).eq("id", test_plan_id);
+      } else if (message) {
+        await admin.from("test_plans").update({
+          ai_progress_message: message,
+          ai_progress_updated_at: new Date().toISOString(),
+        }).eq("id", test_plan_id);
+      }
+      return j({ status: "running", remote_status: rstatus, progress: percent, message });
     }
 
     // Succeeded — but only persist once. If already ready, no-op.
@@ -68,15 +99,24 @@ Deno.serve(async (req) => {
       return j({ status: "ready", remote_status: rstatus, note: "already persisted" });
     }
 
-    const casesRes = await fetch(`${FORGE_BASE}/v1/test-generations/${jobId}/test-cases?view=ui`, {
-      headers: { authorization: `Bearer ${apiKey}` },
-    });
-    if (!casesRes.ok) {
-      await admin.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
+    // Signal 100% while we persist so the UI reflects the transition.
+    await admin.from("test_plans").update({
+      ai_progress: 100,
+      ai_progress_message: "Persisting generated test cases…",
+      ai_progress_updated_at: new Date().toISOString(),
+    }).eq("id", test_plan_id);
+
+    // Try the UI view first, then fall back to the raw artifacts endpoint —
+    // per README, both are exposed and either can serve the data.
+    const items = await fetchCasesWithRetry(jobId, apiKey);
+    if (!items) {
+      await admin.from("test_plans").update({
+        ai_status: "failed",
+        ai_progress_message: "Could not fetch generated cases from Forge",
+        ai_progress_updated_at: new Date().toISOString(),
+      }).eq("id", test_plan_id);
       return j({ status: "failed", note: "test-cases fetch failed" });
     }
-    const casesBody = await casesRes.json().catch(() => ({}));
-    const items: any[] = casesBody?.testCases || casesBody?.items || casesBody?.data || (Array.isArray(casesBody) ? casesBody : []);
 
     let inserted = 0;
     for (const tc of items) {
@@ -124,12 +164,76 @@ Deno.serve(async (req) => {
       inserted++;
     }
 
-    await admin.from("test_plans").update({ ai_status: "ready" }).eq("id", test_plan_id);
+    await admin.from("test_plans").update({
+      ai_status: "ready",
+      ai_progress: 100,
+      ai_progress_message: `Generated ${inserted} test cases`,
+      ai_progress_updated_at: new Date().toISOString(),
+    }).eq("id", test_plan_id);
     return j({ status: "ready", inserted });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
 });
+
+function clampPct(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(99, Math.round(n)));
+}
+
+function buildMessage(status: string, stage: any, done: number, total: number, cases: number): string {
+  if (stage) return `${String(stage)}${total ? ` · ${done}/${total} units` : ""}`;
+  if (total > 0) return `Generating cases · ${done}/${total} units${cases ? ` · ${cases} cases so far` : ""}`;
+  if (status === "queued") return "Queued at Forge";
+  if (status === "running") return "Working…";
+  return "";
+}
+
+async function fetchCasesWithRetry(jobId: string, apiKey: string): Promise<any[] | null> {
+  const urls = [
+    `${FORGE_BASE}/v1/test-generations/${jobId}/test-cases?view=ui`,
+    `${FORGE_BASE}/v1/test-generations/${jobId}/artifacts`,
+  ];
+  for (const url of urls) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const r = await fetch(url, { headers: { authorization: `Bearer ${apiKey}` } });
+        if (!r.ok) {
+          await sleep(500 * (attempt + 1));
+          continue;
+        }
+        const body = await r.json().catch(() => ({}));
+        const items = extractCases(body);
+        if (items.length) return items;
+        return items; // empty but valid response — treat as no cases
+      } catch {
+        await sleep(500 * (attempt + 1));
+      }
+    }
+  }
+  return null;
+}
+
+function extractCases(body: any): any[] {
+  if (Array.isArray(body)) return body;
+  const candidates = [
+    body?.testCases, body?.items, body?.data, body?.cases,
+    body?.artifacts?.testCases, body?.artifacts?.cases,
+  ];
+  for (const c of candidates) if (Array.isArray(c) && c.length) return c;
+  // Some artifact payloads nest by unit.
+  if (body?.artifacts && typeof body.artifacts === "object") {
+    const flat: any[] = [];
+    for (const v of Object.values<any>(body.artifacts)) {
+      if (Array.isArray(v?.testCases)) flat.push(...v.testCases);
+      else if (Array.isArray(v)) flat.push(...v);
+    }
+    if (flat.length) return flat;
+  }
+  return [];
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function j(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
