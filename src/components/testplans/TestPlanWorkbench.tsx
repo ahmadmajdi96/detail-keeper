@@ -330,6 +330,15 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </div>
       </div>
 
+      {busy && (
+        <div className="flex items-center gap-2 border-b border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent">
+          <Lock className="h-3.5 w-3.5" />
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span className="font-medium">{busyLabels[busy]} — please keep this tab open.</span>
+          <span className="text-accent/70">Navigation is blocked until this completes.</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-12 min-h-[600px]">
         <aside className="col-span-3 border-r border-border/50 bg-muted/10">
           <ScrollArea className="h-[600px]">
