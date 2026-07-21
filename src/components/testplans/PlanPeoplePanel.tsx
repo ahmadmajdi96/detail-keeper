@@ -219,7 +219,7 @@ export function PlanPeoplePanel({ planId, projectId, workspaceId }: Props) {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Candidates come from {project?.visibility === "restricted" ? "the project's members" : "workspace members"}.
+              Candidates come from {project?.visibility === "restricted" ? "the project's members" : "the workspace and organization"}.
               Owners &amp; Reviewers can approve release sign-off for this plan.
             </p>
           </CardContent>
