@@ -18,6 +18,42 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+type ConfirmButtonProps = {
+  size?: "sm" | "default"; variant?: "outline" | "default";
+  disabled?: boolean; title?: string; label: string; icon: React.ReactNode;
+  confirmTitle: string; confirmDescription: string; confirmLabel: string;
+  onConfirm: () => void;
+};
+function ConfirmButton({
+  size = "sm", variant = "outline", disabled, title, label, icon,
+  confirmTitle, confirmDescription, confirmLabel, onConfirm,
+}: ConfirmButtonProps) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button size={size} variant={variant} disabled={disabled} title={title}>
+          {icon}{label}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
+          <AlertDialogDescription>{confirmDescription}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 type Doc = { id: string; slug: string; title: string; kind: string; content: string; sort_order: number };
 type Spec = { id: string; filename: string; content: string; document_id: string | null; test_case_id: string | null };
@@ -283,18 +319,31 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Sparkles className="h-4 w-4 text-accent" /> AI Workbench
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" disabled={busy !== null}
+          <ConfirmButton
+            size="sm" variant="outline" disabled={busy !== null}
+            icon={busy === "cases" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
+            label="1. Generate Test Cases"
             title="Sends plan documents + variable sets to testgenerator.qualixa.cortanexai.com"
-            onClick={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId }, "Generated test cases")}>
-            {busy === "cases" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
-            1. Generate Test Cases
-          </Button>
-          <Button size="sm" variant="outline" disabled={busy !== null || cases.length === 0}
-            title={cases.length === 0 ? "Generate test cases first" : ""}
-            onClick={() => runStep("code", "tp-generate-code", { test_plan_id: testPlanId }, "Generated Playwright code")}>
-            {busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
-            2. Generate Playwright Code
-          </Button>
+            confirmTitle={cases.length > 0 ? "Regenerate test cases?" : "Generate test cases?"}
+            confirmDescription={cases.length > 0
+              ? `This plan already has ${cases.length} test case${cases.length === 1 ? "" : "s"}. Running generation again will submit a new ~25 minute job to the AI service and append newly generated cases to this plan. Existing cases are not deleted.`
+              : "This will submit plan documents and variable sets to the AI service. Generation typically takes ~25 minutes and cannot be undone once the credits are consumed."}
+            confirmLabel="Start generation"
+            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId }, "Generation started")}
+          />
+          <ConfirmButton
+            size="sm" variant="outline" disabled={busy !== null || cases.length === 0}
+            icon={busy === "code" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
+            label="2. Generate Playwright Code"
+            title={cases.length === 0 ? "Generate test cases first" : "Sends test cases + env-var names to the code generator"}
+            confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
+            confirmDescription={specs.length > 0
+              ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
+              : "Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright spec files."}
+            confirmLabel="Start codegen"
+            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId }, "Codegen started")}
+          />
+
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" disabled={busy !== null || specs.length === 0}
