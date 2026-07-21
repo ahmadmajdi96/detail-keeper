@@ -281,16 +281,6 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
             {syncing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
             Resync
           </Button>
-          <Button
-            size="sm"
-            className="ai-gradient text-white"
-            onClick={extract}
-            disabled={extracting || docs.length === 0}
-            title="Extract endpoints, test cases, and requirements from the 4 testing docs (10–13)"
-          >
-            {extracting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
-            Extract endpoints, tests & requirements
-          </Button>
         </div>
       </div>
 

@@ -254,11 +254,10 @@ export default function SettingsPage() {
                 <CardDescription>Customize the look and feel of the application</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4 max-w-md">
                   {([
                     ["light", Sun, "Light"],
                     ["dark", Moon, "Dark"],
-                    ["system", Monitor, "System"],
                   ] as const).map(([t, Icon, label]) => (
                     <motion.button
                       key={t}
@@ -278,35 +277,20 @@ export default function SettingsPage() {
 
             <Card className="border-border/50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Language & Region</CardTitle>
-                <CardDescription>Set your preferred language and regional settings</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Timezone</CardTitle>
+                <CardDescription>Used for displaying dates across the app</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>Language</Label>
-                    <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Español</SelectItem>
-                        <SelectItem value="fr">Français</SelectItem>
-                        <SelectItem value="de">Deutsch</SelectItem>
-                        <SelectItem value="pt">Português</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Timezone</Label>
-                    <Select value={timezone} onValueChange={setTimezone}>
-                      <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {TIMEZONES.map((tz) => (
-                          <SelectItem key={tz} value={tz}>{tz}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="max-w-md space-y-2">
+                  <Label>Timezone</Label>
+                  <Select value={timezone} onValueChange={setTimezone}>
+                    <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {TIMEZONES.map((tz) => (
+                        <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Button onClick={handleSaveAppearance} disabled={saveProfile.isPending} className="ai-gradient text-white">
