@@ -10,7 +10,9 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const BUSY_PREFIX = "wb-busy-";
 const MAX_AGE_MS = 30 * 60 * 1000; // stop tracking after 30 min
+const STALE_MS = 12 * 60 * 1000;   // treat 'running' longer than this as stalled
 const POLL_MS = 6000;
+
 
 type BusyEntry = { kind: string; startedAt: number };
 
@@ -63,35 +65,51 @@ export function GenerationJobTracker() {
       for (const row of data) {
         const status = String(row.ai_status || "").toLowerCase();
         const prev = seen.current[row.id];
-        seen.current[row.id] = status;
+        const busy = active[row.id];
+        const kindLabel = LABELS[busy?.kind] || "generation";
+        const age = busy ? Date.now() - busy.startedAt : 0;
 
         const isTerminal = status === "ready" || status === "failed";
-        if (!isTerminal) continue;
+        const isStale = status === "running" && age > STALE_MS;
 
-        // Clear the busy lock and notify once per transition.
-        localStorage.removeItem(BUSY_PREFIX + row.id);
-        qc.invalidateQueries({ queryKey: ["tp-cases", row.id] });
-        qc.invalidateQueries({ queryKey: ["test-plan", row.id] });
+        // Record status for next tick.
+        seen.current[row.id] = status;
 
-        if (prev && prev !== status) {
-          const kind = LABELS[active[row.id]?.kind] || "generation";
-          if (status === "ready") {
-            toast.success(`Generated ${kind} for “${row.name}”`, {
-              action: {
-                label: "Open",
-                onClick: () => navigate(`/test-plans/${row.id}`),
-              },
-            });
-          } else {
-            toast.error(`Generation failed for “${row.name}”`, {
-              action: {
-                label: "Open",
-                onClick: () => navigate(`/test-plans/${row.id}`),
-              },
+        if (isTerminal) {
+          // Fire once per plan when we observe a terminal state while a
+          // busy lock exists — even if this is the first tick after reload
+          // (prev === undefined). Prevents "job silently disappeared".
+          localStorage.removeItem(BUSY_PREFIX + row.id);
+          qc.invalidateQueries({ queryKey: ["tp-cases", row.id] });
+          qc.invalidateQueries({ queryKey: ["test-plan", row.id] });
+          if (prev !== status) {
+            if (status === "ready") {
+              toast.success(`Generated ${kindLabel} for “${row.name}”`, {
+                action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
+              });
+            } else {
+              toast.error(`Generation failed for “${row.name}”`, {
+                action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
+              });
+            }
+          }
+          continue;
+        }
+
+        if (isStale) {
+          // Background worker appears to have died — clear the lock so the
+          // user can retry, and surface a toast once.
+          localStorage.removeItem(BUSY_PREFIX + row.id);
+          if (prev !== "__stale__") {
+            seen.current[row.id] = "__stale__";
+            toast.error(`Generation stalled for “${row.name}”`, {
+              description: "The background job didn't finish in time. Please try again.",
+              action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
             });
           }
         }
       }
+
     }
 
     const interval = setInterval(() => { if (!cancelled) void tick(); }, POLL_MS);

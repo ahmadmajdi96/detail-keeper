@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
     const jobId: string | undefined = submit?.id || submit?.job?.id || submit?.jobId;
     if (!jobId) return j({ error: "Forge did not return a job id", raw: submit }, 502);
 
-    await admin.from("test_plans").update({ ai_status: "running" }).eq("id", test_plan_id);
+    await admin.from("test_plans").update({ ai_status: "running", ai_last_run_at: new Date().toISOString() }).eq("id", test_plan_id);
 
     // Run polling + persistence in the background so we don't hit the 150s
     // request idle timeout. Client polls test_plans.ai_status for completion.
