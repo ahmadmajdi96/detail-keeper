@@ -151,6 +151,11 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           qc.invalidateQueries({ queryKey: ["tp-wb-cases", testPlanId] });
           qc.invalidateQueries({ queryKey: ["test-plan-cases", testPlanId] });
         })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "test_plans", filter: `id=eq.${testPlanId}` },
+        (payload) => {
+          qc.setQueryData(["tp-progress", testPlanId], (old: any) => ({ ...(old || {}), ...(payload.new as any) }));
+          qc.invalidateQueries({ queryKey: ["test-plan", testPlanId] });
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [testPlanId, projectId, qc]);
