@@ -329,12 +329,27 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </div>
       </div>
 
-      {busy && (
-        <div className="flex items-center gap-2 border-b border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent">
-          <Lock className="h-3.5 w-3.5" />
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          <span className="font-medium">{busyLabels[busy]} — please keep this tab open.</span>
-          <span className="text-accent/70">Navigation is blocked until this completes.</span>
+      {(busy || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued") && (
+        <div className="border-b border-accent/40 bg-accent/10 px-3 py-2 space-y-1.5">
+          <div className="flex items-center gap-2 text-xs text-accent">
+            <Lock className="h-3.5 w-3.5" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className="font-medium">
+              {busy ? busyLabels[busy] : "Generating test cases"} — safe to navigate; we'll notify you when it finishes.
+            </span>
+            <span className="ml-auto font-mono text-accent/80">
+              {typeof planProgress?.ai_progress === "number" ? `${planProgress.ai_progress}%` : "…"}
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-background/40">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 transition-[width] duration-700"
+              style={{ width: `${Math.max(4, Math.min(100, Number(planProgress?.ai_progress) || 8))}%` }}
+            />
+          </div>
+          {planProgress?.ai_progress_message && (
+            <p className="text-[11px] text-accent/70 truncate">{planProgress.ai_progress_message}</p>
+          )}
         </div>
       )}
 
