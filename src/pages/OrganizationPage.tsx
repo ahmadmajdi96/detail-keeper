@@ -369,6 +369,7 @@ function SsoTabBody({ orgId, canManage }: { orgId: string; canManage: boolean })
   const { can, loading } = useEntitlements();
   if (loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   return <OrgSsoPanel orgId={orgId} canManage={canManage} ssoEnabled={can("sso")} />;
+}
 
 function OrgUsageCard() {
   const { data: usage } = useOrgUsage();
