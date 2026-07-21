@@ -36,6 +36,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { CIIntegrationsManager } from "@/components/integrations/CIIntegrationsManager";
+import { OrgNotificationDelivery } from "@/components/integrations/OrgNotificationDelivery";
 import { connectOAuthPopup, type OAuthProvider } from "@/lib/oauth-popup";
 import { useProjectScope } from "@/hooks/useProjectScope";
 import { useEffect } from "react";
@@ -314,6 +315,8 @@ export default function IntegrationsPage() {
             </div>
           }
         />
+
+        <OrgNotificationDelivery />
 
         <CIIntegrationsManager />
 
