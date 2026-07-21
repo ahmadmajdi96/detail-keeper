@@ -110,89 +110,94 @@ Deno.serve(async (req) => {
 
     await admin.from("test_plans").update({ ai_status: "running" }).eq("id", test_plan_id);
 
-    // 2) Poll status.
-    const started = Date.now();
-    let status = "queued";
-    while (Date.now() - started < POLL_TIMEOUT_MS) {
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-      const s = await fetch(`${FORGE_BASE}/v1/test-generations/${jobId}`, {
-        headers: { authorization: `Bearer ${apiKey}` },
-      });
-      if (!s.ok) continue;
-      const body = await s.json().catch(() => ({}));
-      status = String(body?.status || body?.state || "").toLowerCase();
-      if (status === "succeeded" || status === "completed" || status === "success") break;
-      if (status === "failed" || status === "error" || status === "cancelled") {
+    // Run polling + persistence in the background so we don't hit the 150s
+    // request idle timeout. Client polls test_plans.ai_status for completion.
+    const bg = (async () => {
+      try {
+        const started = Date.now();
+        let status = "queued";
+        while (Date.now() - started < POLL_TIMEOUT_MS) {
+          await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+          const s = await fetch(`${FORGE_BASE}/v1/test-generations/${jobId}`, {
+            headers: { authorization: `Bearer ${apiKey}` },
+          });
+          if (!s.ok) continue;
+          const body = await s.json().catch(() => ({}));
+          status = String(body?.status || body?.state || "").toLowerCase();
+          if (["succeeded", "completed", "success"].includes(status)) break;
+          if (["failed", "error", "cancelled"].includes(status)) {
+            await admin.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
+            return;
+          }
+        }
+        if (!["succeeded", "completed", "success"].includes(status)) {
+          await admin.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
+          return;
+        }
+
+        const casesRes = await fetch(`${FORGE_BASE}/v1/test-generations/${jobId}/test-cases?view=ui`, {
+          headers: { authorization: `Bearer ${apiKey}` },
+        });
+        if (!casesRes.ok) {
+          await admin.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
+          return;
+        }
+        const casesBody = await casesRes.json().catch(() => ({}));
+        const items: any[] = casesBody?.testCases || casesBody?.items || casesBody?.data || (Array.isArray(casesBody) ? casesBody : []);
+
+        for (const tc of items) {
+          const title = String(tc.title || "Untitled").slice(0, 200);
+          const description = String(tc.description || "");
+          const expected = String(tc.expectedResult || tc.expected_result || "");
+          const pr = String(tc.priority || "P2").toLowerCase();
+          const priority = pr.includes("p0") || pr.includes("block") ? 1
+            : pr.includes("p1") || pr.includes("high") ? 1
+            : pr.includes("p3") || pr.includes("low") ? 3 : 2;
+          const tags = Array.isArray(tc.coverageTags) ? tc.coverageTags.slice(0, 8)
+            : Array.isArray(tc.coverage_tags) ? tc.coverage_tags.slice(0, 8) : [];
+          const preconds = String(tc.preconditions || "");
+
+          const { data: row, error } = await admin.from("test_cases").insert({
+            workspace_id: plan.workspace_id,
+            project_id: plan.project_id,
+            title,
+            description,
+            expected_result: expected,
+            preconditions: preconds || null,
+            priority,
+            status: "draft",
+            ai_generated: true,
+            coverage_tags: tags,
+            created_by: userId,
+          } as any).select("id").single();
+          if (error || !row) continue;
+
+          await admin.from("test_plan_test_cases").insert({
+            test_plan_id, test_case_id: row.id, added_by: userId,
+          } as any);
+
+          const steps: any[] = Array.isArray(tc.steps) ? tc.steps : [];
+          if (steps.length) {
+            await admin.from("test_case_steps").insert(
+              steps.map((s: any, i: number) => ({
+                test_case_id: row.id,
+                step_number: Number(s.index ?? i + 1),
+                action: String(s.action ?? s.step ?? ""),
+                expected_result: String(s.expectedResult ?? s.expected_result ?? ""),
+              })),
+            );
+          }
+        }
+
+        await admin.from("test_plans").update({ ai_status: "ready" }).eq("id", test_plan_id);
+      } catch (_e) {
         await admin.from("test_plans").update({ ai_status: "failed" }).eq("id", test_plan_id);
-        return j({ error: `Forge job ${status}`, jobId, detail: body }, 502);
       }
-    }
-    const terminal = ["succeeded", "completed", "success"].includes(status);
-    if (!terminal) {
-      // Still running: return jobId so client can keep polling if we add UI later.
-      return j({ status: "running", jobId, message: "Generation still running; try again shortly." }, 202);
-    }
+    })();
+    // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime
+    if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(bg); else bg;
 
-    // 3) Fetch UI-view test cases.
-    const casesRes = await fetch(`${FORGE_BASE}/v1/test-generations/${jobId}/test-cases?view=ui`, {
-      headers: { authorization: `Bearer ${apiKey}` },
-    });
-    if (!casesRes.ok) {
-      const t = await casesRes.text();
-      return j({ error: `Fetch cases failed (${casesRes.status}): ${t.slice(0, 500)}` }, 502);
-    }
-    const casesBody = await casesRes.json().catch(() => ({}));
-    const items: any[] = casesBody?.testCases || casesBody?.items || casesBody?.data || (Array.isArray(casesBody) ? casesBody : []);
-
-    let inserted = 0;
-    for (const tc of items) {
-      const title = String(tc.title || "Untitled").slice(0, 200);
-      const description = String(tc.description || "");
-      const expected = String(tc.expectedResult || tc.expected_result || "");
-      const pr = String(tc.priority || "P2").toLowerCase();
-      const priority = pr.includes("p0") || pr.includes("block") ? 1
-        : pr.includes("p1") || pr.includes("high") ? 1
-        : pr.includes("p3") || pr.includes("low") ? 3 : 2;
-      const tags = Array.isArray(tc.coverageTags) ? tc.coverageTags.slice(0, 8)
-        : Array.isArray(tc.coverage_tags) ? tc.coverage_tags.slice(0, 8) : [];
-      const preconds = String(tc.preconditions || "");
-
-      const { data: row, error } = await admin.from("test_cases").insert({
-        workspace_id: plan.workspace_id,
-        project_id: plan.project_id,
-        title,
-        description,
-        expected_result: expected,
-        preconditions: preconds || null,
-        priority,
-        status: "draft",
-        ai_generated: true,
-        coverage_tags: tags,
-        created_by: userId,
-      } as any).select("id").single();
-      if (error || !row) continue;
-
-      await admin.from("test_plan_test_cases").insert({
-        test_plan_id, test_case_id: row.id, added_by: userId,
-      } as any);
-
-      const steps: any[] = Array.isArray(tc.steps) ? tc.steps : [];
-      if (steps.length) {
-        await admin.from("test_case_steps").insert(
-          steps.map((s: any, i: number) => ({
-            test_case_id: row.id,
-            step_number: Number(s.index ?? i + 1),
-            action: String(s.action ?? s.step ?? ""),
-            expected_result: String(s.expectedResult ?? s.expected_result ?? ""),
-          })),
-        );
-      }
-      inserted++;
-    }
-
-    await admin.from("test_plans").update({ ai_status: "ready" }).eq("id", test_plan_id);
-
-    return j({ status: "succeeded", jobId, cases: inserted, received: items.length });
+    return j({ status: "accepted", jobId, message: "Generation started" }, 202);
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
