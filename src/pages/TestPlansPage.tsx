@@ -213,6 +213,13 @@ export default function TestPlansPage() {
         }
       />
 
+      {/* Summary cards */}
+      <TestPlanStatCards
+        plans={testPlans}
+        activeFilter={statusFilter}
+        onSelect={(s) => setStatusFilter(s)}
+      />
+
       {/* AI Generate Banner */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
