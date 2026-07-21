@@ -4508,8 +4508,12 @@ export type Database = {
           created_at: string
           current_period_end: string
           current_period_start: string
+          environment: string
           id: string
           org_id: string
+          paddle_customer_id: string | null
+          paddle_price_id: string | null
+          paddle_subscription_id: string | null
           plan_key: string
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id: string | null
@@ -4522,8 +4526,12 @@ export type Database = {
           created_at?: string
           current_period_end?: string
           current_period_start?: string
+          environment?: string
           id?: string
           org_id: string
+          paddle_customer_id?: string | null
+          paddle_price_id?: string | null
+          paddle_subscription_id?: string | null
           plan_key: string
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -4536,8 +4544,12 @@ export type Database = {
           created_at?: string
           current_period_end?: string
           current_period_start?: string
+          environment?: string
           id?: string
           org_id?: string
+          paddle_customer_id?: string | null
+          paddle_price_id?: string | null
+          paddle_subscription_id?: string | null
           plan_key?: string
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null

@@ -9,6 +9,7 @@ import { OrgSwitcher } from "./OrgSwitcher";
 import { WorkflowNav } from "./WorkflowNav";
 import { DunningBanner } from "@/components/billing/DunningBanner";
 import { TrialBanner } from "@/components/billing/TrialBanner";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { Loader2 } from "lucide-react";
 
@@ -54,6 +55,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <NotificationBell />
           </div>
         </header>
+        <PaymentTestModeBanner />
         <TrialBanner />
         <DunningBanner />
         <main className="flex-1 min-w-0">

@@ -3,38 +3,18 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEntitlements, useOrgUsage } from "@/hooks/useEntitlements";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, CreditCard, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, CreditCard, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-
-function StripeModeBadge({ onConfigured }: { onConfigured: (v: boolean) => void }) {
-  const { data } = useQuery({
-    queryKey: ["stripe-mode"],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("stripe-mode", { method: "GET" as any });
-      if (error) throw error;
-      return data as { configured: boolean; mode: "test" | "live" | "unknown"; webhook_configured: boolean };
-    },
-    staleTime: 60_000,
-  });
-  useEffect(() => { if (data) onConfigured(data.configured); }, [data, onConfigured]);
-  if (!data?.configured) return null;
-  const isTest = data.mode === "test";
-  return (
-    <Badge variant="outline" className={isTest ? "border-amber-500/60 text-amber-500" : "border-emerald-500/60 text-emerald-500"}>
-      {isTest ? "Stripe: Test mode" : data.mode === "live" ? "Stripe: Live" : "Stripe"}
-      {!data.webhook_configured && " · webhook missing"}
-    </Badge>
-  );
-}
+import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
+import { getPaddleEnvironment } from "@/lib/paddle";
 
 const FEATURE_ROWS: Array<{ key: string; label: string }> = [
   { key: "sso", label: "SSO / SAML" },
@@ -42,6 +22,24 @@ const FEATURE_ROWS: Array<{ key: string; label: string }> = [
   { key: "api_keys", label: "API keys" },
   { key: "priority_support", label: "Priority support" },
 ];
+
+// Maps our plan_key → Paddle price_id (external_id) — only paid plans
+const PRICE_BY_PLAN: Record<string, string> = {
+  individual_starter: "individual_starter_monthly",
+  individual_pro: "individual_pro_monthly",
+  individual_grow: "individual_grow_monthly",
+  enterprise_small: "enterprise_small_monthly",
+  enterprise_mid: "enterprise_mid_monthly",
+};
+
+function ModeBadge() {
+  const isTest = getPaddleEnvironment() === "sandbox";
+  return (
+    <Badge variant="outline" className={isTest ? "border-amber-500/60 text-amber-500" : "border-emerald-500/60 text-emerald-500"}>
+      {isTest ? "Payments: Test mode" : "Payments: Live"}
+    </Badge>
+  );
+}
 
 function UsageBar({ label, used, limit }: { label: string; used: number; limit: number | null }) {
   const unlimited = limit == null;
@@ -62,63 +60,48 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
 
 export default function BillingPage() {
   const { currentOrganization, currentOrgRole } = useOrganization();
+  const { user } = useAuth();
   const { entitlements, subscription, loading, refresh } = useEntitlements();
   const usage = useOrgUsage();
   const qc = useQueryClient();
-  const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
   const [busy, setBusy] = useState<string | null>(null);
-  const [billingConfigured, setBillingConfigured] = useState<boolean | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { openCheckout, loading: checkoutLoading } = usePaddleCheckout();
 
   const plansQ = useQuery({
     queryKey: ["plans"],
     queryFn: async () => {
       const { data, error } = await supabase.from("plans").select("*").eq("is_active", true).order("monthly_price_cents");
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((p: any) => p.key === "free" || PRICE_BY_PLAN[p.key]);
     },
   });
 
   const canManage = currentOrgRole === "owner" || currentOrgRole === "billing_admin";
 
-  // Handle Stripe return
   useEffect(() => {
     if (searchParams.get("success") === "1") {
       toast.success("Subscription updated — refreshing…");
       refresh();
       qc.invalidateQueries({ queryKey: ["entitlements"] });
       searchParams.delete("success"); setSearchParams(searchParams, { replace: true });
-    } else if (searchParams.get("canceled") === "1") {
-      toast.info("Checkout canceled");
-      searchParams.delete("canceled"); setSearchParams(searchParams, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function upgrade(planKey: string) {
-    if (!canManage) return toast.error("Only org owner/billing admin can upgrade");
+    if (!canManage) return toast.error("Only org owner/billing admin can change plans");
+    if (!user?.id) return toast.error("Please sign in");
+    const priceId = PRICE_BY_PLAN[planKey];
+    if (!priceId) return toast.error("This plan is not available for checkout");
     setBusy(planKey);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-        body: { plan_key: planKey, interval, origin: window.location.origin },
+      await openCheckout({
+        priceId,
+        userId: user.id,
+        customerEmail: user.email ?? undefined,
+        successUrl: `${window.location.origin}/billing?success=1`,
       });
-      if (error) throw error;
-      if (data?.error === "billing_not_configured") {
-        setBillingConfigured(false);
-        toast.error("Billing isn't configured yet. An admin must add Stripe keys.");
-        return;
-      }
-      if (data?.error === "price_not_configured") {
-        toast.error(`Admin: set ${data.missing} secret to enable this price.`);
-        return;
-      }
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-      throw new Error(data?.error || "Unknown error");
-    } catch (e: any) {
-      toast.error(e.message || "Checkout failed");
     } finally {
       setBusy(null);
     }
@@ -127,17 +110,14 @@ export default function BillingPage() {
   async function openPortal() {
     setBusy("portal");
     try {
-      const { data, error } = await supabase.functions.invoke("create-billing-portal", {
-        body: { origin: window.location.origin },
-      });
+      const { data, error } = await supabase.functions.invoke("paddle-portal", { body: {} });
       if (error) throw error;
-      if (data?.error === "billing_not_configured") {
-        setBillingConfigured(false);
-        toast.error("Billing isn't configured yet.");
+      if (data?.error === "no_paid_subscription") {
+        toast.info("You don't have a paid subscription yet.");
         return;
       }
-      if (data?.url) { window.location.href = data.url; return; }
-      throw new Error(data?.error || "Unknown error");
+      if (data?.url) { window.open(data.url, "_blank"); return; }
+      throw new Error(data?.error || "Could not open billing portal");
     } catch (e: any) {
       toast.error(e.message || "Could not open billing portal");
     } finally {
@@ -153,53 +133,43 @@ export default function BillingPage() {
     );
   }
 
-  const currentKey = subscription?.plan_key || "free";
-  const hasPaidSub = !!subscription?.stripe_subscription_id;
+  const sub: any = subscription;
+  const currentKey = sub?.plan_key || "free";
+  const hasPaidSub = !!sub?.paddle_subscription_id;
 
   return (
     <AppLayout>
       <div className="flex items-center justify-between mt-2">
         <PageHeader title="Billing & Plan" description="Manage your organization's plan, usage, and limits." />
-        <StripeModeBadge onConfigured={setBillingConfigured} />
+        <ModeBadge />
       </div>
 
-      {billingConfigured === false && (
-        <Alert className="mt-4 border-amber-500/40">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Billing isn't configured yet</AlertTitle>
-          <AlertDescription>
-            An admin needs to add <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, and the price ID secrets
-            (<code>STRIPE_PRICE_PRO_MONTHLY</code>, <code>STRIPE_PRICE_PRO_YEARLY</code>,{" "}
-            <code>STRIPE_PRICE_ENTERPRISE_MONTHLY</code>, <code>STRIPE_PRICE_ENTERPRISE_YEARLY</code>) in Project Settings → Secrets.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Current plan */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Current plan</CardTitle>
-              <Badge variant={subscription?.status === "past_due" ? "destructive" : "default"}>
-                {subscription?.status || "active"}
+              <Badge variant={sub?.status === "past_due" ? "destructive" : "default"}>
+                {sub?.status || "active"}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="text-2xl font-semibold capitalize">{currentKey}</div>
-            {subscription?.current_period_end && (
+            <div className="text-2xl font-semibold">
+              {plansQ.data?.find((p: any) => p.key === currentKey)?.name || currentKey}
+            </div>
+            {sub?.current_period_end && (
               <div className="text-sm text-muted-foreground">
-                Renews {format(new Date(subscription.current_period_end), "PP")}
+                Renews {format(new Date(sub.current_period_end), "PP")}
               </div>
             )}
-            {subscription?.trial_ends_at && (
-              <div className="text-sm">Trial ends {format(new Date(subscription.trial_ends_at), "PP")}</div>
+            {sub?.trial_ends_at && !hasPaidSub && (
+              <div className="text-sm">Trial ends {format(new Date(sub.trial_ends_at), "PP")}</div>
             )}
             <div className="flex items-center gap-2 pt-2">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                {subscription?.stripe_customer_id ? "Card on file" : "No payment method"}
+                {sub?.paddle_customer_id ? "Card on file" : "No payment method"}
               </span>
             </div>
             {hasPaidSub && canManage && (
@@ -210,7 +180,6 @@ export default function BillingPage() {
           </CardContent>
         </Card>
 
-        {/* Usage */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Usage — this period</CardTitle>
@@ -226,35 +195,28 @@ export default function BillingPage() {
         </Card>
       </div>
 
-      {/* Plans */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Plans</h2>
-          <Tabs value={interval} onValueChange={(v) => setInterval(v as "monthly" | "yearly")}>
-            <TabsList>
-              <TabsTrigger value="monthly">Monthly</TabsTrigger>
-              <TabsTrigger value="yearly">Yearly <span className="ml-1.5 text-[10px] text-emerald-500">-20%</span></TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="text-xs text-muted-foreground">Prorated on upgrade/downgrade. Cancel anytime.</div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {(plansQ.data || []).map((p: any) => {
             const isCurrent = p.key === currentKey;
             const ent = p.entitlements || {};
-            const cents = interval === "yearly" ? p.yearly_price_cents : p.monthly_price_cents;
-            const perLabel = interval === "yearly" ? "/yr" : "/mo";
+            const cents = p.monthly_price_cents;
             const isFree = p.key === "free";
             return (
-              <Card key={p.key} className={isCurrent ? "border-accent" : ""}>
+              <Card key={p.key} className={isCurrent ? "border-accent shadow-lg shadow-accent/10" : ""}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>{p.name}</CardTitle>
+                    <CardTitle className="text-lg">{p.name}</CardTitle>
                     {isCurrent && <Badge variant="outline">Current</Badge>}
                   </div>
                   <div className="text-3xl font-bold">
                     ${(cents / 100).toFixed(0)}
-                    <span className="text-sm font-normal text-muted-foreground">{perLabel}</span>
+                    <span className="text-sm font-normal text-muted-foreground">{isFree ? "" : "/mo"}</span>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -282,14 +244,20 @@ export default function BillingPage() {
                       <Button className="w-full" variant="outline" disabled>Current plan</Button>
                     )
                   ) : isFree ? (
-                    <Button className="w-full" variant="outline" disabled>Downgrade via billing portal</Button>
+                    hasPaidSub && canManage ? (
+                      <Button className="w-full" variant="outline" onClick={openPortal} disabled={busy === "portal"}>
+                        Downgrade
+                      </Button>
+                    ) : (
+                      <Button className="w-full" variant="outline" disabled>Free plan</Button>
+                    )
                   ) : (
                     <Button
                       className="w-full"
                       onClick={() => upgrade(p.key)}
-                      disabled={!canManage || busy === p.key}
+                      disabled={!canManage || busy === p.key || checkoutLoading}
                     >
-                      {busy === p.key ? "Redirecting…" : `Upgrade to ${p.name}`}
+                      {busy === p.key ? "Opening checkout…" : hasPaidSub ? `Switch to ${p.name}` : `Subscribe to ${p.name}`}
                     </Button>
                   )}
                 </CardContent>
