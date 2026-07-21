@@ -34,6 +34,9 @@ export function GoogleAuthButton({
       }
       if (result.redirected) return; // browser is navigating away
       onSuccess?.();
+      // Popup flow: session is now set in this page. Navigate the user out of /login.
+      const target = nextPath || "/dashboard";
+      window.location.assign(target);
     } catch (e: any) {
       toast.error(e?.message || "Google sign-in failed");
     } finally {
