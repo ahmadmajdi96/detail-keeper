@@ -149,6 +149,12 @@ export default function DefectDetailPage() {
           </CardContent>
         </Card>
 
+        <DefectEvidenceGallery
+          defectId={d.id}
+          projectId={(d as any).project?.id ?? d.project_id}
+          workspaceId={(d as any).project?.workspace_id ?? (d as any).workspace_id ?? null}
+        />
+
         <DefectCommentsPanel
           defectId={d.id}
           projectId={(d as any).project?.id ?? d.project_id}
