@@ -9,9 +9,13 @@ import { useQueryClient } from "@tanstack/react-query";
 // while server-side generation runs. Shows a toast when a job finishes.
 
 const BUSY_PREFIX = "wb-busy-";
-const MAX_AGE_MS = 45 * 60 * 1000; // stop tracking after 45 min
-const STALE_MS = 25 * 60 * 1000;   // treat 'running' longer than 25 min as stalled
+const MAX_AGE_MS = 60 * 60 * 1000; // stop tracking after 60 min
+const STALE_MS = 35 * 60 * 1000;   // treat 'running' longer than 35 min as stalled
 const POLL_MS = 6000;
+// Ignore terminal statuses observed before the server actually recorded a new
+// run for this click — prevents a stale "ready" from a previous generation
+// firing a fake success toast the moment the user clicks Generate.
+const CLICK_SKEW_MS = 15_000;
 
 
 
@@ -59,7 +63,7 @@ export function GenerationJobTracker() {
 
       const { data, error } = await supabase
         .from("test_plans")
-        .select("id, name, ai_status")
+        .select("id, name, ai_status, ai_last_run_at")
         .in("id", ids);
       if (error || !data) return;
 
@@ -70,7 +74,12 @@ export function GenerationJobTracker() {
         const kindLabel = LABELS[busy?.kind] || "generation";
         const age = busy ? Date.now() - busy.startedAt : 0;
 
-        const isTerminal = status === "ready" || status === "failed";
+        const lastRunAt = row.ai_last_run_at ? new Date(row.ai_last_run_at as any).getTime() : 0;
+        // Only trust a terminal state if the server has recorded a run that
+        // started at/after this click (minus small clock skew). Otherwise the
+        // status still reflects the previous generation.
+        const runIsCurrent = busy ? lastRunAt >= busy.startedAt - CLICK_SKEW_MS : true;
+        const isTerminal = (status === "ready" || status === "failed") && runIsCurrent;
         const isStale = status === "running" && age > STALE_MS;
 
         // Record status for next tick.
