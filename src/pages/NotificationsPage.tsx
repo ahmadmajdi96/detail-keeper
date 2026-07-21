@@ -175,6 +175,9 @@ export default function NotificationsPage() {
           </div>
         </div>
 
+        {/* USAGE — replaces mentions area with real usage telemetry */}
+        <UsageStrip />
+
         {/* BODY */}
         <div className="px-6 md:px-8 py-6 grid grid-cols-1 lg:grid-cols-5 gap-6" style={{ background: "rgba(5,9,18,0.98)", minHeight: "60vh" }}>
           {/* Preferences */}
