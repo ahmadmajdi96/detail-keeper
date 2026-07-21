@@ -54,18 +54,20 @@ Deno.serve(async (req) => {
     }
     const body = await s.json().catch(() => ({}));
     const rstatus = String(body?.status || body?.state || "").toLowerCase();
-    // Forge exposes counters — turn them into a stable percent + message so
-    // the client can render a real progress bar instead of an indeterminate
-    // spinner during the ~25 min run.
-    const totalUnits = Number(body?.totalUnits ?? body?.total_units ?? 0);
-    const completedUnits = Number(body?.completedUnits ?? body?.completed_units ?? 0);
-    const totalCases = Number(body?.totalTestCases ?? body?.total_test_cases ?? 0);
+    // Forge returns `progress` as an object {totalUnits, completedUnits,
+    // totalItems, generatedCases} — not a plain number. Normalise both shapes.
+    const prog = (body?.progress && typeof body.progress === "object") ? body.progress : {};
+    const totalUnits = Number(prog.totalUnits ?? body?.totalUnits ?? body?.total_units ?? 0);
+    const completedUnits = Number(prog.completedUnits ?? body?.completedUnits ?? body?.completed_units ?? 0);
+    const totalCases = Number(prog.totalTestCases ?? prog.totalItems ?? body?.totalTestCases ?? body?.total_test_cases ?? 0);
+    const generatedCases = Number(prog.generatedCases ?? body?.generatedCases ?? 0);
     let percent: number | null = null;
     if (typeof body?.progress === "number") percent = clampPct(body.progress);
     else if (typeof body?.percent === "number") percent = clampPct(body.percent);
+    else if (typeof prog.percent === "number") percent = clampPct(prog.percent);
     else if (totalUnits > 0) percent = clampPct((completedUnits / totalUnits) * 100);
-    const stage = body?.stage || body?.phase || null;
-    const message = buildMessage(rstatus, stage, completedUnits, totalUnits, totalCases);
+    const stage = body?.stage || body?.phase || prog.stage || null;
+    const message = buildMessage(rstatus, stage, completedUnits, totalUnits, generatedCases || totalCases);
 
     if (["failed", "error", "cancelled"].includes(rstatus)) {
       await admin.from("test_plans").update({
