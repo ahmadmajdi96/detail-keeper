@@ -369,4 +369,41 @@ function SsoTabBody({ orgId, canManage }: { orgId: string; canManage: boolean })
   const { can, loading } = useEntitlements();
   if (loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   return <OrgSsoPanel orgId={orgId} canManage={canManage} ssoEnabled={can("sso")} />;
+
+function OrgUsageCard() {
+  const { data: usage } = useOrgUsage();
+  const { entitlements } = useEntitlements();
+  const items = [
+    { icon: Users, label: "Seats", used: usage?.seats ?? 0, limit: entitlements.seats },
+    { icon: Building, label: "Workspaces", used: usage?.workspaces ?? 0, limit: entitlements.max_workspaces },
+    { icon: FolderKanban, label: "Projects", used: usage?.projects ?? 0, limit: entitlements.max_projects },
+    { icon: Zap, label: "AI jobs this period", used: usage?.ai_jobs ?? 0, limit: entitlements.ai_jobs_per_month },
+  ];
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((it) => {
+        const pct = it.limit ? Math.min(100, Math.round((it.used / it.limit) * 100)) : 0;
+        const near = pct >= 80;
+        return (
+          <Card key={it.label} className="border-border/50">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <it.icon className="h-3.5 w-3.5" /> {it.label}
+              </div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {it.used}
+                <span className="text-sm text-muted-foreground font-normal">
+                  {" / "}{it.limit ?? "∞"}
+                </span>
+              </div>
+              {it.limit != null && (
+                <Progress value={pct} className={near ? "[&>div]:bg-orange-500" : ""} />
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
 }
+
