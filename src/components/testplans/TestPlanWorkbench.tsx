@@ -159,16 +159,18 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("test_plans")
-        .select("ai_status, ai_progress, ai_progress_message")
+        .select("ai_status, ai_progress, ai_progress_message, codegen_status, codegen_progress, codegen_progress_message")
         .eq("id", testPlanId)
         .maybeSingle();
       return data as any;
     },
     refetchInterval: (q) => {
-      const s = (q.state.data as any)?.ai_status;
-      return (s === "running" || s === "queued") ? 4000 : false;
+      const d: any = q.state.data;
+      const s = d?.ai_status; const c = d?.codegen_status;
+      return (s === "running" || s === "queued" || c === "running" || c === "queued") ? 4000 : false;
     },
   });
+
 
   useEffect(() => {
     if (!testPlanId) return;
