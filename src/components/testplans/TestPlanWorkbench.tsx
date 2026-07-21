@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useBlocker } from "react-router-dom";
+
 import Editor from "@monaco-editor/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,19 +78,25 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
-  // Intercept in-app route changes while locked.
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    !!busy && currentLocation.pathname !== nextLocation.pathname,
-  );
+  // Intercept in-app anchor clicks while locked (BrowserRouter has no useBlocker).
   useEffect(() => {
-    if (blocker.state !== "blocked") return;
-    const proceed = window.confirm(
-      `${busy ? busyLabels[busy] : "Generation"} is still running. Leaving now will cancel the request. Leave anyway?`,
-    );
-    if (proceed) { setBusy(null); blocker.proceed?.(); }
-    else blocker.reset?.();
+    const onClick = (e: MouseEvent) => {
+      if (!busyRef.current) return;
+      const a = (e.target as HTMLElement)?.closest?.("a");
+      if (!a) return;
+      const href = a.getAttribute("href");
+      if (!href || href.startsWith("http") || href.startsWith("#") || a.target === "_blank") return;
+      if (href === window.location.pathname) return;
+      const proceed = window.confirm(
+        `${busyRef.current ? busyLabels[busyRef.current] : "Generation"} is still running. Leaving now will cancel the request. Leave anyway?`,
+      );
+      if (!proceed) { e.preventDefault(); e.stopPropagation(); }
+      else setBusy(null);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocker.state]);
+  }, []);
 
   const cfgKey = `wb-cfg-${testPlanId}`;
   const initialCfg = (() => { try { return JSON.parse(localStorage.getItem(cfgKey) || "{}"); } catch { return {}; } })();
