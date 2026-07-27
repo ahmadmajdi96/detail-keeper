@@ -29,6 +29,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronRight, FolderOpen, FlaskConical, FileSearch } from "lucide-react";
 import { CoverageSummary } from "./CoverageSummary";
 import { GenerationSettingsPanel, useGenerationSettings, limitLabel } from "./GenerationSettingsPanel";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ReviewQueue, type ReviewKind } from "./ReviewQueue";
+
+import { DocVersionHistory } from "./DocVersionHistory";
+import { TraceabilityMatrixEditor } from "./TraceabilityMatrixEditor";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ClipboardCheck, History, Grid3x3 } from "lucide-react";
 
 type ConfirmButtonProps = {
   size?: "sm" | "default"; variant?: "outline" | "default";
@@ -283,11 +290,14 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   }
 
   const [exporting, setExporting] = useState(false);
-  const exportBundle = async () => {
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [matrixOpen, setMatrixOpen] = useState(false);
+  const [historyDoc, setHistoryDoc] = useState<{ id: string; label: string } | null>(null);
+  const exportBundle = async (approvedOnly = false) => {
     setExporting(true);
     const t = toast.loading("Packaging workflow bundle…");
     try {
-      const res = await exportWorkflowBundle(testPlanId, (m) => toast.loading(m, { id: t }));
+      const res = await exportWorkflowBundle(testPlanId, (m) => toast.loading(m, { id: t }), { approvedOnly });
       toast.success(
         `Bundle downloaded — ${res.documents} docs · ${res.cases} cases · ${res.specs} specs`,
         { id: t },
@@ -342,11 +352,27 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={exportBundle} disabled={exporting}
-            title="Download docs, plan, test cases and Playwright specs as one ZIP">
-            {exporting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Package className="h-3.5 w-3.5 mr-1" />}
-            Export Bundle
+          <Button size="sm" variant="outline" onClick={() => setReviewOpen(true)}
+            title="Accept, reject or regenerate each generated artifact in order">
+            <ClipboardCheck className="h-3.5 w-3.5 mr-1" /> Review Queue
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setMatrixOpen(true)}
+            title="Edit requirement ⇄ test-case mappings">
+            <Grid3x3 className="h-3.5 w-3.5 mr-1" /> Traceability
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={exporting}
+                title="Download docs, plan, test cases and Playwright specs as one ZIP with a manifest">
+                {exporting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Package className="h-3.5 w-3.5 mr-1" />}
+                Export Bundle
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportBundle(false)}>All generated artifacts</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportBundle(true)}>Approved artifacts only</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <GenerationSettingsPanel settings={settings} onChange={patchSettings} disabled={busy !== null} />
 
           {(() => {
@@ -380,7 +406,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
               ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new ${settings.language} job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
               : `Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}
             confirmLabel="Start codegen"
-            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language, dry_run: settings.dryRun }, "Codegen started")}
+            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language, dry_run: settings.dryRun, skip_stubs: settings.skipStubs }, "Codegen started")}
           />
           </>;
           })()}
@@ -496,11 +522,19 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                 {docs.length === 0
                   ? <p className="text-[11px] text-muted-foreground px-1">No QA documents yet — generate them from the Test Plan page.</p>
                   : docs.map(d => (
-                    <button key={d.id}
-                      onClick={() => openFile({ kind: "doc", id: d.id, label: `${d.slug}.md` })}
-                      className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
-                      <span className="inline-flex items-center gap-1.5"><FileIcon name={`${d.slug}.md`} /> {d.slug}.md</span>
-                    </button>
+                    <div key={d.id} className="group flex items-center gap-1 rounded hover:bg-muted/50">
+                      <button
+                        onClick={() => openFile({ kind: "doc", id: d.id, label: `${d.slug}.md` })}
+                        className="flex-1 text-left text-xs px-2 py-1 truncate">
+                        <span className="inline-flex items-center gap-1.5"><FileIcon name={`${d.slug}.md`} /> {d.slug}.md</span>
+                      </button>
+                      <button
+                        title="Version history & diff"
+                        onClick={() => setHistoryDoc({ id: d.id, label: `${d.slug}.md` })}
+                        className="mr-1 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-accent group-hover:opacity-100">
+                        <History className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   ))}
               </WBFolder>
 
@@ -651,9 +685,51 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
       <div className="p-3 border-t border-border/50">
         <ArtifactViewer testPlanId={testPlanId} />
       </div>
+
+      <ReviewQueue
+        testPlanId={testPlanId}
+        projectId={projectId}
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        regenerating={busy !== null}
+        onRegenerate={(kind: ReviewKind) => {
+          if (kind === "doc") {
+            runStep("docs", "tp-generate-docs", { test_plan_id: testPlanId, settings }, "Document generation started");
+          } else if (kind === "case") {
+            runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings, dry_run: settings.dryRun }, "Generation started");
+          } else if (kind === "spec") {
+            runStep("code", "tp-forge-codegen", {
+              test_plan_id: testPlanId, language: settings.language,
+              dry_run: settings.dryRun, skip_stubs: settings.skipStubs,
+            }, "Codegen started");
+          }
+        }}
+      />
+
+      {historyDoc && (
+        <DocVersionHistory
+          documentId={historyDoc.id}
+          documentLabel={historyDoc.label}
+          open={!!historyDoc}
+          onOpenChange={(o) => !o && setHistoryDoc(null)}
+        />
+      )}
+
+      <Dialog open={matrixOpen} onOpenChange={setMatrixOpen}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Traceability matrix</DialogTitle>
+            <DialogDescription>
+              Filter and manually adjust requirement-to-test-case mappings before finalizing coverage.
+            </DialogDescription>
+          </DialogHeader>
+          <TraceabilityMatrixEditor projectId={projectId} testPlanId={testPlanId} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function WBFolder({
   icon, label, count, defaultOpen, children,

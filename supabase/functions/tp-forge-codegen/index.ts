@@ -31,7 +31,8 @@ Deno.serve(async (req) => {
     const { data: claims } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
 
-    const { test_plan_id, base_url, language, dry_run } = await req.json();
+    const { test_plan_id, base_url, language, dry_run, skip_stubs } = await req.json();
+    const skipStubs = skip_stubs === true;
     const lang = ["typescript", "javascript", "java"].includes(String(language)) ? String(language) : "typescript";
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
 
@@ -76,6 +77,9 @@ Deno.serve(async (req) => {
         dryRun: dry_run !== false,
         install: dry_run === false,
         execute: dry_run === false,
+        // Skeleton mode: ask Forge for skipped stubs; we also enforce this
+        // locally when persisting the returned files.
+        ...(skipStubs ? { skipStubs: true, skeletonOnly: true } : {}),
       },
     };
 
@@ -100,6 +104,7 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     await admin.from("test_plans").update({
       codegen_status: "running",
+      codegen_skip_stubs: skipStubs,
       codegen_job_ref: codegenJobId,
       codegen_progress: 0,
       codegen_progress_message: "Queued at Forge",
