@@ -368,7 +368,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
               ? `This plan already has ${cases.length} test case${cases.length === 1 ? "" : "s"}. Running generation again will submit a new ~25 minute job and append newly generated cases. Existing cases are not deleted.`
               : "This will submit plan documents and variable sets to the AI service. Generation typically takes ~25 minutes and cannot be undone once the credits are consumed."}`}
             confirmLabel="Start generation"
-            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings }, "Generation started")}
+            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings, dry_run: settings.dryRun }, "Generation started")}
           />
           <ConfirmButton
             size="sm" variant="outline" disabled={anyRunning || cases.length === 0}
@@ -380,7 +380,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
               ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new ${settings.language} job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
               : `Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}
             confirmLabel="Start codegen"
-            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language }, "Codegen started")}
+            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language, dry_run: settings.dryRun }, "Codegen started")}
           />
           </>;
           })()}
@@ -499,7 +499,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                     <button key={d.id}
                       onClick={() => openFile({ kind: "doc", id: d.id, label: `${d.slug}.md` })}
                       className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
-                      <span className="text-muted-foreground">📄</span> {d.slug}.md
+                      <span className="inline-flex items-center gap-1.5"><FileIcon name={`${d.slug}.md`} /> {d.slug}.md</span>
                     </button>
                   ))}
               </WBFolder>
@@ -545,7 +545,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                               <button key={s.id}
                                 onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
                                 className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
-                                <span className="text-cyan-400">⚡</span> {s.filename}
+                                <span className="inline-flex items-center gap-1.5"><FileIcon name={s.filename} /> {s.filename}</span>
                               </button>
                             ))}
                           </div>
@@ -574,7 +574,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                         <button key={s.id}
                           onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
                           className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
-                          <span className="text-cyan-400">⚡</span> {s.filename.split("/").pop()}
+                          <span className="inline-flex items-center gap-1.5"><FileIcon name={s.filename} /> {s.filename.split("/").pop()}</span>
                         </button>
                       ))}
                     </div>
@@ -627,7 +627,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             {currentFile ? (
               <Editor
                 height="400px"
-                language={currentFile.kind === "spec" ? "typescript" : "markdown"}
+                language={fileLanguage(currentFile.label)}
                 theme="vs-dark"
                 value={currentContent}
                 onChange={(v) => activeKey && setDrafts(prev => ({ ...prev, [activeKey]: v ?? "" }))}
