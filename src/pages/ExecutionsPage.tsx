@@ -405,7 +405,7 @@ export default function ExecutionsPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{e.test_case?.title || "Untitled test"}</p>
                         <p className="text-xs text-muted-foreground">
-                          {e.executed_at ? new Date(e.executed_at).toLocaleString() : "Not started"}
+                          {e.started_at ? new Date(e.started_at).toLocaleString() : "Not started"}
                         </p>
                       </div>
                       <Badge className={statusConfig[e.status].color}>{e.status}</Badge>
