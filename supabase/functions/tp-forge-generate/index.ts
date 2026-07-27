@@ -183,7 +183,21 @@ Deno.serve(async (req) => {
       ai_last_run_at: new Date().toISOString(),
       ai_job_ref: jobId,
       ai_settings: cfg,
+      ai_dry_run: !!cfg.dryRun,
     }).eq("id", test_plan_id);
+
+    await admin.from("generation_stage_logs").insert({
+      test_plan_id,
+      kind: "cases",
+      stage: "submit",
+      dry_run: !!cfg.dryRun,
+      install_skipped: !!cfg.dryRun,
+      execution_skipped: !!cfg.dryRun,
+      message: cfg.dryRun
+        ? "Dry run — dependency installation SKIPPED and test execution SKIPPED for this job"
+        : "Full run — dependency installation and test execution enabled",
+      meta: { job_ref: jobId, install: !cfg.dryRun, execute: !cfg.dryRun },
+    });
 
 
     return j({ status: "accepted", jobId, message: "Generation started" }, 202);

@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
     const { data: plan } = await admin
       .from("test_plans")
-      .select("id, project_id, workspace_id, codegen_status, codegen_job_ref, codegen_progress, codegen_skip_stubs")
+      .select("id, project_id, workspace_id, codegen_status, codegen_job_ref, codegen_progress, codegen_skip_stubs, codegen_dry_run")
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
@@ -155,6 +155,28 @@ Deno.serve(async (req) => {
       codegen_progress_message: `Generated ${inserted} spec file${inserted === 1 ? "" : "s"}`,
       codegen_progress_updated_at: new Date().toISOString(),
     }).eq("id", test_plan_id);
+
+    {
+      const dry = (plan as any).codegen_dry_run !== false;
+      await admin.from("generation_stage_logs").insert([
+        {
+          test_plan_id, kind: "code", stage: "persist", dry_run: dry,
+          install_skipped: dry, execution_skipped: dry,
+          message: dry
+            ? `Specs persisted (${inserted} file${inserted === 1 ? "" : "s"}) — no dependencies installed, no tests executed`
+            : `Specs persisted (${inserted} file${inserted === 1 ? "" : "s"})`,
+          meta: { inserted, skip_stubs: skipStubs },
+        },
+        {
+          test_plan_id, kind: "code", stage: "done", dry_run: dry,
+          install_skipped: dry, execution_skipped: dry,
+          message: dry
+            ? "Codegen completed in dry-run mode — dependency installation and test execution were skipped"
+            : "Codegen completed",
+          meta: { inserted },
+        },
+      ]);
+    }
     return j({ status: "ready", inserted });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);

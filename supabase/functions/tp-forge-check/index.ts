@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: plan } = await admin
       .from("test_plans")
-      .select("id, project_id, workspace_id, ai_status, ai_job_ref, ai_progress")
+      .select("id, project_id, workspace_id, ai_status, ai_job_ref, ai_progress, ai_dry_run")
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
@@ -216,6 +216,28 @@ Deno.serve(async (req) => {
       ai_progress_message: `Generated ${inserted} test cases`,
       ai_progress_updated_at: new Date().toISOString(),
     }).eq("id", test_plan_id);
+
+    {
+      const dry = (plan as any).ai_dry_run !== false;
+      await admin.from("generation_stage_logs").insert([
+        {
+          test_plan_id, kind: "cases", stage: "persist", dry_run: dry,
+          install_skipped: dry, execution_skipped: dry,
+          message: dry
+            ? `Artifacts persisted (${inserted} test cases) — no dependencies installed, no tests executed`
+            : `Artifacts persisted (${inserted} test cases)`,
+          meta: { inserted },
+        },
+        {
+          test_plan_id, kind: "cases", stage: "done", dry_run: dry,
+          install_skipped: dry, execution_skipped: dry,
+          message: dry
+            ? "Job completed in dry-run mode — dependency installation and test execution were skipped"
+            : "Job completed",
+          meta: { inserted },
+        },
+      ]);
+    }
     return j({ status: "ready", inserted });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);

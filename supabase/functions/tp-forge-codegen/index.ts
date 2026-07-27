@@ -105,12 +105,26 @@ Deno.serve(async (req) => {
     await admin.from("test_plans").update({
       codegen_status: "running",
       codegen_skip_stubs: skipStubs,
+      codegen_dry_run: dry_run !== false,
       codegen_job_ref: codegenJobId,
       codegen_progress: 0,
       codegen_progress_message: "Queued at Forge",
       codegen_progress_updated_at: now,
       codegen_last_run_at: now,
     }).eq("id", test_plan_id);
+
+    await admin.from("generation_stage_logs").insert({
+      test_plan_id,
+      kind: "code",
+      stage: "submit",
+      dry_run: dry_run !== false,
+      install_skipped: dry_run !== false,
+      execution_skipped: dry_run !== false,
+      message: dry_run !== false
+        ? "Dry run — dependency installation SKIPPED and test execution SKIPPED for codegen"
+        : "Full run — dependency installation and test execution enabled for codegen",
+      meta: { job_ref: codegenJobId, skip_stubs: skipStubs, install: dry_run === false, execute: dry_run === false },
+    });
 
     return j({ status: "accepted", codegenJobId, envVarsSent: envVars.length }, 202);
   } catch (e) {
