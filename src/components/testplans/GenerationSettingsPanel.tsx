@@ -32,6 +32,8 @@ export interface GenerationSettings {
   boundaryCases: boolean;
   duplicateDetection: boolean;
   language: "typescript" | "javascript" | "java";
+  /** Generate artifacts only — never install dependencies or execute tests. */
+  dryRun: boolean;
 }
 
 export const DEFAULT_SETTINGS: GenerationSettings = {
@@ -44,6 +46,7 @@ export const DEFAULT_SETTINGS: GenerationSettings = {
   boundaryCases: true,
   duplicateDetection: true,
   language: "typescript",
+  dryRun: true,
 };
 
 /** Per-plan settings persisted locally so they survive reloads and navigation. */
