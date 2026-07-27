@@ -13,9 +13,10 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Download, Search, ShieldAlert, Loader2, Activity, Users, AlertTriangle,
-  Tag, X, ChevronDown, RefreshCw, Layers,
+  Tag, X, ChevronDown, RefreshCw, Layers, ShieldCheck,
 } from "lucide-react";
 import { SUITE_AUDIT_ACTIONS } from "@/lib/suiteAudit";
+import { ARTIFACT_ACCESS_ACTIONS } from "@/lib/artifactAccessAudit";
 import { format } from "date-fns";
 import { Navigate } from "react-router-dom";
 import {
@@ -45,6 +46,7 @@ export default function AuditLogPage() {
   const [selWorkspaces, setSelWorkspaces] = useState<string[]>([]);
   /** Preset that narrows the log to suite lifecycle + test-case move/bulk operations. */
   const [suiteOnly, setSuiteOnly] = useState(false);
+  const [accessOnly, setAccessOnly] = useState(false);
 
   const rowsQ = useQuery({
     queryKey: ["audit-logs", currentOrganization?.id, from, to, pageSize],
@@ -96,6 +98,7 @@ export default function AuditLogPage() {
     const s = q.trim().toLowerCase();
     return rows.filter((r) => {
       if (suiteOnly && !SUITE_AUDIT_ACTIONS.includes(r.action as any)) return false;
+      if (accessOnly && !ARTIFACT_ACCESS_ACTIONS.includes(r.action as any)) return false;
       if (selActors.length && (!r.actor_id || !selActors.includes(r.actor_id))) return false;
       if (selActions.length && !selActions.includes(r.action)) return false;
       if (selKinds.length && (!r.entity_kind || !selKinds.includes(r.entity_kind))) return false;
@@ -109,7 +112,7 @@ export default function AuditLogPage() {
         JSON.stringify(r.meta || {}).toLowerCase().includes(s)
       );
     });
-  }, [rows, q, selActors, selActions, selKinds, selWorkspaces, suiteOnly]);
+  }, [rows, q, selActors, selActions, selKinds, selWorkspaces, suiteOnly, accessOnly]);
 
   const stats = useMemo(() => {
     const uniqueActors = new Set(filtered.map((r) => r.actor_id).filter(Boolean)).size;
@@ -189,7 +192,39 @@ export default function AuditLogPage() {
 
   if (currentOrganization && !canView) return <Navigate to="/organization" replace />;
 
-  const activeFilterCount = (suiteOnly ? 1 : 0) + selActors.length + selActions.length + selKinds.length + selWorkspaces.length + (q ? 1 : 0) + (from ? 1 : 0) + (to ? 1 : 0);
+  /** Access-decision CSV: who tried to pull which stage artifact, and the verdict. */
+  function exportAccessCsv() {
+    const accessRows = filtered.filter((r) => ARTIFACT_ACCESS_ACTIONS.includes(r.action as any));
+    const headers = [
+      "when", "actor_name", "actor_email", "action", "decision",
+      "plan_id", "stage", "job_id", "role", "reason", "meta",
+    ];
+    const m = (r: Row) => (r.meta || {}) as any;
+    const dataRows = accessRows.map((r) => [
+      new Date(r.created_at).toISOString(),
+      r.actor?.name || "",
+      r.actor?.email || "",
+      r.action,
+      m(r).decision ?? (String(r.action).endsWith("_denied") ? "denied" : "allowed"),
+      r.entity_id || "",
+      m(r).stage ?? "",
+      m(r).job_id ?? "",
+      m(r).role ?? "",
+      m(r).reason ?? "",
+      JSON.stringify(r.meta || {}),
+    ]);
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [headers.map(esc).join(","), ...dataRows.map((r) => r.map(esc).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `artifact-access-log-${format(new Date(), "yyyyMMdd-HHmm")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const activeFilterCount = (suiteOnly ? 1 : 0) + (accessOnly ? 1 : 0) + selActors.length + selActions.length + selKinds.length + selWorkspaces.length + (q ? 1 : 0) + (from ? 1 : 0) + (to ? 1 : 0);
 
   const statCards = [
     { label: "Total events",   value: stats.total,       hint: "Matching filters",             icon: Activity,      color: "text-accent" },
@@ -267,8 +302,23 @@ export default function AuditLogPage() {
                 <Download className="mr-2 h-3.5 w-3.5" /> Export suite CSV
               </Button>
             )}
+            <Button
+              size="sm"
+              variant={accessOnly ? "default" : "outline"}
+              onClick={() => setAccessOnly((v) => !v)}
+            >
+              <ShieldCheck className="mr-2 h-3.5 w-3.5" />
+              Artifact access only
+            </Button>
+            {accessOnly && (
+              <Button size="sm" variant="outline" onClick={exportAccessCsv}>
+                <Download className="mr-2 h-3.5 w-3.5" /> Export access CSV
+              </Button>
+            )}
             <span className="text-[11px] text-muted-foreground">
-              Suite create/edit/delete, reorders, case moves and bulk edits.
+              {accessOnly
+                ? "Per-stage artifact downloads and runner-log views, allowed or denied by role."
+                : "Suite create/edit/delete, reorders, case moves and bulk edits."}
             </span>
           </div>
 

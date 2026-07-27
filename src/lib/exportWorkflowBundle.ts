@@ -8,6 +8,59 @@ export interface BundleOptions {
   approvedOnly?: boolean;
 }
 
+/** Canonical UID-based deep link for a plan — the same URL the detail page copies. */
+export function planUidLink(uid: string, origin?: string) {
+  const base = origin ?? (typeof window !== "undefined" ? window.location.origin : "");
+  return `${base}/test-plans/${uid}`;
+}
+
+export interface ManifestValidation {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  checkedAt: string;
+}
+
+/**
+ * Cross-checks a bundle manifest against the plan record it was built from:
+ * the unique ID must be present, must match the plan, and the embedded deep
+ * link must be the same UID-based link the UI exposes.
+ */
+export function validateBundleManifest(
+  manifest: any,
+  plan: { id: string; plan_uid?: string | null },
+  uiLink?: string,
+): ManifestValidation {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const tp = manifest?.testPlan ?? {};
+
+  if (!manifest?.planUid) errors.push("manifest.planUid is missing");
+  if (!tp.uid) errors.push("manifest.testPlan.uid is missing");
+  if (manifest?.planUid && tp.uid && manifest.planUid !== tp.uid) {
+    errors.push(`manifest.planUid (${manifest.planUid}) does not match manifest.testPlan.uid (${tp.uid})`);
+  }
+  if (tp.id !== plan.id) errors.push(`manifest.testPlan.id (${tp.id}) does not match the exported plan (${plan.id})`);
+
+  if (plan.plan_uid) {
+    if (tp.uid !== plan.plan_uid) {
+      errors.push(`manifest UID (${tp.uid}) does not match the plan's unique ID (${plan.plan_uid})`);
+    }
+    const expected = uiLink ?? planUidLink(plan.plan_uid);
+    if (!tp.link) errors.push("manifest.testPlan.link is missing");
+    else if (tp.link !== expected) {
+      errors.push(`manifest link (${tp.link}) does not match the UI plan link (${expected})`);
+    }
+    if (tp.link && !String(tp.link).endsWith(`/test-plans/${plan.plan_uid}`)) {
+      errors.push("manifest link is not a UID-based /test-plans/<uid> link");
+    }
+  } else {
+    warnings.push("Plan has no generated unique ID — the manifest falls back to a truncated database id");
+  }
+
+  return { ok: errors.length === 0, errors, warnings, checkedAt: new Date().toISOString() };
+}
+
 function slug(s: string) {
   return (s || "test-plan").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
 }
@@ -123,13 +176,17 @@ export async function exportWorkflowBundle(
   }
 
   // Manifest — machine readable inventory of everything in the archive.
-  const manifest = {
+  const uiLink = planAny.plan_uid ? planUidLink(planAny.plan_uid) : null;
+  const manifest: any = {
     bundleVersion: 1,
     exportedAt: new Date().toISOString(),
     approvedOnly,
+    /** Top-level unique ID so tooling can identify the plan without parsing testPlan. */
+    planUid: uid,
     testPlan: {
       id: testPlanId,
       uid,
+      link: uiLink,
       name: planAny.name,
       projectId: planAny.project_id,
       workspaceId: planAny.workspace_id,
@@ -159,6 +216,18 @@ export async function exportWorkflowBundle(
       path: `automation/${s.filename}`, reviewState: s.review_state ?? "pending",
     })),
   };
+  // Cross-check the manifest against the plan record and the UI deep link
+  // before the archive is handed to the user.
+  onProgress?.("Validating manifest…");
+  const validation = validateBundleManifest(
+    manifest,
+    { id: testPlanId, plan_uid: planAny.plan_uid ?? null },
+    uiLink ?? undefined,
+  );
+  manifest.validation = validation;
+  if (!validation.ok) {
+    throw new Error(`Bundle manifest validation failed: ${validation.errors.join("; ")}`);
+  }
   zip.file(`${root}/manifest.json`, JSON.stringify(manifest, null, 2));
 
   zip.file(
@@ -167,6 +236,7 @@ export async function exportWorkflowBundle(
       `# ${planAny.name}`,
       "",
       `**Plan ID:** \`${uid}\``,
+      uiLink ? `**Plan link:** ${uiLink}` : "",
       `**Exported:** ${manifest.exportedAt}`,
       `**Scope:** ${approvedOnly ? "approved artifacts only" : "all generated artifacts"}`,
       planAny.description ? `\n${planAny.description}` : "",
@@ -195,5 +265,5 @@ export async function exportWorkflowBundle(
   a.click();
   URL.revokeObjectURL(url);
 
-  return { documents: docs.length, cases: cases.length, specs: specs.length };
+  return { documents: docs.length, cases: cases.length, specs: specs.length, uid, validation };
 }
