@@ -193,35 +193,36 @@ export default function AuditLogPage() {
   if (currentOrganization && !canView) return <Navigate to="/organization" replace />;
 
   /** Access-decision CSV: who tried to pull which stage artifact, and the verdict. */
-  const exportAccessCsv = () => {
+  function exportAccessCsv() {
     const accessRows = filtered.filter((r) => ARTIFACT_ACCESS_ACTIONS.includes(r.action as any));
-    const header = ["timestamp", "actor", "action", "decision", "plan_id", "stage", "job_id", "role", "reason", "details"];
+    const headers = [
+      "when", "actor_name", "actor_email", "action", "decision",
+      "plan_id", "stage", "job_id", "role", "reason", "meta",
+    ];
+    const m = (r: Row) => (r.meta || {}) as any;
+    const dataRows = accessRows.map((r) => [
+      new Date(r.created_at).toISOString(),
+      r.actor?.name || "",
+      r.actor?.email || "",
+      r.action,
+      m(r).decision ?? (String(r.action).endsWith("_denied") ? "denied" : "allowed"),
+      r.entity_id || "",
+      m(r).stage ?? "",
+      m(r).job_id ?? "",
+      m(r).role ?? "",
+      m(r).reason ?? "",
+      JSON.stringify(r.meta || {}),
+    ]);
     const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const lines = [header.join(",")].concat(
-      accessRows.map((r: any) => {
-        const m = r.meta ?? {};
-        return [
-          new Date(r.created_at).toISOString(),
-          actorLabel(r),
-          r.action,
-          m.decision ?? (String(r.action).endsWith("_denied") ? "denied" : "allowed"),
-          r.entity_id ?? "",
-          m.stage ?? "",
-          m.job_id ?? "",
-          m.role ?? "",
-          m.reason ?? "",
-          JSON.stringify(m),
-        ].map(esc).join(",");
-      }),
-    );
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const csv = [headers.map(esc).join(","), ...dataRows.map((r) => r.map(esc).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `artifact-access-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `artifact-access-log-${format(new Date(), "yyyyMMdd-HHmm")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }
 
   const activeFilterCount = (suiteOnly ? 1 : 0) + (accessOnly ? 1 : 0) + selActors.length + selActions.length + selKinds.length + selWorkspaces.length + (q ? 1 : 0) + (from ? 1 : 0) + (to ? 1 : 0);
 
