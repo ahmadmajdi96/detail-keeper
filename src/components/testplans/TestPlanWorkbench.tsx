@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X, Lock,
-  ListChecks, FolderTree, Rocket, Settings2, Package, ShieldOff,
+  ListChecks, FolderTree, Rocket, Settings2, Package, ShieldOff, ShieldCheck, GitBranch,
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
 import { ForgeRunProgress } from "./ForgeRunProgress";
@@ -34,6 +34,8 @@ import { ReviewQueue, type ReviewKind } from "./ReviewQueue";
 
 import { DocVersionHistory } from "./DocVersionHistory";
 import { TraceabilityMatrixEditor } from "./TraceabilityMatrixEditor";
+import { SpecValidationPanel } from "./SpecValidationPanel";
+import { ProvenancePanel } from "./ProvenancePanel";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ClipboardCheck, History, Grid3x3 } from "lucide-react";
 
@@ -291,6 +293,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
 
   const [exporting, setExporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [validationOpen, setValidationOpen] = useState(false);
+  const [provenanceOpen, setProvenanceOpen] = useState(false);
   const [matrixOpen, setMatrixOpen] = useState(false);
   const [historyDoc, setHistoryDoc] = useState<{ id: string; label: string } | null>(null);
   const exportBundle = async (approvedOnly = false) => {
@@ -355,6 +359,15 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Button size="sm" variant="outline" onClick={() => setReviewOpen(true)}
             title="Accept, reject or regenerate each generated artifact in order">
             <ClipboardCheck className="h-3.5 w-3.5 mr-1" /> Review Queue
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setValidationOpen(true)}
+            disabled={specs.length === 0}
+            title={specs.length === 0 ? "Generate Playwright code first" : "Format, lint and syntax-check the generated specs"}>
+            <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Validate Code
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setProvenanceOpen(true)}
+            title="See which document versions and traceability mappings produced each artifact">
+            <GitBranch className="h-3.5 w-3.5 mr-1" /> Provenance
           </Button>
           <Button size="sm" variant="outline" onClick={() => setMatrixOpen(true)}
             title="Edit requirement ⇄ test-case mappings">
@@ -685,6 +698,9 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
       <div className="p-3 border-t border-border/50">
         <ArtifactViewer testPlanId={testPlanId} />
       </div>
+
+      <SpecValidationPanel testPlanId={testPlanId} open={validationOpen} onOpenChange={setValidationOpen} />
+      <ProvenancePanel testPlanId={testPlanId} open={provenanceOpen} onOpenChange={setProvenanceOpen} />
 
       <ReviewQueue
         testPlanId={testPlanId}
