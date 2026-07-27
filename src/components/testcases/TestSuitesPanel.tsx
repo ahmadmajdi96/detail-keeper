@@ -58,13 +58,51 @@ import {
   TestTube,
   Sparkles,
   ArrowRightLeft,
+  GripVertical,
+  Wand2,
+  SlidersHorizontal,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { logSuiteAudit } from "@/lib/suiteAudit";
+import { SuiteGroupingPanel } from "./SuiteGroupingPanel";
+import { BulkEditCasesDialog } from "./BulkEditCasesDialog";
 
 export interface SuiteRow {
   id: string;
   project_id: string;
   name: string;
   description: string | null;
+  sort_order: number | null;
+}
+
+/** Generic sortable row wrapper — exposes a dedicated drag handle. */
+function Sortable({
+  id, disabled, children,
+}: { id: string; disabled?: boolean; children: (handle: React.HTMLAttributes<HTMLElement>) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 30 : undefined }}
+      className={isDragging ? "opacity-80" : undefined}
+    >
+      {children({ ...attributes, ...listeners } as any)}
+    </div>
+  );
 }
 
 interface CaseRow {
@@ -75,6 +113,7 @@ interface CaseRow {
   priority: number;
   ai_generated: boolean;
   suite_id: string | null;
+  suite_order: number | null;
   created_at: string;
 }
 
@@ -93,7 +132,7 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
   const qc = useQueryClient();
   const { user } = useAuth();
 
-  const [sortBy, setSortBy] = useState<"name" | "priority" | "created">("created");
+  const [sortBy, setSortBy] = useState<"manual" | "name" | "priority" | "created">("manual");
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({ [UNASSIGNED]: true });
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
@@ -103,6 +142,11 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
 
   const [deleteTarget, setDeleteTarget] = useState<SuiteRow | null>(null);
   const [reassignTo, setReassignTo] = useState<string>(UNASSIGNED);
+
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [suiteOrder, setSuiteOrder] = useState<string[] | null>(null);
+  const [caseOrder, setCaseOrder] = useState<Record<string, string[]>>({});
 
   const [caseDialogSuite, setCaseDialogSuite] = useState<string | null>(null);
   const [caseTitle, setCaseTitle] = useState("");
@@ -115,8 +159,9 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
       if (!projectId) return [];
       const { data, error } = await supabase
         .from("test_suites")
-        .select("id, project_id, name, description")
+        .select("id, project_id, name, description, sort_order")
         .eq("project_id", projectId)
+        .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name");
       if (error) throw error;
       return (data ?? []) as SuiteRow[];
@@ -138,15 +183,25 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
           .update({ name: suiteName.trim(), description: suiteDesc || null })
           .eq("id", suiteDialog.suite.id);
         if (error) throw error;
+        await logSuiteAudit({
+          workspaceId, action: "suite.updated", entityId: suiteDialog.suite.id,
+          meta: { from: { name: suiteDialog.suite.name, description: suiteDialog.suite.description },
+                  to: { name: suiteName.trim(), description: suiteDesc || null } },
+        });
       } else {
         if (!projectId) throw new Error("Select a project first");
-        const { error } = await supabase.from("test_suites").insert({
+        const { data, error } = await supabase.from("test_suites").insert({
           project_id: projectId,
           name: suiteName.trim(),
           description: suiteDesc || null,
           created_by: user?.id ?? null,
-        });
+          sort_order: suites.length,
+        } as any).select("id").single();
         if (error) throw error;
+        await logSuiteAudit({
+          workspaceId, action: "suite.created", entityId: (data as any)?.id ?? null,
+          meta: { name: suiteName.trim(), project_id: projectId },
+        });
       }
     },
     onSuccess: () => {
@@ -170,6 +225,10 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
       if (mErr) throw mErr;
       const { error } = await supabase.from("test_suites").delete().eq("id", deleteTarget.id);
       if (error) throw error;
+      await logSuiteAudit({
+        workspaceId, action: "suite.deleted", entityId: deleteTarget.id,
+        meta: { name: deleteTarget.name, cases_moved_to: reassignTo === UNASSIGNED ? "unassigned" : reassignTo },
+      });
     },
     onSuccess: () => {
       toast.success("Suite deleted — its test cases were preserved");
@@ -187,6 +246,10 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
         .update({ suite_id: suiteId } as any)
         .in("id", ids);
       if (error) throw error;
+      await logSuiteAudit({
+        workspaceId, action: "suite.case_moved", entityKind: "test_case", entityId: ids[0] ?? null,
+        meta: { case_ids: ids, count: ids.length, to_suite: suiteId ?? "unassigned" },
+      });
     },
     onSuccess: (_d, v) => {
       toast.success(`Moved ${v.ids.length} test case${v.ids.length === 1 ? "" : "s"}`);
@@ -247,6 +310,14 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
     onError: (e: any) => toast.error(e.message),
   });
 
+  const orderedSuites = useMemo(() => {
+    if (!suiteOrder) return suites;
+    const map = new Map(suites.map((s) => [s.id, s]));
+    const out = suiteOrder.map((id) => map.get(id)).filter(Boolean) as SuiteRow[];
+    suites.forEach((s) => { if (!suiteOrder.includes(s.id)) out.push(s); });
+    return out;
+  }, [suites, suiteOrder]);
+
   const grouped = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const filtered = (testCases as CaseRow[]).filter(
@@ -257,20 +328,79 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
         ? a.title.localeCompare(b.title)
         : sortBy === "priority"
           ? a.priority - b.priority
-          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          : sortBy === "manual"
+            ? (a.suite_order ?? 9999) - (b.suite_order ?? 9999) ||
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
-    const buckets: { id: string; suite: SuiteRow | null; cases: CaseRow[] }[] = suites.map((s) => ({
+    const applyLocal = (bucketId: string, rows: CaseRow[]) => {
+      const local = caseOrder[bucketId];
+      if (!local) return rows;
+      const map = new Map(rows.map((r) => [r.id, r]));
+      const out = local.map((id) => map.get(id)).filter(Boolean) as CaseRow[];
+      rows.forEach((r) => { if (!local.includes(r.id)) out.push(r); });
+      return out;
+    };
+
+    const buckets: { id: string; suite: SuiteRow | null; cases: CaseRow[] }[] = orderedSuites.map((s) => ({
       id: s.id,
       suite: s,
-      cases: filtered.filter((c) => c.suite_id === s.id).sort(sorter),
+      cases: applyLocal(s.id, filtered.filter((c) => c.suite_id === s.id).sort(sorter)),
     }));
     buckets.push({
       id: UNASSIGNED,
       suite: null,
-      cases: filtered.filter((c) => !c.suite_id || !suites.some((s) => s.id === c.suite_id)).sort(sorter),
+      cases: applyLocal(
+        UNASSIGNED,
+        filtered.filter((c) => !c.suite_id || !suites.some((s) => s.id === c.suite_id)).sort(sorter),
+      ),
     });
     return buckets;
-  }, [testCases, suites, searchQuery, sortBy]);
+  }, [testCases, suites, orderedSuites, searchQuery, sortBy, caseOrder]);
+
+  /** Drag-and-drop is only enabled in manual order with no active search. */
+  const dragEnabled = sortBy === "manual" && !searchQuery.trim();
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  const persistSuiteOrder = async (ids: string[]) => {
+    setSuiteOrder(ids);
+    await Promise.all(
+      ids.map((id, i) => supabase.from("test_suites").update({ sort_order: i } as any).eq("id", id)),
+    );
+    await logSuiteAudit({
+      workspaceId, action: "suite.reordered", entityId: ids[0] ?? null,
+      meta: { order: ids, project_id: projectId },
+    });
+    qc.invalidateQueries({ queryKey: ["test-suites", projectId] });
+  };
+
+  const persistCaseOrder = async (bucketId: string, ids: string[]) => {
+    setCaseOrder((p) => ({ ...p, [bucketId]: ids }));
+    await Promise.all(
+      ids.map((id, i) => supabase.from("test_cases").update({ suite_order: i } as any).eq("id", id)),
+    );
+    await logSuiteAudit({
+      workspaceId, action: "suite.cases_reordered", entityKind: "test_case", entityId: ids[0] ?? null,
+      meta: { suite_id: bucketId === UNASSIGNED ? null : bucketId, order: ids },
+    });
+    qc.invalidateQueries({ queryKey: ["test-cases"] });
+  };
+
+  const onSuiteDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = orderedSuites.map((s) => s.id);
+    const next = arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
+    persistSuiteOrder(next).catch((err) => toast.error(err.message));
+  };
+
+  const onCaseDragEnd = (bucketId: string, rows: CaseRow[]) => (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = rows.map((r) => r.id);
+    const next = arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
+    persistCaseOrder(bucketId, next).catch((err) => toast.error(err.message));
+  };
 
   const selectedIds = Object.keys(selected).filter((k) => selected[k]);
   const caseById = useMemo(() => {
