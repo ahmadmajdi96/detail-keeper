@@ -95,6 +95,11 @@ function makeBuilder(table: string) {
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: (table: string) => makeBuilder(table),
+    channel: () => {
+      const ch: any = { on: () => ch, subscribe: () => ch };
+      return ch;
+    },
+    removeChannel: vi.fn(),
     rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
     functions: { invoke: vi.fn().mockResolvedValue({ data: {}, error: null }) },
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u1" } } }) },
