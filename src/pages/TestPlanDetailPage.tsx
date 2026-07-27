@@ -93,10 +93,12 @@ export default function TestPlanDetailPage() {
       return (s === "running" || s === "queued") ? 4000 : false;
     },
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("test_plans")
+      // Deep links may use either the UUID or the human-readable plan UID
+      // (TP-XXXXXX) so shared links stay readable.
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id!);
+      const { data, error } = await (supabase.from("test_plans") as any)
         .select("*, creator:profiles!test_plans_created_by_fkey(name, email)")
-        .eq("id", id!)
+        .eq(isUuid ? "id" : "plan_uid", isUuid ? id! : id!.toUpperCase())
         .single();
       if (error) throw error;
       return data;
@@ -469,6 +471,18 @@ export default function TestPlanDetailPage() {
         title={plan.name}
         description={plan.description || "No description provided"}
         isAIPowered={!!plan.ai_suggested}
+        badge={(plan as any).plan_uid ? (
+          <button
+            title="Copy shareable link"
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/test-plans/${(plan as any).plan_uid}`);
+              toast.success(`Link copied — ${(plan as any).plan_uid}`);
+            }}
+            className="rounded border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[11px] text-accent hover:bg-accent/20"
+          >
+            {(plan as any).plan_uid}
+          </button>
+        ) : undefined}
         actions={
           <Button
             className="ai-gradient text-white"
