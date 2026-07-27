@@ -34,6 +34,9 @@ export interface GenerationSettings {
   language: "typescript" | "javascript" | "java";
   /** Generate artifacts only — never install dependencies or execute tests. */
   dryRun: boolean;
+  /** Emit Playwright skeletons with `test.skip(...)` stubs for inspection only. */
+  skipStubs: boolean;
+
 }
 
 export const DEFAULT_SETTINGS: GenerationSettings = {
