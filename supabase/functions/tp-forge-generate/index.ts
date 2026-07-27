@@ -24,8 +24,30 @@ Deno.serve(async (req) => {
     const { data: claims } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
 
-    const { test_plan_id } = await req.json();
+    const { test_plan_id, settings: rawSettings } = await req.json();
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
+
+    const s = rawSettings ?? {};
+    const cfg = {
+      smoke: s.smoke !== false,
+      regression: s.regression !== false,
+      maxSmoke: Number.isFinite(s.maxSmoke) ? Number(s.maxSmoke) : 25,
+      maxRegression: Number.isFinite(s.maxRegression) ? Number(s.maxRegression) : 100,
+      prioritize: {
+        businessValue: s?.prioritize?.businessValue !== false,
+        criticalFlows: s?.prioritize?.criticalFlows !== false,
+        highRisk: s?.prioritize?.highRisk !== false,
+        frequentlyUsed: s?.prioritize?.frequentlyUsed !== false,
+      },
+      negativeTests: s.negativeTests !== false,
+      boundaryCases: s.boundaryCases !== false,
+      duplicateDetection: s.duplicateDetection !== false,
+      language: typeof s.language === "string" ? s.language : "typescript",
+    };
+    if (!cfg.smoke && !cfg.regression) {
+      return j({ error: "Select at least one test type (smoke or regression)." }, 400);
+    }
+
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
