@@ -60,12 +60,22 @@ Return STRICT JSON of this shape:
     {
       "slug": "kebab-case-id",
       "title": "Human readable title",
-      "kind": "test_strategy | risk_matrix | traceability | environment_plan | data_plan | entry_exit_criteria | defect_workflow | automation_plan | performance_plan | security_plan | accessibility_plan | api_contract_plan | release_checklist | other",
+      "kind": "test_strategy | functional_test_plan | api_test_strategy | ui_automation_strategy | traceability | risk_regression | data_plan | environment_plan | other",
       "content": "Full markdown body, 400-1200 words, with H2/H3 headings, tables where useful."
     }
   ]
 }
-Exactly 10 documents. Slugs unique. Choose the kinds most relevant to THIS project (drop ones that don't apply, replace with more relevant ones).`;
+Produce 8 documents, in this order and with these kinds (skip api_test_strategy or ui_automation_strategy only when the project clearly has no API / no UI, and replace them with the most relevant alternative):
+1. test_strategy — Master Test Strategy (scope, approach, levels, entry/exit criteria, defect workflow)
+2. functional_test_plan — Functional Test Plan derived from the detected business requirements
+3. api_test_strategy — API Testing Strategy (contracts, auth, error handling) if the project exposes APIs
+4. ui_automation_strategy — UI Automation Strategy (Playwright, page objects, selectors, stability)
+5. traceability — Requirement-to-test traceability matrix (markdown table)
+6. risk_regression — Risk assessment and regression scope
+7. data_plan — Test Data Strategy
+8. environment_plan — Environment and access requirements
+Slugs unique and kebab-case. Every document must be grounded in the supplied project context — no generic filler.`;
+
 
     const out = await callAiJson<{ documents: Array<{ slug: string; title: string; kind: string; content: string }> }>(prompt, {
       temperature: 0.4,
