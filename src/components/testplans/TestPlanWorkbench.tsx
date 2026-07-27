@@ -23,6 +23,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronRight, FolderOpen, FlaskConical, FileSearch } from "lucide-react";
+import { CoverageSummary } from "./CoverageSummary";
+import { GenerationSettingsPanel, useGenerationSettings, limitLabel } from "./GenerationSettingsPanel";
 
 type ConfirmButtonProps = {
   size?: "sm" | "default"; variant?: "outline" | "default";
@@ -57,7 +61,8 @@ function ConfirmButton({
 
 type Doc = { id: string; slug: string; title: string; kind: string; content: string; sort_order: number };
 type Spec = { id: string; filename: string; content: string; document_id: string | null; test_case_id: string | null };
-type TCRow = { test_case: { id: string; title: string; priority: number } };
+type TCase = { id: string; title: string; priority: number; test_type: string | null; priority_score: number | null; suite_id: string | null };
+type TCRow = { test_case: TCase };
 type OpenFile =
   | { kind: "doc"; id: string; label: string }
   | { kind: "spec"; id: string; label: string };
@@ -145,13 +150,27 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("test_plan_test_cases")
-        .select("test_case:test_cases!test_plan_test_cases_test_case_id_fkey(id, title, priority)")
+        .select("test_case:test_cases!test_plan_test_cases_test_case_id_fkey(id, title, priority, test_type, priority_score, suite_id)")
         .eq("test_plan_id", testPlanId);
       if (error) throw error;
       return (data ?? []) as any;
     },
   });
   const cases = caseRows.map(r => r.test_case).filter(Boolean);
+
+  const { data: suites = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ["tp-wb-suites", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("test_suites").select("id, name").eq("project_id", projectId).order("name");
+      if (error) throw error;
+      return (data ?? []) as any;
+    },
+    enabled: !!projectId,
+  });
+
+  const { settings, patch: patchSettings } = useGenerationSettings(testPlanId);
+
 
   // Live progress row driven by the background AI job. React-query cache is
   // kept fresh by GenerationJobTracker + realtime, so this stays in sync.
@@ -301,22 +320,27 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Sparkles className="h-4 w-4 text-accent" /> AI Workbench
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <GenerationSettingsPanel settings={settings} onChange={patchSettings} disabled={busy !== null} />
           {(() => {
             const casesRunning = busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued";
             const codeRunning = busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued";
             const anyRunning = busy !== null || casesRunning || codeRunning;
+            const noTypes = !settings.smoke && !settings.regression;
             return <>
           <ConfirmButton
-            size="sm" variant="outline" disabled={anyRunning}
+            size="sm" variant="outline" disabled={anyRunning || noTypes}
             icon={casesRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
             label="1. Generate Test Cases"
-            title="Sends plan documents + variable sets to testgenerator.qualixa.cortanexai.com"
+            title={noTypes ? "Select at least one test type in Generation Settings" : "Sends plan documents + variable sets to testgenerator.qualixa.cortanexai.com"}
             confirmTitle={cases.length > 0 ? "Regenerate test cases?" : "Generate test cases?"}
-            confirmDescription={cases.length > 0
-              ? `This plan already has ${cases.length} test case${cases.length === 1 ? "" : "s"}. Running generation again will submit a new ~25 minute job to the AI service and append newly generated cases to this plan. Existing cases are not deleted.`
-              : "This will submit plan documents and variable sets to the AI service. Generation typically takes ~25 minutes and cannot be undone once the credits are consumed."}
+            confirmDescription={`${[
+              settings.smoke ? `Smoke: max ${limitLabel(settings.maxSmoke)}` : null,
+              settings.regression ? `Regression: max ${limitLabel(settings.maxRegression)}` : null,
+            ].filter(Boolean).join(" · ")}. ${cases.length > 0
+              ? `This plan already has ${cases.length} test case${cases.length === 1 ? "" : "s"}. Running generation again will submit a new ~25 minute job and append newly generated cases. Existing cases are not deleted.`
+              : "This will submit plan documents and variable sets to the AI service. Generation typically takes ~25 minutes and cannot be undone once the credits are consumed."}`}
             confirmLabel="Start generation"
-            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId }, "Generation started")}
+            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings }, "Generation started")}
           />
           <ConfirmButton
             size="sm" variant="outline" disabled={anyRunning || cases.length === 0}
@@ -325,13 +349,15 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             title={cases.length === 0 ? "Generate test cases first" : "Sends test cases + env-var names to the code generator"}
             confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
             confirmDescription={specs.length > 0
-              ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
-              : "Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright spec files."}
+              ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new ${settings.language} job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
+              : `Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}
             confirmLabel="Start codegen"
-            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId }, "Codegen started")}
+            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language }, "Codegen started")}
           />
           </>;
           })()}
+
+
 
 
           <Popover>
@@ -433,65 +459,102 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
       <div className="grid grid-cols-12 min-h-[600px]">
         <aside className="col-span-3 border-r border-border/50 bg-muted/10">
           <ScrollArea className="h-[600px]">
-            <div className="p-3 space-y-4">
-              <div>
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
-                  <FileText className="h-3 w-3" /> Documents ({docs.length}/20)
-                </div>
-                {docs.length === 0 && <p className="text-xs text-muted-foreground">Generate documents from the Test Plan page to populate the 20 files.</p>}
-                <div className="space-y-0.5">
-                  {docs.map(d => (
+            <div className="p-2 space-y-1">
+              <WBFolder icon={<FileSearch className="h-3.5 w-3.5 text-accent" />} label="Analysis" count={null} defaultOpen>
+                <CoverageSummary projectId={projectId} testPlanId={testPlanId} />
+              </WBFolder>
+
+              <WBFolder icon={<FileText className="h-3.5 w-3.5 text-violet-400" />} label="Documentation" count={docs.length}>
+                {docs.length === 0
+                  ? <p className="text-[11px] text-muted-foreground px-1">No QA documents yet — generate them from the Test Plan page.</p>
+                  : docs.map(d => (
                     <button key={d.id}
                       onClick={() => openFile({ kind: "doc", id: d.id, label: `${d.slug}.md` })}
                       className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
                       <span className="text-muted-foreground">📄</span> {d.slug}.md
                     </button>
                   ))}
-                </div>
-              </div>
+              </WBFolder>
 
-              <div>
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
-                  <FolderTree className="h-3 w-3" /> Test Cases &amp; Specs ({cases.length})
-                </div>
-                {cases.length === 0 && <p className="text-xs text-muted-foreground">Run step 2 to generate.</p>}
-                <div className="space-y-1">
-                  {cases.map(c => {
-                    const caseSpecs = specsByCase.get(c.id) || [];
+              <WBFolder icon={<FolderTree className="h-3.5 w-3.5 text-cyan-400" />} label="Test Suites" count={suites.length}>
+                {suites.length === 0
+                  ? <p className="text-[11px] text-muted-foreground px-1">Suites are created automatically during generation.</p>
+                  : suites.map(s => {
+                    const n = cases.filter(c => c.suite_id === s.id).length;
                     return (
-                      <div key={c.id} className="space-y-0.5">
-                        <div className="text-[11px] px-2 py-1 text-foreground truncate">
-                          <span className="text-accent">🧪</span> {c.title}
-                          <span className="ml-1 text-muted-foreground">P{c.priority}</span>
-                        </div>
-                        {caseSpecs.map(s => (
-                          <button key={s.id}
-                            onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
-                            className="w-full text-left text-xs pl-6 pr-2 py-1 rounded hover:bg-muted/50 truncate">
-                            <span className="text-cyan-400">⚡</span> {s.filename}
-                          </button>
-                        ))}
-                        {caseSpecs.length === 0 && (
-                          <div className="text-[10px] pl-6 text-muted-foreground italic">no spec yet — run step 3</div>
-                        )}
+                      <div key={s.id} className="flex items-center gap-2 text-xs px-2 py-1 rounded hover:bg-muted/50">
+                        <FolderOpen className="h-3 w-3 text-cyan-400/70" />
+                        <span className="truncate flex-1">{s.name}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground">{n}</span>
                       </div>
                     );
                   })}
-                  {unlinkedSpecs.length > 0 && (
-                    <div className="pt-2 mt-2 border-t border-border/30">
-                      <div className="text-[10px] text-muted-foreground uppercase mb-1">Other specs</div>
-                      {unlinkedSpecs.map(s => (
+              </WBFolder>
+
+              <WBFolder icon={<FlaskConical className="h-3.5 w-3.5 text-emerald-400" />} label="Test Cases" count={cases.length} defaultOpen>
+                {cases.length === 0 && <p className="text-[11px] text-muted-foreground px-1">Run step 1 to generate test cases.</p>}
+                {([["smoke", "Smoke", "text-emerald-400"], ["regression", "Regression", "text-cyan-400"]] as const).map(([type, label, cls]) => {
+                  const list = cases
+                    .filter(c => (c.test_type ?? "regression") === type)
+                    .sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={type} className="pt-1">
+                      <div className={`text-[10px] uppercase tracking-wide px-2 pb-0.5 ${cls}`}>{label} ({list.length})</div>
+                      {list.map(c => {
+                        const caseSpecs = specsByCase.get(c.id) || [];
+                        return (
+                          <div key={c.id}>
+                            <div className="flex items-center gap-1.5 text-[11px] px-2 py-1 truncate">
+                              <span className="text-accent">🧪</span>
+                              <span className="truncate flex-1">{c.title}</span>
+                              {typeof c.priority_score === "number" && (
+                                <span className="font-mono text-[10px] text-muted-foreground">{c.priority_score}</span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground">P{c.priority}</span>
+                            </div>
+                            {caseSpecs.map(s => (
+                              <button key={s.id}
+                                onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
+                                className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
+                                <span className="text-cyan-400">⚡</span> {s.filename}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </WBFolder>
+
+              <WBFolder icon={<FileCode2 className="h-3.5 w-3.5 text-amber-400" />} label="Automation" count={specs.length}>
+                {specs.length === 0 && <p className="text-[11px] text-muted-foreground px-1">Run step 2 to generate Playwright code.</p>}
+                {["pages", "tests", "fixtures", "utils", "root"].map(folder => {
+                  const list = specs.filter(s => {
+                    const parts = s.filename.split("/");
+                    const dir = parts.length > 1 ? parts[0] : "root";
+                    return dir === folder;
+                  });
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={folder} className="pt-1">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide px-2 pb-0.5 text-muted-foreground">
+                        <FolderOpen className="h-3 w-3" /> {folder} ({list.length})
+                      </div>
+                      {list.map(s => (
                         <button key={s.id}
                           onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
-                          className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
-                          <span className="text-cyan-400">⚡</span> {s.filename}
+                          className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
+                          <span className="text-cyan-400">⚡</span> {s.filename.split("/").pop()}
                         </button>
                       ))}
                     </div>
-                  )}
-                </div>
-              </div>
+                  );
+                })}
+              </WBFolder>
             </div>
+
           </ScrollArea>
         </aside>
 
@@ -561,5 +624,30 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         <ArtifactViewer testPlanId={testPlanId} />
       </div>
     </div>
+  );
+}
+
+function WBFolder({
+  icon, label, count, defaultOpen, children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count?: number | null;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">
+        <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
+        {icon}
+        <span className="flex-1 text-left">{label}</span>
+        {typeof count === "number" && <span className="font-mono text-[10px]">{count}</span>}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+        <div className="pl-3 pr-1 pt-1 pb-2 space-y-0.5">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

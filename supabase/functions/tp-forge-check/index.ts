@@ -163,6 +163,15 @@ Deno.serve(async (req) => {
       const preconds = String(tc.preconditions || "");
       const suite_id = await suiteIdFor(tc, tags as string[]);
 
+      // Smoke vs regression: honour the model's own classification, else infer from tags.
+      const rawType = String(tc.testType ?? tc.test_type ?? tc.type ?? "").toLowerCase();
+      const tagText = (tags as string[]).join(" ").toLowerCase();
+      const test_type = rawType.includes("smoke") || tagText.includes("smoke") ? "smoke" : "regression";
+      const rawScore = Number(tc.priorityScore ?? tc.priority_score ?? tc.score);
+      const priority_score = Number.isFinite(rawScore)
+        ? Math.max(0, Math.min(100, Math.round(rawScore)))
+        : null;
+
       const { data: row, error } = await admin.from("test_cases").insert({
         workspace_id: plan.workspace_id,
         project_id: plan.project_id,
@@ -173,12 +182,15 @@ Deno.serve(async (req) => {
         expected_result: expected,
         preconditions: preconds || null,
         priority,
+        test_type,
+        priority_score,
         status: "draft",
         ai_generated: true,
         coverage_tags: tags,
         created_by: userId,
       } as any).select("id").single();
       if (error || !row) continue;
+
 
       await admin.from("test_plan_test_cases").insert({
         test_plan_id, test_case_id: row.id, added_by: userId,

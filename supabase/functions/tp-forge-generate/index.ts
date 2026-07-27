@@ -24,8 +24,30 @@ Deno.serve(async (req) => {
     const { data: claims } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
 
-    const { test_plan_id } = await req.json();
+    const { test_plan_id, settings: rawSettings } = await req.json();
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
+
+    const s = rawSettings ?? {};
+    const cfg = {
+      smoke: s.smoke !== false,
+      regression: s.regression !== false,
+      maxSmoke: Number.isFinite(s.maxSmoke) ? Number(s.maxSmoke) : 25,
+      maxRegression: Number.isFinite(s.maxRegression) ? Number(s.maxRegression) : 100,
+      prioritize: {
+        businessValue: s?.prioritize?.businessValue !== false,
+        criticalFlows: s?.prioritize?.criticalFlows !== false,
+        highRisk: s?.prioritize?.highRisk !== false,
+        frequentlyUsed: s?.prioritize?.frequentlyUsed !== false,
+      },
+      negativeTests: s.negativeTests !== false,
+      boundaryCases: s.boundaryCases !== false,
+      duplicateDetection: s.duplicateDetection !== false,
+      language: typeof s.language === "string" ? s.language : "typescript",
+    };
+    if (!cfg.smoke && !cfg.regression) {
+      return j({ error: "Select at least one test type (smoke or regression)." }, 400);
+    }
+
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -83,6 +105,41 @@ Deno.serve(async (req) => {
       return j({ error: "No plan documents or variables to send. Add at least one." }, 400);
     }
 
+    // Generation directives derived from the workbench Generation Settings panel.
+    const lim = (n: number) => (n === 0 ? "unlimited" : String(n));
+    const prioLabels: Record<string, string> = {
+      businessValue: "high business value",
+      criticalFlows: "critical user flows",
+      highRisk: "high risk areas",
+      frequentlyUsed: "frequently used features",
+    };
+    const prios = Object.entries(cfg.prioritize).filter(([, v]) => v).map(([k]) => prioLabels[k]);
+    const directives = [
+      "# Generation Directives",
+      "",
+      "Analyse every attached document, extract the business requirements, and derive test cases from them.",
+      "Each generated test case MUST declare `testType` (`smoke` or `regression`), a `priorityScore` (0-100)",
+      "and reference the requirement(s) it covers.",
+      "",
+      "## Test types",
+      cfg.smoke ? `- smoke: generate at most ${lim(cfg.maxSmoke)} test cases covering critical happy paths.` : "- smoke: DO NOT generate smoke tests.",
+      cfg.regression ? `- regression: generate at most ${lim(cfg.maxRegression)} test cases covering full functional depth.` : "- regression: DO NOT generate regression tests.",
+      "",
+      "## Prioritisation",
+      prios.length
+        ? `Score each candidate case against: ${prios.join(", ")}. When a limit is reached, keep only the highest-scored cases and drop the rest.`
+        : "No explicit prioritisation factors selected; order cases by requirement order.",
+      "",
+      "## Coverage depth",
+      `- Negative tests: ${cfg.negativeTests ? "yes" : "no"}`,
+      `- Boundary cases: ${cfg.boundaryCases ? "yes" : "no"}`,
+      `- Duplicate detection: ${cfg.duplicateDetection ? "merge duplicate/overlapping cases" : "off"}`,
+      "",
+      "## Grouping",
+      "Group cases into logical test suites by feature/module and return the suite name on each case.",
+    ].join("\n");
+    files.push({ filename: "generation-directives.md", content: directives });
+
     const submitRes = await fetch(`${FORGE_BASE}/v1/test-generations`, {
       method: "POST",
       headers: {
@@ -91,7 +148,19 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         files,
-        options: { maxItemsPerUnit: 12, concurrency: 4, maxRepairRounds: 2 },
+        options: {
+          maxItemsPerUnit: 12,
+          concurrency: 4,
+          maxRepairRounds: 2,
+          testTypes: [cfg.smoke ? "smoke" : null, cfg.regression ? "regression" : null].filter(Boolean),
+          maxSmoke: cfg.maxSmoke || undefined,
+          maxRegression: cfg.maxRegression || undefined,
+          prioritize: cfg.prioritize,
+          negativeTests: cfg.negativeTests,
+          boundaryCases: cfg.boundaryCases,
+          duplicateDetection: cfg.duplicateDetection,
+          language: cfg.language,
+        },
       }),
     });
     if (!submitRes.ok) {
@@ -106,7 +175,9 @@ Deno.serve(async (req) => {
       ai_status: "running",
       ai_last_run_at: new Date().toISOString(),
       ai_job_ref: jobId,
+      ai_settings: cfg,
     }).eq("id", test_plan_id);
+
 
     return j({ status: "accepted", jobId, message: "Generation started" }, 202);
   } catch (e) {
