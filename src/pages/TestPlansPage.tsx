@@ -185,6 +185,7 @@ export default function TestPlansPage() {
   const filteredPlans = testPlans.filter((plan) => {
     const matchesSearch =
       plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String((plan as any).plan_uid || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       plan.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || plan.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -364,6 +365,11 @@ export default function TestPlansPage() {
                     </DropdownMenu>
                   </div>
                   <CardTitle className="text-base mt-2">{plan.name}</CardTitle>
+                  {(plan as any).plan_uid && (
+                    <span className="mt-1 inline-block rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-accent">
+                      {(plan as any).plan_uid}
+                    </span>
+                  )}
                   <CardDescription className="line-clamp-2">{plan.description || "No description"}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-end">
