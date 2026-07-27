@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, Terminal } from "lucide-react";
+import { Download, Lock, Terminal } from "lucide-react";
+import { useCan } from "@/hooks/useCan";
 import { FileIcon } from "@/lib/fileIcons";
 
 export type RunnerLogSource = {
@@ -47,13 +48,17 @@ export function collectRunnerLogs(src: RunnerLogSource): Array<{ name: string; c
 }
 
 export function RunnerLogViewer({
-  open, onOpenChange, source,
+  open, onOpenChange, source, planId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   source: RunnerLogSource | null;
+  /** Used to resolve the viewer's plan-level role. */
+  planId?: string;
 }) {
-  const files = useMemo(() => (source ? collectRunnerLogs(source) : []), [source]);
+  const { can } = useCan({ planId: planId ?? null });
+  const allowed = can("runnerlog.view");
+  const files = useMemo(() => (source && allowed ? collectRunnerLogs(source) : []), [source, allowed]);
   const [active, setActive] = useState(0);
   const current = files[active];
 
@@ -72,7 +77,7 @@ export function RunnerLogViewer({
             <Terminal className="h-4 w-4 text-accent" />
             Runner logs {source?.title ? `· ${source.title}` : ""}
             <Badge variant="outline" className="ml-1 text-[10px]">{files.length} file{files.length === 1 ? "" : "s"}</Badge>
-            {current && (
+            {allowed && current && (
               <Button size="sm" variant="ghost" className="ml-auto"
                 onClick={() => download(current.name, current.content)}>
                 <Download className="h-3.5 w-3.5 mr-1" /> Download
@@ -81,7 +86,12 @@ export function RunnerLogViewer({
           </DialogTitle>
         </DialogHeader>
 
-        {files.length === 0 ? (
+        {!allowed ? (
+          <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-6">
+            <Lock className="h-3.5 w-3.5" />
+            Runner logs are restricted to project leads, contributors and plan reviewers.
+          </p>
+        ) : files.length === 0 ? (
           <p className="text-xs text-muted-foreground py-6 text-center">
             The runner did not return any logs for this job.
           </p>

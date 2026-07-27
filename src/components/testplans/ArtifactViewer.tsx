@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Archive, Download, FileText, FileCode2, Terminal } from "lucide-react";
 import { RunnerLogViewer, collectRunnerLogs } from "./RunnerLogViewer";
 import { formatDistanceToNow } from "date-fns";
+import { useCan } from "@/hooks/useCan";
+import { Lock } from "lucide-react";
 
 interface Props { testPlanId: string }
 
@@ -22,12 +24,16 @@ type SpecRunRow = {
 };
 
 export function ArtifactViewer({ testPlanId }: Props) {
+  const { can } = useCan({ planId: testPlanId });
+  const canViewArtifacts = can("artifact.view");
+  const canViewLogs = can("runnerlog.view");
   const [open, setOpen] = useState<SpecRunRow | null>(null);
   const [logRun, setLogRun] = useState<SpecRunRow | null>(null);
   const [activeFile, setActiveFile] = useState<{ name: string; content: string; lang: string } | null>(null);
 
   const { data: runs = [], isLoading } = useQuery<SpecRunRow[]>({
     queryKey: ["spec-runs-archive", testPlanId],
+    enabled: canViewArtifacts,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("spec_runs" as any)
@@ -53,6 +59,15 @@ export function ArtifactViewer({ testPlanId }: Props) {
     const payload = JSON.stringify(a, null, 2);
     download(`spec-run-${r.id}.json`, payload);
   };
+
+  if (!canViewArtifacts) {
+    return (
+      <div className="border border-border/50 rounded-lg bg-card p-4 flex items-center gap-2 text-xs text-muted-foreground">
+        <Lock className="h-3.5 w-3.5" />
+        You don’t have permission to view generated artifacts for this test plan.
+      </div>
+    );
+  }
 
   return (
     <>
@@ -81,7 +96,7 @@ export function ArtifactViewer({ testPlanId }: Props) {
                     </button>
                     <Badge variant={failed ? "destructive" : "outline"} className="text-[10px]">{r.status}</Badge>
                     <span className="text-muted-foreground">{docs}d · {specs}s</span>
-                    {logCount > 0 && (
+                    {logCount > 0 && canViewLogs && (
                       <Button size="sm" variant={failed ? "outline" : "ghost"}
                         className={`h-6 px-1.5 text-[10px] ${failed ? "border-destructive/50 text-destructive" : ""}`}
                         onClick={() => setLogRun(r)} title="View runner logs (npm-install.log, playwright.log)">
@@ -98,6 +113,7 @@ export function ArtifactViewer({ testPlanId }: Props) {
       </div>
 
       <RunnerLogViewer
+        planId={testPlanId}
         open={!!logRun}
         onOpenChange={(o) => { if (!o) setLogRun(null); }}
         source={logRun ? {
