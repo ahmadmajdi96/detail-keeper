@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import {
   Activity, CheckCircle2, ChevronDown, ChevronUp, Loader2, X, XCircle, Circle,
+  Download, ShieldOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useCan } from "@/hooks/useCan";
+import { downloadStageArtifacts, stageDownloadKey, STAGE_DOWNLOAD_LABEL } from "@/lib/stageArtifacts";
 import {
   STAGE_LABELS, StageEvent, StageId, readStages, clearStages, clearBusy,
 } from "@/lib/jobBusyStore";
@@ -19,6 +23,7 @@ export type TrackedJob = {
   progress: number | null;
   message: string | null;
   startedAt: number;
+  dryRun?: boolean;
 };
 
 const PIPELINE: Record<"cases" | "code", StageId[]> = {
@@ -26,12 +31,33 @@ const PIPELINE: Record<"cases" | "code", StageId[]> = {
   code: ["submit", "codegen", "persist"],
 };
 
-function StageRow({ stage, events, active }: { stage: StageId; events: StageEvent[]; active: boolean }) {
+function StageRow({
+  stage, events, active, planId, canDownload,
+}: {
+  stage: StageId; events: StageEvent[]; active: boolean;
+  planId: string; canDownload: boolean;
+}) {
   const mine = events.filter((e) => e.stage === stage);
   const first = mine[0];
   const last = mine[mine.length - 1];
   const done = events.some((e) => e.stage === "done") || (mine.length > 0 && !active);
   const failed = events.some((e) => e.stage === "failed") && active;
+  const [downloading, setDownloading] = useState(false);
+  const dlKey = stageDownloadKey(stage);
+  const reachable = mine.length > 0 || events.some((e) => e.stage === "done" || e.stage === "failed");
+
+  const grab = async () => {
+    if (!dlKey) return;
+    setDownloading(true);
+    const t = toast.loading(`${STAGE_DOWNLOAD_LABEL[dlKey]}…`);
+    try {
+      const n = await downloadStageArtifacts(planId, dlKey);
+      if (n === 0) toast.info("Nothing generated for this stage yet", { id: t });
+      else toast.success(`Downloaded ${n} file${n === 1 ? "" : "s"}`, { id: t });
+    } catch (e: any) {
+      toast.error(e.message || "Download failed", { id: t });
+    } finally { setDownloading(false); }
+  };
 
   return (
     <div className="relative pl-5 pb-2.5 last:pb-0">
@@ -51,6 +77,18 @@ function StageRow({ stage, events, active }: { stage: StageId; events: StageEven
         <span className={`text-[11px] font-medium ${mine.length ? "text-foreground" : "text-muted-foreground/60"}`}>
           {STAGE_LABELS[stage]}
         </span>
+        {canDownload && dlKey && reachable && (
+          <button
+            onClick={grab}
+            disabled={downloading}
+            title={STAGE_DOWNLOAD_LABEL[dlKey]}
+            className="text-muted-foreground hover:text-accent disabled:opacity-50"
+          >
+            {downloading
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : <Download className="h-3 w-3" />}
+          </button>
+        )}
         {first && (
           <span className="ml-auto font-mono text-[10px] text-muted-foreground">
             {format(new Date(first.at), "HH:mm:ss")}
@@ -67,6 +105,7 @@ function StageRow({ stage, events, active }: { stage: StageId; events: StageEven
     </div>
   );
 }
+
 
 export function JobTrackerPanel({ jobs }: { jobs: TrackedJob[] }) {
   const navigate = useNavigate();
