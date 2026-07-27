@@ -459,65 +459,102 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
       <div className="grid grid-cols-12 min-h-[600px]">
         <aside className="col-span-3 border-r border-border/50 bg-muted/10">
           <ScrollArea className="h-[600px]">
-            <div className="p-3 space-y-4">
-              <div>
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
-                  <FileText className="h-3 w-3" /> Documents ({docs.length}/20)
-                </div>
-                {docs.length === 0 && <p className="text-xs text-muted-foreground">Generate documents from the Test Plan page to populate the 20 files.</p>}
-                <div className="space-y-0.5">
-                  {docs.map(d => (
+            <div className="p-2 space-y-1">
+              <WBFolder icon={<FileSearch className="h-3.5 w-3.5 text-accent" />} label="Analysis" count={null} defaultOpen>
+                <CoverageSummary projectId={projectId} testPlanId={testPlanId} />
+              </WBFolder>
+
+              <WBFolder icon={<FileText className="h-3.5 w-3.5 text-violet-400" />} label="Documentation" count={docs.length}>
+                {docs.length === 0
+                  ? <p className="text-[11px] text-muted-foreground px-1">No QA documents yet — generate them from the Test Plan page.</p>
+                  : docs.map(d => (
                     <button key={d.id}
                       onClick={() => openFile({ kind: "doc", id: d.id, label: `${d.slug}.md` })}
                       className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
                       <span className="text-muted-foreground">📄</span> {d.slug}.md
                     </button>
                   ))}
-                </div>
-              </div>
+              </WBFolder>
 
-              <div>
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
-                  <FolderTree className="h-3 w-3" /> Test Cases &amp; Specs ({cases.length})
-                </div>
-                {cases.length === 0 && <p className="text-xs text-muted-foreground">Run step 2 to generate.</p>}
-                <div className="space-y-1">
-                  {cases.map(c => {
-                    const caseSpecs = specsByCase.get(c.id) || [];
+              <WBFolder icon={<FolderTree className="h-3.5 w-3.5 text-cyan-400" />} label="Test Suites" count={suites.length}>
+                {suites.length === 0
+                  ? <p className="text-[11px] text-muted-foreground px-1">Suites are created automatically during generation.</p>
+                  : suites.map(s => {
+                    const n = cases.filter(c => c.suite_id === s.id).length;
                     return (
-                      <div key={c.id} className="space-y-0.5">
-                        <div className="text-[11px] px-2 py-1 text-foreground truncate">
-                          <span className="text-accent">🧪</span> {c.title}
-                          <span className="ml-1 text-muted-foreground">P{c.priority}</span>
-                        </div>
-                        {caseSpecs.map(s => (
-                          <button key={s.id}
-                            onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
-                            className="w-full text-left text-xs pl-6 pr-2 py-1 rounded hover:bg-muted/50 truncate">
-                            <span className="text-cyan-400">⚡</span> {s.filename}
-                          </button>
-                        ))}
-                        {caseSpecs.length === 0 && (
-                          <div className="text-[10px] pl-6 text-muted-foreground italic">no spec yet — run step 3</div>
-                        )}
+                      <div key={s.id} className="flex items-center gap-2 text-xs px-2 py-1 rounded hover:bg-muted/50">
+                        <FolderOpen className="h-3 w-3 text-cyan-400/70" />
+                        <span className="truncate flex-1">{s.name}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground">{n}</span>
                       </div>
                     );
                   })}
-                  {unlinkedSpecs.length > 0 && (
-                    <div className="pt-2 mt-2 border-t border-border/30">
-                      <div className="text-[10px] text-muted-foreground uppercase mb-1">Other specs</div>
-                      {unlinkedSpecs.map(s => (
+              </WBFolder>
+
+              <WBFolder icon={<FlaskConical className="h-3.5 w-3.5 text-emerald-400" />} label="Test Cases" count={cases.length} defaultOpen>
+                {cases.length === 0 && <p className="text-[11px] text-muted-foreground px-1">Run step 1 to generate test cases.</p>}
+                {([["smoke", "Smoke", "text-emerald-400"], ["regression", "Regression", "text-cyan-400"]] as const).map(([type, label, cls]) => {
+                  const list = cases
+                    .filter(c => (c.test_type ?? "regression") === type)
+                    .sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={type} className="pt-1">
+                      <div className={`text-[10px] uppercase tracking-wide px-2 pb-0.5 ${cls}`}>{label} ({list.length})</div>
+                      {list.map(c => {
+                        const caseSpecs = specsByCase.get(c.id) || [];
+                        return (
+                          <div key={c.id}>
+                            <div className="flex items-center gap-1.5 text-[11px] px-2 py-1 truncate">
+                              <span className="text-accent">🧪</span>
+                              <span className="truncate flex-1">{c.title}</span>
+                              {typeof c.priority_score === "number" && (
+                                <span className="font-mono text-[10px] text-muted-foreground">{c.priority_score}</span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground">P{c.priority}</span>
+                            </div>
+                            {caseSpecs.map(s => (
+                              <button key={s.id}
+                                onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
+                                className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
+                                <span className="text-cyan-400">⚡</span> {s.filename}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </WBFolder>
+
+              <WBFolder icon={<FileCode2 className="h-3.5 w-3.5 text-amber-400" />} label="Automation" count={specs.length}>
+                {specs.length === 0 && <p className="text-[11px] text-muted-foreground px-1">Run step 2 to generate Playwright code.</p>}
+                {["pages", "tests", "fixtures", "utils", "root"].map(folder => {
+                  const list = specs.filter(s => {
+                    const parts = s.filename.split("/");
+                    const dir = parts.length > 1 ? parts[0] : "root";
+                    return dir === folder;
+                  });
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={folder} className="pt-1">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide px-2 pb-0.5 text-muted-foreground">
+                        <FolderOpen className="h-3 w-3" /> {folder} ({list.length})
+                      </div>
+                      {list.map(s => (
                         <button key={s.id}
                           onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
-                          className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
-                          <span className="text-cyan-400">⚡</span> {s.filename}
+                          className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
+                          <span className="text-cyan-400">⚡</span> {s.filename.split("/").pop()}
                         </button>
                       ))}
                     </div>
-                  )}
-                </div>
-              </div>
+                  );
+                })}
+              </WBFolder>
             </div>
+
           </ScrollArea>
         </aside>
 
