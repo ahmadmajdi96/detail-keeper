@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     const { data: claims } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
 
-    const { test_plan_id, settings: rawSettings } = await req.json();
+    const { test_plan_id, settings: rawSettings, dry_run } = await req.json();
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
 
     const s = rawSettings ?? {};
@@ -43,6 +43,8 @@ Deno.serve(async (req) => {
       boundaryCases: s.boundaryCases !== false,
       duplicateDetection: s.duplicateDetection !== false,
       language: typeof s.language === "string" ? s.language : "typescript",
+      // Dry run: artifacts only — the runner must never install deps or execute tests.
+      dryRun: dry_run !== undefined ? dry_run !== false : s.dryRun !== false,
     };
     if (!cfg.smoke && !cfg.regression) {
       return j({ error: "Select at least one test type (smoke or regression)." }, 400);
@@ -137,6 +139,8 @@ Deno.serve(async (req) => {
       "",
       "## Grouping",
       "Group cases into logical test suites by feature/module and return the suite name on each case.",
+      "",
+      ...(cfg.dryRun ? ["## Execution", "DRY RUN: generate artifacts only. Do NOT install dependencies and do NOT execute any tests."] : []),
     ].join("\n");
     files.push({ filename: "generation-directives.md", content: directives });
 
@@ -160,6 +164,9 @@ Deno.serve(async (req) => {
           boundaryCases: cfg.boundaryCases,
           duplicateDetection: cfg.duplicateDetection,
           language: cfg.language,
+          dryRun: cfg.dryRun,
+          install: !cfg.dryRun,
+          execute: !cfg.dryRun,
         },
       }),
     });
