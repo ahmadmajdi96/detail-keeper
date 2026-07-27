@@ -151,6 +151,9 @@ async function createAiTestPlan() {
       ai_status: "completed",
       ai_generated: true,
       created_by: "u1",
+      created_at: new Date("2026-07-01T10:00:00Z").toISOString(),
+      updated_at: new Date("2026-07-01T10:00:00Z").toISOString(),
+      target_date: null,
     })
     .select()
     .single();
