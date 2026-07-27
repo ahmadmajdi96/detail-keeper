@@ -694,7 +694,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         regenerating={busy !== null}
         onRegenerate={(kind: ReviewKind) => {
           if (kind === "doc") {
-            runStep("docs", "tp-forge-docs", { test_plan_id: testPlanId, settings }, "Document generation started");
+            runStep("docs", "tp-generate-docs", { test_plan_id: testPlanId, settings }, "Document generation started");
           } else if (kind === "case") {
             runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings, dry_run: settings.dryRun }, "Generation started");
           } else if (kind === "spec") {
