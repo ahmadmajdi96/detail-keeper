@@ -357,8 +357,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           </>;
           })()}
 
-          </>;
-          })()}
+
 
 
           <Popover>
