@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download, Lock, Terminal } from "lucide-react";
 import { useCan } from "@/hooks/useCan";
 import { FileIcon } from "@/lib/fileIcons";
+import { logArtifactAccess } from "@/lib/artifactAccessAudit";
 
 export type RunnerLogSource = {
   /** Anything the Forge runner returned: artifacts_json, stdout, stderr. */
@@ -48,21 +49,53 @@ export function collectRunnerLogs(src: RunnerLogSource): Array<{ name: string; c
 }
 
 export function RunnerLogViewer({
-  open, onOpenChange, source, planId,
+  open, onOpenChange, source, planId, stage, jobId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   source: RunnerLogSource | null;
   /** Used to resolve the viewer's plan-level role. */
   planId?: string;
+  /** Pipeline stage / job the logs belong to — recorded in the access audit. */
+  stage?: string;
+  jobId?: string;
 }) {
-  const { can } = useCan({ planId: planId ?? null });
+  const { can, projectRole, planRole, workspaceRole } = useCan({ planId: planId ?? null });
   const allowed = can("runnerlog.view");
+  const role = projectRole ?? planRole ?? workspaceRole ?? null;
   const files = useMemo(() => (source && allowed ? collectRunnerLogs(source) : []), [source, allowed]);
   const [active, setActive] = useState(0);
   const current = files[active];
 
+  // Record the allow/deny decision once per time the viewer is opened.
+  useEffect(() => {
+    if (!open) return;
+    logArtifactAccess({
+      action: allowed ? "runnerlog.view_allowed" : "runnerlog.view_denied",
+      planId: planId ?? null,
+      stage: stage ?? "run",
+      jobId: jobId ?? null,
+      role,
+      reason: allowed ? null : "missing runnerlog.view capability",
+      meta: { log_files: allowed ? files.length : 0, title: source?.title ?? null },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, allowed, planId, jobId]);
+
   const download = (name: string, content: string) => {
+    if (!allowed) {
+      logArtifactAccess({
+        action: "runnerlog.download_denied",
+        planId: planId ?? null, stage: stage ?? "run", jobId: jobId ?? null, role,
+        reason: "missing runnerlog.view capability", meta: { file: name },
+      });
+      return;
+    }
+    logArtifactAccess({
+      action: "runnerlog.download_allowed",
+      planId: planId ?? null, stage: stage ?? "run", jobId: jobId ?? null, role,
+      meta: { file: name, bytes: content.length },
+    });
     const url = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
     const a = document.createElement("a");
     a.href = url; a.download = name; a.click();
