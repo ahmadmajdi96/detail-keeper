@@ -149,13 +149,27 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("test_plan_test_cases")
-        .select("test_case:test_cases!test_plan_test_cases_test_case_id_fkey(id, title, priority)")
+        .select("test_case:test_cases!test_plan_test_cases_test_case_id_fkey(id, title, priority, test_type, priority_score, suite_id)")
         .eq("test_plan_id", testPlanId);
       if (error) throw error;
       return (data ?? []) as any;
     },
   });
   const cases = caseRows.map(r => r.test_case).filter(Boolean);
+
+  const { data: suites = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ["tp-wb-suites", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("test_suites").select("id, name").eq("project_id", projectId).order("name");
+      if (error) throw error;
+      return (data ?? []) as any;
+    },
+    enabled: !!projectId,
+  });
+
+  const { settings, patch: patchSettings } = useGenerationSettings(testPlanId);
+
 
   // Live progress row driven by the background AI job. React-query cache is
   // kept fresh by GenerationJobTracker + realtime, so this stays in sync.
