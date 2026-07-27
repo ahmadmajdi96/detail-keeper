@@ -31,7 +31,8 @@ Deno.serve(async (req) => {
     const { data: claims } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
 
-    const { test_plan_id, base_url } = await req.json();
+    const { test_plan_id, base_url, language } = await req.json();
+    const lang = ["typescript", "javascript", "java"].includes(String(language)) ? String(language) : "typescript";
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
 
     const admin = createClient(
@@ -70,6 +71,7 @@ Deno.serve(async (req) => {
         ...(base_url ? { baseUrl: String(base_url) } : {}),
         concurrency: 4,
         maxCasesPerFile: 10,
+        language: lang,
       },
     };
 
