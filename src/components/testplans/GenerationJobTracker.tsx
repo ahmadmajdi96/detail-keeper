@@ -171,6 +171,7 @@ export function GenerationJobTracker() {
           progress,
           message,
           startedAt: busy.startedAt,
+          dryRun: kind === "code" ? row.codegen_dry_run !== false : row.ai_dry_run !== false,
         });
 
         const lastRunAt = row[cols.lastRun] ? new Date(row[cols.lastRun]).getTime() : 0;
