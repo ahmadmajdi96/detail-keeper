@@ -1,50 +1,27 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  BUSY_PREFIX, appendStage, clearBusy, readAllBusy, stageFromMessage, writeBusy,
+} from "@/lib/jobBusyStore";
+import { JobTrackerPanel, TrackedJob } from "./JobTrackerPanel";
 
-// Global background-job tracker. Two responsibilities:
+// Global background-job tracker. Three responsibilities:
 //   1. Never lose a created job: on every tick we ADOPT any test plan the
 //      user can see whose ai_status OR codegen_status is 'running',
 //      even if no localStorage entry exists (e.g. job started on another
 //      device / previous session).
 //   2. Drive live progress: call `tp-forge-check` for cases and
-//      `tp-forge-codegen-check` for Playwright code. Both write progress
-//      into test_plans (ai_* / codegen_*) which the workbench renders live.
+//      `tp-forge-codegen-check` for Playwright code.
+//   3. Record every stage transition with a timestamp and render the
+//      always-visible <JobTrackerPanel /> so progress survives navigation.
 
-const BUSY_PREFIX = "wb-busy-";
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const STALE_MS   = 45 * 60 * 1000;
 const POLL_MS    = 6000;
 const CLICK_SKEW_MS = 15_000;
-
-type BusyKind = "docs" | "cases" | "code" | "suite";
-type BusyEntry = { kind: BusyKind; startedAt: number; adopted?: boolean };
-
-function readAllBusy(): Record<string, BusyEntry> {
-  const out: Record<string, BusyEntry> = {};
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!k?.startsWith(BUSY_PREFIX)) continue;
-      try {
-        const parsed = JSON.parse(localStorage.getItem(k) || "");
-        if (!parsed?.kind || !parsed?.startedAt) continue;
-        if (Date.now() - parsed.startedAt > MAX_AGE_MS) {
-          localStorage.removeItem(k);
-          continue;
-        }
-        out[k.slice(BUSY_PREFIX.length)] = parsed;
-      } catch { /* skip */ }
-    }
-  } catch { /* ssr */ }
-  return out;
-}
-
-function writeBusy(planId: string, entry: BusyEntry) {
-  try { localStorage.setItem(BUSY_PREFIX + planId, JSON.stringify(entry)); } catch { /* ignore */ }
-}
 
 const LABELS: Record<string, string> = {
   docs: "documents",
@@ -84,6 +61,7 @@ export function GenerationJobTracker() {
   const seen = useRef<Record<string, string>>({});
   const adopted = useRef<Set<string>>(new Set());
   const stalled = useRef<Set<string>>(new Set());
+  const [jobs, setJobs] = useState<TrackedJob[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +83,7 @@ export function GenerationJobTracker() {
           if (existing?.kind === kind) continue; // already tracked for this kind
           if (existing && existing.kind !== kind) continue; // another kind holds the lock; skip
           writeBusy(row.id, { kind, startedAt: Date.now(), adopted: true });
+          appendStage(row.id, { stage: "submit", message: "Resumed tracking of a running job" });
           const adoptKey = `${kind}:${row.id}`;
           if (!adopted.current.has(adoptKey)) {
             adopted.current.add(adoptKey);
@@ -121,7 +100,7 @@ export function GenerationJobTracker() {
 
       const active = readAllBusy();
       const ids = Object.keys(active);
-      if (ids.length === 0) return;
+      if (ids.length === 0) { setJobs([]); return; }
 
       // Ask the appropriate server function for each active plan.
       await Promise.all(ids.map(async (id) => {
@@ -138,6 +117,8 @@ export function GenerationJobTracker() {
         .in("id", ids);
       if (error || !data) return;
 
+      const nextJobs: TrackedJob[] = [];
+
       for (const row of data as any[]) {
         const busy = active[row.id];
         const kind = busy?.kind;
@@ -149,9 +130,31 @@ export function GenerationJobTracker() {
         qc.setQueryData(["test-plan", row.id], (old: any) => old ? { ...old, ...row } : old);
 
         const status = String(row[cols.status] || "").toLowerCase();
+        const message = row[cols.progressMsg] as string | null;
+        const progress = typeof row[cols.progress] === "number" ? row[cols.progress] : null;
         const seenKey = `${kind}:${row.id}`;
         const prev = seen.current[seenKey];
         const age = Date.now() - busy.startedAt;
+
+        // Record a timestamped sub-step whenever the server message changes.
+        if (message) {
+          appendStage(row.id, {
+            stage: stageFromMessage(kind, message, status),
+            message,
+            progress,
+            at: row[cols.progressAt] ? new Date(row[cols.progressAt]).getTime() : Date.now(),
+          });
+        }
+
+        nextJobs.push({
+          planId: row.id,
+          planName: row.name,
+          kind,
+          status,
+          progress,
+          message,
+          startedAt: busy.startedAt,
+        });
 
         const lastRunAt = row[cols.lastRun] ? new Date(row[cols.lastRun]).getTime() : 0;
         const runIsCurrent = busy.adopted ? true : lastRunAt >= busy.startedAt - CLICK_SKEW_MS;
@@ -164,7 +167,13 @@ export function GenerationJobTracker() {
         seen.current[seenKey] = status;
 
         if (isTerminal) {
-          localStorage.removeItem(BUSY_PREFIX + row.id);
+          appendStage(row.id, {
+            stage: status === "ready" ? "done" : "failed",
+            message: status === "ready"
+              ? `Artifacts persisted — ${kindLabel} ready`
+              : (message || `${kindLabel} generation failed`),
+          });
+          clearBusy(row.id);
           stalled.current.delete(row.id);
           if (cols.casesInvalidateKeys) {
             for (const k of cols.casesInvalidateKeys) qc.invalidateQueries({ queryKey: [k, row.id] });
@@ -174,12 +183,12 @@ export function GenerationJobTracker() {
           if (prev !== status) {
             if (status === "ready") {
               toast.success(`Generated ${kindLabel} for “${row.name}”`, {
-                description: row[cols.progressMsg] || undefined,
+                description: message || undefined,
                 action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
               });
             } else {
               toast.error(`${kindLabel} generation failed for “${row.name}”`, {
-                description: row[cols.progressMsg] || undefined,
+                description: message || undefined,
                 action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
               });
             }
@@ -201,6 +210,8 @@ export function GenerationJobTracker() {
         }
       }
 
+      setJobs(nextJobs);
+
       for (const id of [...orphanCase, ...orphanCode]) {
         const row = (data as any[]).find((r) => r.id === id);
         if (!row) continue;
@@ -211,6 +222,16 @@ export function GenerationJobTracker() {
         });
       }
     }
+
+    // Seed the panel synchronously from storage so a remount (navigate away →
+    // come back) shows the job immediately, before the first network tick.
+    const seeded = readAllBusy();
+    setJobs(Object.entries(seeded)
+      .filter(([, e]) => e.kind === "cases" || e.kind === "code")
+      .map(([planId, e]) => ({
+        planId, planName: "Test plan", kind: e.kind as JobKind,
+        status: "running", progress: null, message: null, startedAt: e.startedAt,
+      })));
 
     const interval = setInterval(() => { if (!cancelled) void tick(); }, POLL_MS);
     void tick();
@@ -227,5 +248,5 @@ export function GenerationJobTracker() {
     };
   }, [navigate, qc]);
 
-  return null;
+  return <JobTrackerPanel jobs={jobs} />;
 }

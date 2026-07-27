@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { MetricCard } from "@/components/ui/metric-card";
+import { StatFilterCards } from "@/components/ui/stat-filter-cards";
 import {
   ArrowLeft, ArrowRight, ChevronRight, Clock, FileArchive, FileText, FolderOpen,
   Github, LayoutGrid, List, Loader2, Plus, RefreshCw, Search, Trash2,
@@ -156,20 +156,18 @@ export default function ProjectsPage() {
 
 
       {/* KPI row */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
-      >
-        <MetricCard variant="accent" label="Projects" value={stats.t} icon={<FolderOpen className="h-5 w-5" />} />
-        <MetricCard variant="success" label="Ready" value={stats.ready} icon={<CheckCircle2 className="h-5 w-5" />} />
-        <MetricCard variant="warning" label="Processing" value={stats.proc} icon={<Loader className="h-5 w-5" />} />
-        <MetricCard
-          variant={stats.failed > 0 ? "destructive" : "default"}
-          label="Failed" value={stats.failed} icon={<AlertCircle className="h-5 w-5" />}
-        />
-        <MetricCard label="Endpoints" value={stats.endpoints} icon={<Network className="h-5 w-5" />} />
-        <MetricCard label="Test cases" value={stats.tests} icon={<FlaskConical className="h-5 w-5" />} />
-      </motion.div>
+      <StatFilterCards
+        activeFilter={filter}
+        onSelect={(k) => setFilter(k as any)}
+        cards={[
+          { key: "all", label: "Projects", value: stats.t, hint: "All statuses", icon: FolderOpen, grad: "from-accent/20 to-transparent" },
+          { key: "ready", label: "Ready", value: stats.ready, hint: "Processed", icon: CheckCircle2, grad: "from-success/20 to-transparent" },
+          { key: "processing", label: "Processing", value: stats.proc, hint: "In progress", icon: Loader, grad: "from-warning/20 to-transparent" },
+          { key: "failed", label: "Failed", value: stats.failed, hint: "Needs attention", icon: AlertCircle, grad: "from-destructive/20 to-transparent" },
+          { key: "all", label: "Endpoints", value: stats.endpoints, hint: "Discovered APIs", icon: Network, grad: "from-cyan-500/20 to-transparent" },
+          { key: "all", label: "Test cases", value: stats.tests, hint: "Across projects", icon: FlaskConical, grad: "from-purple-500/20 to-transparent" },
+        ]}
+      />
 
       {/* Toolbar */}
       <Card className="mt-6 border-border/50">

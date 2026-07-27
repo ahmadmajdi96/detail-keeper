@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { StatFilterCards } from "@/components/ui/stat-filter-cards";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -47,6 +48,7 @@ export default function ExecutionsPage() {
   const [defectPriority, setDefectPriority] = useState<DefectPriority>("medium");
 
   // Auto execute state
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [autoOpen, setAutoOpen] = useState(false);
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoMode, setAutoMode] = useState<AutoExecMode>("api");
@@ -364,29 +366,58 @@ export default function ExecutionsPage() {
           />
         )}
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total Executions", value: stats.total, icon: Play, color: "text-primary", bg: "bg-primary/10" },
-            { label: "Passed", value: stats.passed, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
-            { label: "Failed", value: stats.failed, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
-            { label: "In Progress", value: stats.inProgress, icon: Clock, color: "text-accent", bg: "bg-accent/10" },
-          ].map((s) => (
-            <Card key={s.label} className="border-border/50">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
-                  <p className="text-3xl font-semibold tabular-nums mt-1">{s.value}</p>
-                </div>
-                <div className={`h-10 w-10 rounded-lg ${s.bg} flex items-center justify-center`}>
-                  <s.icon className={`h-5 w-5 ${s.color}`} />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <StatFilterCards
+          activeFilter={statusFilter}
+          onSelect={setStatusFilter}
+          cards={[
+            { key: "all", label: "Total", value: stats.total, hint: "All executions", icon: Play, grad: "from-accent/20 to-transparent" },
+            { key: "passed", label: "Passed", value: stats.passed, hint: "Successful", icon: CheckCircle2, grad: "from-success/20 to-transparent" },
+            { key: "failed", label: "Failed", value: stats.failed, hint: "Needs triage", icon: XCircle, grad: "from-destructive/20 to-transparent" },
+            { key: "in_progress", label: "In progress", value: stats.inProgress, hint: "Running now", icon: Clock, grad: "from-warning/20 to-transparent" },
+          ]}
+          className="mb-6"
+        />
 
-
+        {/* Execution history — filtered by the cards above */}
+        <Card className="border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="text-lg">Execution history</CardTitle>
+              <CardDescription>
+                {statusFilter === "all" ? "All executions" : `Filtered by ${statusFilter.replace("_", " ")}`}
+              </CardDescription>
+            </div>
+            {statusFilter !== "all" && (
+              <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>Clear filter</Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[260px]">
+              <div className="space-y-2">
+                {executions
+                  .filter((e) => statusFilter === "all" || e.status === statusFilter)
+                  .map((e) => (
+                    <button
+                      key={e.id}
+                      onClick={() => setSelectedExecution(e)}
+                      className="w-full text-left flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{e.test_case?.title || "Untitled test"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {e.started_at ? new Date(e.started_at).toLocaleString() : "Not started"}
+                        </p>
+                      </div>
+                      <Badge className={statusConfig[e.status].color}>{e.status}</Badge>
+                    </button>
+                  ))}
+                {executions.filter((e) => statusFilter === "all" || e.status === statusFilter).length === 0 && (
+                  <p className="text-center text-muted-foreground py-8 text-sm">No executions match this filter</p>
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-1 border-border/50">

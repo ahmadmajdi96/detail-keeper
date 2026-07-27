@@ -5732,6 +5732,7 @@ export type Database = {
           name: string
           objective: string | null
           plan_documents: Json
+          plan_uid: string | null
           progress: number | null
           project_id: string | null
           runs_count: number | null
@@ -5764,6 +5765,7 @@ export type Database = {
           name: string
           objective?: string | null
           plan_documents?: Json
+          plan_uid?: string | null
           progress?: number | null
           project_id?: string | null
           runs_count?: number | null
@@ -5796,6 +5798,7 @@ export type Database = {
           name?: string
           objective?: string | null
           plan_documents?: Json
+          plan_uid?: string | null
           progress?: number | null
           project_id?: string | null
           runs_count?: number | null
@@ -6395,6 +6398,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      gen_test_plan_uid: { Args: never; Returns: string }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
       is_project_member: { Args: { _project_id: string }; Returns: boolean }
       is_workspace_member: {

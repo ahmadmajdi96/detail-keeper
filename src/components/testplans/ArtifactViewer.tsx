@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Archive, Download, FileText, FileCode2 } from "lucide-react";
+import { Archive, Download, FileText, FileCode2, Terminal } from "lucide-react";
+import { RunnerLogViewer, collectRunnerLogs } from "./RunnerLogViewer";
 import { formatDistanceToNow } from "date-fns";
 
 interface Props { testPlanId: string }
@@ -15,11 +16,14 @@ type SpecRunRow = {
   id: string; created_at: string; status: string; suite_run_id: string | null;
   browser?: string | null; headless?: boolean | null; retries?: number | null;
   artifacts_json: any;
+  stdout?: string | null;
+  stderr?: string | null;
   spec?: { filename: string } | null;
 };
 
 export function ArtifactViewer({ testPlanId }: Props) {
   const [open, setOpen] = useState<SpecRunRow | null>(null);
+  const [logRun, setLogRun] = useState<SpecRunRow | null>(null);
   const [activeFile, setActiveFile] = useState<{ name: string; content: string; lang: string } | null>(null);
 
   const { data: runs = [], isLoading } = useQuery<SpecRunRow[]>({
@@ -27,7 +31,7 @@ export function ArtifactViewer({ testPlanId }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("spec_runs" as any)
-        .select("id, created_at, status, suite_run_id, browser, headless, retries, artifacts_json, spec:test_plan_specs(filename)")
+        .select("id, created_at, status, suite_run_id, browser, headless, retries, artifacts_json, stdout, stderr, spec:test_plan_specs(filename)")
         .eq("test_plan_id", testPlanId)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -67,20 +71,42 @@ export function ArtifactViewer({ testPlanId }: Props) {
               {runs.map(r => {
                 const docs = r.artifacts_json?.documents?.length ?? 0;
                 const specs = r.artifacts_json?.specs?.length ?? 0;
+                const failed = ["failed", "timeout", "error"].includes(String(r.status).toLowerCase());
+                const logCount = collectRunnerLogs({ artifacts: r.artifacts_json, stdout: r.stdout, stderr: r.stderr }).length;
                 return (
-                  <button key={r.id} onClick={() => { setOpen(r); setActiveFile(null); }}
-                    className="w-full text-left px-3 py-2 hover:bg-muted/30 text-xs flex items-center gap-2">
-                    <span className="font-mono truncate flex-1">{r.spec?.filename || r.id.slice(0, 8)}</span>
-                    <Badge variant="outline" className="text-[10px]">{r.status}</Badge>
+                  <div key={r.id} className="w-full px-3 py-2 hover:bg-muted/30 text-xs flex items-center gap-2">
+                    <button onClick={() => { setOpen(r); setActiveFile(null); }}
+                      className="font-mono truncate flex-1 text-left">
+                      {r.spec?.filename || r.id.slice(0, 8)}
+                    </button>
+                    <Badge variant={failed ? "destructive" : "outline"} className="text-[10px]">{r.status}</Badge>
                     <span className="text-muted-foreground">{docs}d · {specs}s</span>
+                    {logCount > 0 && (
+                      <Button size="sm" variant={failed ? "outline" : "ghost"}
+                        className={`h-6 px-1.5 text-[10px] ${failed ? "border-destructive/50 text-destructive" : ""}`}
+                        onClick={() => setLogRun(r)} title="View runner logs (npm-install.log, playwright.log)">
+                        <Terminal className="h-3 w-3 mr-1" /> Logs
+                      </Button>
+                    )}
                     <span className="text-muted-foreground">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
           )}
         </ScrollArea>
       </div>
+
+      <RunnerLogViewer
+        open={!!logRun}
+        onOpenChange={(o) => { if (!o) setLogRun(null); }}
+        source={logRun ? {
+          artifacts: logRun.artifacts_json,
+          stdout: logRun.stdout,
+          stderr: logRun.stderr,
+          title: logRun.spec?.filename || logRun.id.slice(0, 8),
+        } : null}
+      />
 
       <Dialog open={!!open} onOpenChange={(o) => { if (!o) { setOpen(null); setActiveFile(null); } }}>
         <DialogContent className="max-w-5xl">

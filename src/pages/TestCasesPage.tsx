@@ -43,6 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StatFilterCards } from "@/components/ui/stat-filter-cards";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TestSuitesPanel } from "@/components/testcases/TestSuitesPanel";
@@ -307,61 +308,17 @@ export default function TestCasesPage() {
 
 
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <TestTube className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Cases</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.active}</p>
-                  <p className="text-xs text-muted-foreground">Active Cases</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                  <Brain className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.aiGenerated}</p>
-                  <p className="text-xs text-muted-foreground">AI Generated</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
-                  <Target className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.avgCoverage}%</p>
-                  <p className="text-xs text-muted-foreground">Coverage</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <StatFilterCards
+          activeFilter={statusFilter}
+          onSelect={setStatusFilter}
+          cards={[
+            { key: "all", label: "Total", value: stats.total, hint: "All test cases", icon: TestTube, grad: "from-accent/20 to-transparent" },
+            { key: "active", label: "Active", value: stats.active, hint: "Ready to run", icon: CheckCircle2, grad: "from-success/20 to-transparent" },
+            { key: "draft", label: "Draft", value: testCases.filter((t: any) => t.status === "draft").length, hint: "Not finalised", icon: Brain, grad: "from-warning/20 to-transparent" },
+            { key: "all", label: "AI generated", value: stats.aiGenerated, hint: `${stats.total ? Math.round(stats.aiGenerated / stats.total * 100) : 0}% of cases`, icon: Brain, grad: "from-purple-500/20 to-transparent" },
+            { key: "all", label: "Coverage", value: `${stats.avgCoverage}%`, hint: "Tagged cases", icon: Target, grad: "from-cyan-500/20 to-transparent" },
+          ]}
+        />
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">

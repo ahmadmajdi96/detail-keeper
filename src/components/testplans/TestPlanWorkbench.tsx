@@ -8,11 +8,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X, Lock,
-  ListChecks, FolderTree, Rocket, Settings2,
+  ListChecks, FolderTree, Rocket, Settings2, Package, ShieldOff,
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
 import { ForgeRunProgress } from "./ForgeRunProgress";
 import { ArtifactViewer } from "./ArtifactViewer";
+import { FileIcon, fileLanguage } from "@/lib/fileIcons";
+import { exportWorkflowBundle } from "@/lib/exportWorkflowBundle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -280,6 +282,21 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     } finally { setBusy(null); }
   }
 
+  const [exporting, setExporting] = useState(false);
+  const exportBundle = async () => {
+    setExporting(true);
+    const t = toast.loading("Packaging workflow bundle…");
+    try {
+      const res = await exportWorkflowBundle(testPlanId, (m) => toast.loading(m, { id: t }));
+      toast.success(
+        `Bundle downloaded — ${res.documents} docs · ${res.cases} cases · ${res.specs} specs`,
+        { id: t },
+      );
+    } catch (e: any) {
+      toast.error(e.message || "Export failed", { id: t });
+    } finally { setExporting(false); }
+  };
+
   const runSuite = async () => {
     if (!baseUrl.trim()) { toast.error("Set a Base URL first (target app under test)"); return; }
     setBusy("suite");
@@ -318,9 +335,20 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
       <div className="flex items-center justify-between border-b border-border/50 px-3 py-2 bg-muted/30">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Sparkles className="h-4 w-4 text-accent" /> AI Workbench
+          {settings.dryRun && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+              <ShieldOff className="h-3 w-3" /> Dry run — no install / no execution
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={exportBundle} disabled={exporting}
+            title="Download docs, plan, test cases and Playwright specs as one ZIP">
+            {exporting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Package className="h-3.5 w-3.5 mr-1" />}
+            Export Bundle
+          </Button>
           <GenerationSettingsPanel settings={settings} onChange={patchSettings} disabled={busy !== null} />
+
           {(() => {
             const casesRunning = busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued";
             const codeRunning = busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued";
@@ -340,7 +368,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
               ? `This plan already has ${cases.length} test case${cases.length === 1 ? "" : "s"}. Running generation again will submit a new ~25 minute job and append newly generated cases. Existing cases are not deleted.`
               : "This will submit plan documents and variable sets to the AI service. Generation typically takes ~25 minutes and cannot be undone once the credits are consumed."}`}
             confirmLabel="Start generation"
-            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings }, "Generation started")}
+            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings, dry_run: settings.dryRun }, "Generation started")}
           />
           <ConfirmButton
             size="sm" variant="outline" disabled={anyRunning || cases.length === 0}
@@ -352,7 +380,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
               ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new ${settings.language} job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
               : `Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}
             confirmLabel="Start codegen"
-            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language }, "Codegen started")}
+            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language, dry_run: settings.dryRun }, "Codegen started")}
           />
           </>;
           })()}
@@ -471,7 +499,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                     <button key={d.id}
                       onClick={() => openFile({ kind: "doc", id: d.id, label: `${d.slug}.md` })}
                       className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/50 truncate">
-                      <span className="text-muted-foreground">📄</span> {d.slug}.md
+                      <span className="inline-flex items-center gap-1.5"><FileIcon name={`${d.slug}.md`} /> {d.slug}.md</span>
                     </button>
                   ))}
               </WBFolder>
@@ -517,7 +545,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                               <button key={s.id}
                                 onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
                                 className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
-                                <span className="text-cyan-400">⚡</span> {s.filename}
+                                <span className="inline-flex items-center gap-1.5"><FileIcon name={s.filename} /> {s.filename}</span>
                               </button>
                             ))}
                           </div>
@@ -546,7 +574,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                         <button key={s.id}
                           onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
                           className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
-                          <span className="text-cyan-400">⚡</span> {s.filename.split("/").pop()}
+                          <span className="inline-flex items-center gap-1.5"><FileIcon name={s.filename} /> {s.filename.split("/").pop()}</span>
                         </button>
                       ))}
                     </div>
@@ -599,7 +627,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             {currentFile ? (
               <Editor
                 height="400px"
-                language={currentFile.kind === "spec" ? "typescript" : "markdown"}
+                language={fileLanguage(currentFile.label)}
                 theme="vs-dark"
                 value={currentContent}
                 onChange={(v) => activeKey && setDrafts(prev => ({ ...prev, [activeKey]: v ?? "" }))}
