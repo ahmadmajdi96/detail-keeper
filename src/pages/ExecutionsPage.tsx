@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { StatFilterCards } from "@/components/ui/stat-filter-cards";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -364,29 +365,17 @@ export default function ExecutionsPage() {
           />
         )}
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total Executions", value: stats.total, icon: Play, color: "text-primary", bg: "bg-primary/10" },
-            { label: "Passed", value: stats.passed, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
-            { label: "Failed", value: stats.failed, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
-            { label: "In Progress", value: stats.inProgress, icon: Clock, color: "text-accent", bg: "bg-accent/10" },
-          ].map((s) => (
-            <Card key={s.label} className="border-border/50">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
-                  <p className="text-3xl font-semibold tabular-nums mt-1">{s.value}</p>
-                </div>
-                <div className={`h-10 w-10 rounded-lg ${s.bg} flex items-center justify-center`}>
-                  <s.icon className={`h-5 w-5 ${s.color}`} />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-
+        <StatFilterCards
+          activeFilter={statusFilter}
+          onSelect={setStatusFilter}
+          cards={[
+            { key: "all", label: "Total", value: stats.total, hint: "All executions", icon: Play, grad: "from-accent/20 to-transparent" },
+            { key: "passed", label: "Passed", value: stats.passed, hint: "Successful", icon: CheckCircle2, grad: "from-success/20 to-transparent" },
+            { key: "failed", label: "Failed", value: stats.failed, hint: "Needs triage", icon: XCircle, grad: "from-destructive/20 to-transparent" },
+            { key: "in_progress", label: "In progress", value: stats.inProgress, hint: "Running now", icon: Clock, grad: "from-warning/20 to-transparent" },
+          ]}
+          className="mb-6"
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-1 border-border/50">

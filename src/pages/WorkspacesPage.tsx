@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { MetricCard } from "@/components/ui/metric-card";
+import { StatFilterCards } from "@/components/ui/stat-filter-cards";
 import {
   Eye, FolderKanban, HardDrive, LayoutGrid, List, Loader2,
   Plus, Search, Settings, Shield, Trash2, Users, Database, Sparkles,
@@ -125,20 +125,17 @@ export default function WorkspacesPage() {
       />
 
       {/* KPI row */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        className="grid gap-4 grid-cols-2 lg:grid-cols-4"
-      >
-        <MetricCard variant="accent" label="Workspaces" value={workspaces.length} icon={<Shield className="h-5 w-5" />} />
-        <MetricCard label="Projects" value={totalProjects} icon={<FolderKanban className="h-5 w-5" />} />
-        <MetricCard label="Members" value={totalMembers} icon={<Users className="h-5 w-5" />} />
-        <MetricCard
-          variant={totalQuotaMb && totalStorageMb / totalQuotaMb > 0.8 ? "warning" : "default"}
-          label="Storage used" value={fmtStorage(totalStorageMb)}
-          icon={<Database className="h-5 w-5" />}
-          description={totalQuotaMb ? `of ${fmtStorage(totalQuotaMb)} quota` : undefined}
-        />
-      </motion.div>
+      <StatFilterCards
+        activeFilter={statusFilter}
+        onSelect={(k) => setStatusFilter(k as any)}
+        cards={[
+          { key: "all", label: "Workspaces", value: workspaces.length, hint: "All statuses", icon: Shield, grad: "from-accent/20 to-transparent" },
+          { key: "active", label: "Active", value: workspaces.filter((w) => w.status === "active").length, hint: "In use", icon: FolderKanban, grad: "from-success/20 to-transparent" },
+          { key: "archived", label: "Archived", value: workspaces.filter((w) => w.status === "archived").length, hint: "Read-only", icon: Database, grad: "from-muted-foreground/20 to-transparent" },
+          { key: "all", label: "Members", value: totalMembers, hint: `${totalProjects} projects`, icon: Users, grad: "from-purple-500/20 to-transparent" },
+          { key: "all", label: "Storage used", value: fmtStorage(totalStorageMb), hint: totalQuotaMb ? `of ${fmtStorage(totalQuotaMb)} quota` : "No quota", icon: Database, grad: "from-cyan-500/20 to-transparent" },
+        ]}
+      />
 
       {/* Toolbar */}
       <Card className="mt-6 border-border/50">
