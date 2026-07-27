@@ -683,9 +683,51 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
       <div className="p-3 border-t border-border/50">
         <ArtifactViewer testPlanId={testPlanId} />
       </div>
+
+      <ReviewQueue
+        testPlanId={testPlanId}
+        projectId={projectId}
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        regenerating={busy !== null}
+        onRegenerate={(kind: ReviewKind) => {
+          if (kind === "doc") {
+            runStep("docs", "tp-forge-docs", { test_plan_id: testPlanId, settings }, "Document generation started");
+          } else if (kind === "case") {
+            runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings, dry_run: settings.dryRun }, "Generation started");
+          } else if (kind === "spec") {
+            runStep("code", "tp-forge-codegen", {
+              test_plan_id: testPlanId, language: settings.language,
+              dry_run: settings.dryRun, skip_stubs: settings.skipStubs,
+            }, "Codegen started");
+          }
+        }}
+      />
+
+      {historyDoc && (
+        <DocVersionHistory
+          documentId={historyDoc.id}
+          documentLabel={historyDoc.label}
+          open={!!historyDoc}
+          onOpenChange={(o) => !o && setHistoryDoc(null)}
+        />
+      )}
+
+      <Dialog open={matrixOpen} onOpenChange={setMatrixOpen}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Traceability matrix</DialogTitle>
+            <DialogDescription>
+              Filter and manually adjust requirement-to-test-case mappings before finalizing coverage.
+            </DialogDescription>
+          </DialogHeader>
+          <TraceabilityMatrixEditor projectId={projectId} testPlanId={testPlanId} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function WBFolder({
   icon, label, count, defaultOpen, children,
