@@ -4724,6 +4724,56 @@ export type Database = {
           },
         ]
       }
+      suite_grouping_versions: {
+        Row: {
+          assignments: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          is_current: boolean
+          note: string | null
+          project_id: string
+          rules: Json
+          updated_at: string
+          version: number
+          workspace_id: string | null
+        }
+        Insert: {
+          assignments?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_current?: boolean
+          note?: string | null
+          project_id: string
+          rules?: Json
+          updated_at?: string
+          version?: number
+          workspace_id?: string | null
+        }
+        Update: {
+          assignments?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_current?: boolean
+          note?: string | null
+          project_id?: string
+          rules?: Json
+          updated_at?: string
+          version?: number
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suite_grouping_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suite_runs: {
         Row: {
           browser: string
