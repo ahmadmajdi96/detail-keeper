@@ -48,6 +48,7 @@ export default function ExecutionsPage() {
   const [defectPriority, setDefectPriority] = useState<DefectPriority>("medium");
 
   // Auto execute state
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [autoOpen, setAutoOpen] = useState(false);
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoMode, setAutoMode] = useState<AutoExecMode>("api");
@@ -376,6 +377,47 @@ export default function ExecutionsPage() {
           ]}
           className="mb-6"
         />
+
+        {/* Execution history — filtered by the cards above */}
+        <Card className="border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="text-lg">Execution history</CardTitle>
+              <CardDescription>
+                {statusFilter === "all" ? "All executions" : `Filtered by ${statusFilter.replace("_", " ")}`}
+              </CardDescription>
+            </div>
+            {statusFilter !== "all" && (
+              <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>Clear filter</Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[260px]">
+              <div className="space-y-2">
+                {executions
+                  .filter((e) => statusFilter === "all" || e.status === statusFilter)
+                  .map((e) => (
+                    <button
+                      key={e.id}
+                      onClick={() => setSelectedExecution(e)}
+                      className="w-full text-left flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{e.test_case?.title || "Untitled test"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {e.executed_at ? new Date(e.executed_at).toLocaleString() : "Not started"}
+                        </p>
+                      </div>
+                      <Badge className={statusConfig[e.status].color}>{e.status}</Badge>
+                    </button>
+                  ))}
+                {executions.filter((e) => statusFilter === "all" || e.status === statusFilter).length === 0 && (
+                  <p className="text-center text-muted-foreground py-8 text-sm">No executions match this filter</p>
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-1 border-border/50">
