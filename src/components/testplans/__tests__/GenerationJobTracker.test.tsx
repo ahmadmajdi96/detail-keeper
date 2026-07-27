@@ -41,6 +41,8 @@ vi.mock("@/integrations/supabase/client", () => {
   };
 });
 
+vi.mock("@/hooks/useCan", () => ({ useCan: () => ({ can: () => true, role: "lead" }) }));
+
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), {
   success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn(),
 }) }));

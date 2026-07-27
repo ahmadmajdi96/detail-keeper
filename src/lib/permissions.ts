@@ -43,6 +43,8 @@ export type Action =
   | "defect.edit"
   | "testcase.edit"
   // sharing / billing / audit / sso
+  | "artifact.view"
+  | "runnerlog.view"
   | "share.create"
   | "billing.manage"
   | "audit.view"
@@ -94,6 +96,16 @@ export function can(action: Action, ctx: CapabilityContext = {}): boolean {
 
     case "testcase.edit":
       return wsWriter(workspaceRole) || projectRole === "lead" || projectRole === "contributor";
+
+    case "artifact.view":
+      // Generated artifacts (docs, cases, specs, run outputs) — any real
+      // member of the plan/project/workspace, but never a guest.
+      return wsWriter(workspaceRole) || workspaceRole === "viewer"
+        || !!projectRole || !!planRole || orgAdmin(orgRole);
+    case "runnerlog.view":
+      // Runner logs can leak env/config details — writers & leads only.
+      return wsWriter(workspaceRole) || projectRole === "lead" || projectRole === "contributor"
+        || planRole === "owner" || planRole === "reviewer" || orgAdmin(orgRole);
 
     case "share.create":
       return wsAdmin(workspaceRole) || orgAdmin(orgRole);

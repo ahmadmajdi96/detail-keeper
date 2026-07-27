@@ -2471,6 +2471,53 @@ export type Database = {
           },
         ]
       }
+      generation_stage_logs: {
+        Row: {
+          created_at: string
+          dry_run: boolean
+          execution_skipped: boolean
+          id: string
+          install_skipped: boolean
+          kind: string
+          message: string
+          meta: Json
+          stage: string
+          test_plan_id: string
+        }
+        Insert: {
+          created_at?: string
+          dry_run?: boolean
+          execution_skipped?: boolean
+          id?: string
+          install_skipped?: boolean
+          kind: string
+          message: string
+          meta?: Json
+          stage: string
+          test_plan_id: string
+        }
+        Update: {
+          created_at?: string
+          dry_run?: boolean
+          execution_skipped?: boolean
+          id?: string
+          install_skipped?: boolean
+          kind?: string
+          message?: string
+          meta?: Json
+          stage?: string
+          test_plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_stage_logs_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       github_repo_mappings: {
         Row: {
           created_at: string
@@ -5811,6 +5858,7 @@ export type Database = {
       }
       test_plans: {
         Row: {
+          ai_dry_run: boolean | null
           ai_job_ref: string | null
           ai_last_run_at: string | null
           ai_progress: number | null
@@ -5819,6 +5867,7 @@ export type Database = {
           ai_settings: Json
           ai_status: string | null
           ai_suggested: boolean | null
+          codegen_dry_run: boolean | null
           codegen_job_ref: string | null
           codegen_last_run_at: string | null
           codegen_progress: number | null
@@ -5845,6 +5894,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          ai_dry_run?: boolean | null
           ai_job_ref?: string | null
           ai_last_run_at?: string | null
           ai_progress?: number | null
@@ -5853,6 +5903,7 @@ export type Database = {
           ai_settings?: Json
           ai_status?: string | null
           ai_suggested?: boolean | null
+          codegen_dry_run?: boolean | null
           codegen_job_ref?: string | null
           codegen_last_run_at?: string | null
           codegen_progress?: number | null
@@ -5879,6 +5930,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          ai_dry_run?: boolean | null
           ai_job_ref?: string | null
           ai_last_run_at?: string | null
           ai_progress?: number | null
@@ -5887,6 +5939,7 @@ export type Database = {
           ai_settings?: Json
           ai_status?: string | null
           ai_suggested?: boolean | null
+          codegen_dry_run?: boolean | null
           codegen_job_ref?: string | null
           codegen_last_run_at?: string | null
           codegen_progress?: number | null
