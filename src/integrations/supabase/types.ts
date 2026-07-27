@@ -3416,6 +3416,7 @@ export type Database = {
           slack_channel_name: string | null
           source_type: Database["public"]["Enums"]["project_source"]
           status: Database["public"]["Enums"]["project_status"]
+          suite_grouping_rules: Json
           test_cases_count: number | null
           updated_at: string
           visibility: Database["public"]["Enums"]["project_visibility"]
@@ -3445,6 +3446,7 @@ export type Database = {
           slack_channel_name?: string | null
           source_type?: Database["public"]["Enums"]["project_source"]
           status?: Database["public"]["Enums"]["project_status"]
+          suite_grouping_rules?: Json
           test_cases_count?: number | null
           updated_at?: string
           visibility?: Database["public"]["Enums"]["project_visibility"]
@@ -3474,6 +3476,7 @@ export type Database = {
           slack_channel_name?: string | null
           source_type?: Database["public"]["Enums"]["project_source"]
           status?: Database["public"]["Enums"]["project_status"]
+          suite_grouping_rules?: Json
           test_cases_count?: number | null
           updated_at?: string
           visibility?: Database["public"]["Enums"]["project_visibility"]
@@ -5046,12 +5049,15 @@ export type Database = {
           priority: number
           priority_score: number | null
           project_id: string | null
+          proposed_suite_name: string | null
           requirement_ids: string[] | null
           review_status: Database["public"]["Enums"]["review_status"]
           reviewer_id: string | null
           source: string | null
           status: Database["public"]["Enums"]["test_case_status"]
+          suite_assignment_status: string
           suite_id: string | null
+          suite_order: number
           test_type: string | null
           title: string
           updated_at: string
@@ -5075,12 +5081,15 @@ export type Database = {
           priority?: number
           priority_score?: number | null
           project_id?: string | null
+          proposed_suite_name?: string | null
           requirement_ids?: string[] | null
           review_status?: Database["public"]["Enums"]["review_status"]
           reviewer_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
+          suite_assignment_status?: string
           suite_id?: string | null
+          suite_order?: number
           test_type?: string | null
           title: string
           updated_at?: string
@@ -5104,12 +5113,15 @@ export type Database = {
           priority?: number
           priority_score?: number | null
           project_id?: string | null
+          proposed_suite_name?: string | null
           requirement_ids?: string[] | null
           review_status?: Database["public"]["Enums"]["review_status"]
           reviewer_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
+          suite_assignment_status?: string
           suite_id?: string | null
+          suite_order?: number
           test_type?: string | null
           title?: string
           updated_at?: string
@@ -5841,6 +5853,7 @@ export type Database = {
           name: string
           parent_id: string | null
           project_id: string
+          sort_order: number
           tags: string[]
           updated_at: string
         }
@@ -5852,6 +5865,7 @@ export type Database = {
           name: string
           parent_id?: string | null
           project_id: string
+          sort_order?: number
           tags?: string[]
           updated_at?: string
         }
@@ -5863,6 +5877,7 @@ export type Database = {
           name?: string
           parent_id?: string | null
           project_id?: string
+          sort_order?: number
           tags?: string[]
           updated_at?: string
         }

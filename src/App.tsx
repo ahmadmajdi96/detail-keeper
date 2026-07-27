@@ -29,6 +29,7 @@ import TestCaseEditorPage from "./pages/TestCaseEditorPage";
 import ExecutionsPage from "./pages/ExecutionsPage";
 import AutomationPage from "./pages/AutomationPage";
 import ReportingPage from "./pages/ReportingPage";
+import SuiteExecutionReportPage from "./pages/SuiteExecutionReportPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import IntegrationSettingsPage from "./pages/IntegrationSettingsPage";
@@ -234,6 +235,11 @@ const App = () => (
               <Route path="/automation" element={
                 <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
                   <AutomationPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/reporting/suites" element={
+                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                  <SuiteExecutionReportPage />
                 </ProtectedRoute>
               } />
               <Route path="/reporting" element={

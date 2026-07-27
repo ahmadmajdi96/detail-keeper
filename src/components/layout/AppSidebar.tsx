@@ -17,6 +17,8 @@ import {
   Play,
   Bot,
   BarChart3,
+  FolderTree,
+
   Bell,
   Plug,
   Settings,
@@ -67,6 +69,8 @@ const mainNavItems: NavItem[] = [
   // Releases, Runners, Quality Gates managed within Test Plans now.
   // AI Automation hidden from sidebar (route still available at /automation)
   { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Suite Report", href: "/reporting/suites", icon: FolderTree, roles: ["qa_engineer", "qa_manager", "admin"] },
+
 ];
 
 // Viewer can only see dashboard and these items
