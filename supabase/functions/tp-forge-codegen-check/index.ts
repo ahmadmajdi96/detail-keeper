@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
     const { data: plan } = await admin
       .from("test_plans")
-      .select("id, project_id, workspace_id, codegen_status, codegen_job_ref, codegen_progress")
+      .select("id, project_id, workspace_id, codegen_status, codegen_job_ref, codegen_progress, codegen_skip_stubs")
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
