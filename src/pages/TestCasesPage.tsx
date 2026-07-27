@@ -553,6 +553,9 @@ export default function TestCasesPage() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
+
 
         {/* Create Test Case Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
