@@ -224,63 +224,60 @@ export default function DashboardPage() {
         }
       />
 
-      {/* KPI row */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        className="grid gap-4 grid-cols-2 lg:grid-cols-4"
-      >
-        <MetricCard
-          variant="success" label="Pass Rate" value={`${metrics.passRate}%`}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          trend={metrics.passRate >= 80 ? 4 : -3} trendLabel="vs last week"
-        />
-        <MetricCard
-          variant="accent" label="Coverage" value={`${metrics.coverage}%`}
-          icon={<TestTube className="h-5 w-5" />}
-          description={`${testCases.length} test cases tracked`}
-        />
-        <MetricCard
-          variant="accent" label="Automation" value={`${metrics.automation}%`}
-          icon={<Bot className="h-5 w-5" />}
-          description={`${agents.length} AI agents online`}
-        />
-        <MetricCard
-          variant={metrics.critical > 0 ? "destructive" : "warning"}
-          label="Open Defects" value={metrics.defects}
-          icon={<Bug className="h-5 w-5" />}
-          description={`${metrics.critical} critical · ${metrics.resolved} resolved`}
-        />
+      {/* Quality Metrics Overview (replaces the old KPI card row) */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        <Card className="border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-accent" />
+                Quality Metrics Overview
+              </CardTitle>
+              <CardDescription>Live snapshot of {scopeLabel}</CardDescription>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              {executions.length} runs · last 150
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              <RingKpi label="Pass Rate" value={metrics.passRate} color="hsl(var(--success))" icon={<CheckCircle2 className="h-3.5 w-3.5 text-success" />} />
+              <RingKpi label="Coverage" value={metrics.coverage} color="hsl(var(--accent))" icon={<TestTube className="h-3.5 w-3.5 text-accent" />} />
+              <RingKpi label="AI Tests" value={metrics.aiTests} color="hsl(262 83% 58%)" icon={<Zap className="h-3.5 w-3.5" style={{ color: "hsl(262 83% 58%)" }} />} />
+              <RingKpi label="Automation" value={metrics.automation} color="hsl(199 89% 48%)" icon={<Bot className="h-3.5 w-3.5" style={{ color: "hsl(199 89% 48%)" }} />} />
+              <RingKpi
+                label="Resolution"
+                value={defects.length ? Math.round((metrics.resolved / defects.length) * 100) : 100}
+                color="hsl(38 92% 50%)"
+                icon={<ShieldCheck className="h-3.5 w-3.5" style={{ color: "hsl(38 92% 50%)" }} />}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t border-border/50 pt-4">
+              {[
+                { l: "Test cases", v: testCases.length, i: <TestTube className="h-4 w-4 text-accent" />, to: "/test-cases" },
+                { l: "Executions", v: executions.length, i: <Activity className="h-4 w-4 text-accent" />, to: "/executions" },
+                { l: "Open defects", v: metrics.defects, i: <Bug className="h-4 w-4 text-destructive" />, to: "/defects" },
+                { l: "Critical", v: metrics.critical, i: <ShieldCheck className="h-4 w-4 text-warning" />, to: "/defects" },
+              ].map((s) => (
+                <button
+                  key={s.l}
+                  onClick={() => navigate(s.to)}
+                  className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/50 px-3 py-2.5 text-left hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                >
+                  {s.i}
+                  <div className="min-w-0">
+                    <p className="text-lg font-semibold tabular-nums leading-none">{s.v}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{s.l}</p>
+                  </div>
+                  <ArrowRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
-      {/* Ring KPI cluster */}
-      <Card className="mt-6 border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-accent" />
-              Quality Metrics Overview
-            </CardTitle>
-            <CardDescription>Live snapshot of the active scope</CardDescription>
-          </div>
-          <Badge variant="outline" className="text-xs">
-            {executions.length} runs · last 150
-          </Badge>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            <RingKpi label="Pass Rate" value={metrics.passRate} color="hsl(var(--success))" icon={<CheckCircle2 className="h-3.5 w-3.5 text-success" />} />
-            <RingKpi label="Coverage" value={metrics.coverage} color="hsl(var(--accent))" icon={<TestTube className="h-3.5 w-3.5 text-accent" />} />
-            <RingKpi label="AI Tests" value={metrics.aiTests} color="hsl(262 83% 58%)" icon={<Zap className="h-3.5 w-3.5" style={{ color: "hsl(262 83% 58%)" }} />} />
-            <RingKpi label="Automation" value={metrics.automation} color="hsl(199 89% 48%)" icon={<Bot className="h-3.5 w-3.5" style={{ color: "hsl(199 89% 48%)" }} />} />
-            <RingKpi
-              label="Resolution"
-              value={defects.length ? Math.round((metrics.resolved / defects.length) * 100) : 100}
-              color="hsl(38 92% 50%)"
-              icon={<ShieldCheck className="h-3.5 w-3.5" style={{ color: "hsl(38 92% 50%)" }} />}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Charts row */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
