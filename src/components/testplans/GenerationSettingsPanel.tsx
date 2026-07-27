@@ -191,10 +191,21 @@ export function GenerationSettingsPanel({ settings, onChange, disabled }: Props)
                   Framework: Playwright · Output: pages/ · tests/ · fixtures/ · utils/ · PageObjectManager
                 </p>
               </div>
+              <div className="flex items-start justify-between gap-3 rounded-md border border-border/50 bg-muted/20 p-2.5 mt-2">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Dry run (no execution)</Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Generate the test plan and Playwright code only — the runner will not install
+                    dependencies (<span className="font-mono">npm install</span>) or execute any tests.
+                  </p>
+                </div>
+                <Switch checked={settings.dryRun} onCheckedChange={(v) => onChange({ dryRun: v })} />
+              </div>
             </section>
           </div>
         </ScrollArea>
         <DialogFooter>
+
           <span className="text-[11px] text-muted-foreground mr-auto">Settings are applied to the next generation run.</span>
         </DialogFooter>
       </DialogContent>
