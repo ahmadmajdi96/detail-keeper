@@ -113,13 +113,28 @@ Deno.serve(async (req) => {
       return j({ status: "failed", note: "bundle fetch failed" });
     }
 
+    // When the plan asked for inspect-only skeletons, force every generated
+    // test into a skip stub so opening the file can never trigger a run.
+    const skipStubs = (plan as any).codegen_skip_stubs === true;
+    const toSkipStub = (src: string) =>
+      src
+        .replace(/(^|[^.\w])test\s*\(/g, "$1test.skip(")
+        .replace(/(^|[^.\w])it\s*\(/g, "$1it.skip(")
+        .replace(/(^|[^.\w])test\.only\s*\(/g, "$1test.skip(")
+        .replace(/(^|[^.\w])test\.skip\.skip\s*\(/g, "$1test.skip(");
+
     let inserted = 0;
     for (const [path, content] of Object.entries(files)) {
       const filename = String(path).split("/").pop()!.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 200);
-      const text = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+      const raw = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+      const isSpec = /\.(spec|test)\.(ts|tsx|js|mjs)$/i.test(filename);
+      const text = skipStubs && isSpec
+        ? `// Generated as an inspect-only skeleton — every test is skipped.\n${toSkipStub(raw)}`
+        : raw;
       const language = filename.endsWith(".json") ? "json"
         : filename.endsWith(".ts") || filename.endsWith(".tsx") ? "typescript"
         : filename.endsWith(".js") ? "javascript" : "text";
+
 
       const { data: existing } = await admin.from("test_plan_specs")
         .select("id").eq("test_plan_id", test_plan_id).eq("filename", filename).maybeSingle();
