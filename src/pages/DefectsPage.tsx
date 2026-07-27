@@ -43,6 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StatFilterCards } from "@/components/ui/stat-filter-cards";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -349,61 +350,17 @@ export default function DefectsPage() {
           }
         />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Bug className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Defects</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.open}</p>
-                  <p className="text-xs text-muted-foreground">Open</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
-                  <AlertTriangle className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.critical}</p>
-                  <p className="text-xs text-muted-foreground">Critical</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.resolved}</p>
-                  <p className="text-xs text-muted-foreground">Resolved</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <StatFilterCards
+          activeFilter={statusFilter}
+          onSelect={setStatusFilter}
+          cards={[
+            { key: "all", label: "Total", value: stats.total, hint: "All defects", icon: Bug, grad: "from-accent/20 to-transparent" },
+            { key: "open", label: "Open", value: stats.open, hint: "Awaiting fix", icon: AlertCircle, grad: "from-destructive/20 to-transparent" },
+            { key: "in_progress", label: "In progress", value: defects.filter((d: any) => d.status === "in_progress").length, hint: "Being worked on", icon: AlertTriangle, grad: "from-warning/20 to-transparent" },
+            { key: "resolved", label: "Resolved", value: stats.resolved, hint: "Fixed", icon: CheckCircle2, grad: "from-success/20 to-transparent" },
+            { key: "all", label: "Critical", value: stats.critical, hint: "Highest severity", icon: AlertTriangle, grad: "from-red-500/20 to-transparent" },
+          ]}
+        />
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
