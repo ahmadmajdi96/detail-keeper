@@ -172,6 +172,13 @@ export function JobTrackerPanel({ jobs }: { jobs: TrackedJob[] }) {
                         </button>
                       </div>
 
+                      {j.dryRun && (
+                        <div className="flex items-center gap-1 rounded border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+                          <ShieldOff className="h-3 w-3" />
+                          Dry run — install &amp; execution skipped
+                        </div>
+                      )}
+
                       <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
                         <motion.div
                           className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500"
@@ -191,9 +198,12 @@ export function JobTrackerPanel({ jobs }: { jobs: TrackedJob[] }) {
                             stage={s}
                             events={evs}
                             active={!terminal && s === currentStage}
+                            planId={j.planId}
+                            canDownload={canDownload}
                           />
                         ))}
                       </div>
+
 
                       <Button
                         size="sm"
