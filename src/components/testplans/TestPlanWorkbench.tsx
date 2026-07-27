@@ -626,3 +626,28 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     </div>
   );
 }
+
+function WBFolder({
+  icon, label, count, defaultOpen, children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count?: number | null;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">
+        <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
+        {icon}
+        <span className="flex-1 text-left">{label}</span>
+        {typeof count === "number" && <span className="font-mono text-[10px]">{count}</span>}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+        <div className="pl-3 pr-1 pt-1 pb-2 space-y-0.5">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
