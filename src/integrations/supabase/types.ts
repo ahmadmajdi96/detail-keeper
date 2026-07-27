@@ -5050,6 +5050,7 @@ export type Database = {
           reviewer_id: string | null
           source: string | null
           status: Database["public"]["Enums"]["test_case_status"]
+          suite_id: string | null
           title: string
           updated_at: string
           version: number
@@ -5076,6 +5077,7 @@ export type Database = {
           reviewer_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
+          suite_id?: string | null
           title: string
           updated_at?: string
           version?: number
@@ -5102,6 +5104,7 @@ export type Database = {
           reviewer_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
+          suite_id?: string | null
           title?: string
           updated_at?: string
           version?: number
@@ -5120,6 +5123,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cases_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "test_suites"
             referencedColumns: ["id"]
           },
         ]
@@ -5289,6 +5299,7 @@ export type Database = {
           project_id: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["execution_status"]
+          suite_id: string | null
           test_case_id: string
           test_plan_id: string | null
           test_run_id: string | null
@@ -5305,6 +5316,7 @@ export type Database = {
           project_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["execution_status"]
+          suite_id?: string | null
           test_case_id: string
           test_plan_id?: string | null
           test_run_id?: string | null
@@ -5321,6 +5333,7 @@ export type Database = {
           project_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["execution_status"]
+          suite_id?: string | null
           test_case_id?: string
           test_plan_id?: string | null
           test_run_id?: string | null
@@ -5340,6 +5353,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_executions_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "test_suites"
             referencedColumns: ["id"]
           },
           {
