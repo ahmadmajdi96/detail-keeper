@@ -5,12 +5,13 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   Activity, CheckCircle2, ChevronDown, ChevronUp, Loader2, X, XCircle, Circle,
-  Download, ShieldOff,
+  Download, Lock, ShieldOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCan } from "@/hooks/useCan";
 import { downloadStageArtifacts, stageDownloadKey, STAGE_DOWNLOAD_LABEL } from "@/lib/stageArtifacts";
+import { logArtifactAccess } from "@/lib/artifactAccessAudit";
 import {
   STAGE_LABELS, StageEvent, StageId, readStages, clearStages, clearBusy,
 } from "@/lib/jobBusyStore";
@@ -32,10 +33,10 @@ const PIPELINE: Record<"cases" | "code", StageId[]> = {
 };
 
 function StageRow({
-  stage, events, active, planId, canDownload,
+  stage, events, active, planId, canDownload, role,
 }: {
   stage: StageId; events: StageEvent[]; active: boolean;
-  planId: string; canDownload: boolean;
+  planId: string; canDownload: boolean; role: string | null;
 }) {
   const mine = events.filter((e) => e.stage === stage);
   const first = mine[0];
@@ -48,10 +49,24 @@ function StageRow({
 
   const grab = async () => {
     if (!dlKey) return;
+    // Every attempt is audited — including the ones the role is not allowed to make.
+    if (!canDownload) {
+      logArtifactAccess({
+        action: "artifact.stage_download_denied",
+        planId, stage: dlKey, role,
+        reason: "missing artifact.view capability",
+      });
+      toast.error("Your role cannot download artifacts for this stage");
+      return;
+    }
     setDownloading(true);
     const t = toast.loading(`${STAGE_DOWNLOAD_LABEL[dlKey]}…`);
     try {
       const n = await downloadStageArtifacts(planId, dlKey);
+      logArtifactAccess({
+        action: "artifact.stage_download_allowed",
+        planId, stage: dlKey, role, meta: { files: n },
+      });
       if (n === 0) toast.info("Nothing generated for this stage yet", { id: t });
       else toast.success(`Downloaded ${n} file${n === 1 ? "" : "s"}`, { id: t });
     } catch (e: any) {
@@ -77,16 +92,18 @@ function StageRow({
         <span className={`text-[11px] font-medium ${mine.length ? "text-foreground" : "text-muted-foreground/60"}`}>
           {STAGE_LABELS[stage]}
         </span>
-        {canDownload && dlKey && reachable && (
+        {dlKey && reachable && (
           <button
             onClick={grab}
             disabled={downloading}
-            title={STAGE_DOWNLOAD_LABEL[dlKey]}
-            className="text-muted-foreground hover:text-accent disabled:opacity-50"
+            title={canDownload ? STAGE_DOWNLOAD_LABEL[dlKey] : "Your role cannot download these artifacts"}
+            className={`disabled:opacity-50 ${canDownload
+              ? "text-muted-foreground hover:text-accent"
+              : "text-muted-foreground/40 hover:text-destructive"}`}
           >
             {downloading
               ? <Loader2 className="h-3 w-3 animate-spin" />
-              : <Download className="h-3 w-3" />}
+              : canDownload ? <Download className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
           </button>
         )}
         {first && (
@@ -109,8 +126,9 @@ function StageRow({
 
 export function JobTrackerPanel({ jobs }: { jobs: TrackedJob[] }) {
   const navigate = useNavigate();
-  const { can } = useCan();
+  const { can, projectRole, planRole, workspaceRole } = useCan();
   const canDownload = can("artifact.view");
+  const effectiveRole = projectRole ?? planRole ?? workspaceRole ?? null;
   const [collapsed, setCollapsed] = useState(false);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [stages, setStages] = useState<Record<string, StageEvent[]>>({});
@@ -199,6 +217,7 @@ export function JobTrackerPanel({ jobs }: { jobs: TrackedJob[] }) {
                           <StageRow
                             key={s}
                             stage={s}
+                            role={effectiveRole}
                             events={evs}
                             active={!terminal && s === currentStage}
                             planId={j.planId}
