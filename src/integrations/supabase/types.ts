@@ -5051,7 +5051,11 @@ export type Database = {
           project_id: string | null
           proposed_suite_name: string | null
           requirement_ids: string[] | null
+          review_note: string | null
+          review_state: string
           review_status: Database["public"]["Enums"]["review_status"]
+          reviewed_at: string | null
+          reviewed_by: string | null
           reviewer_id: string | null
           source: string | null
           status: Database["public"]["Enums"]["test_case_status"]
@@ -5083,7 +5087,11 @@ export type Database = {
           project_id?: string | null
           proposed_suite_name?: string | null
           requirement_ids?: string[] | null
+          review_note?: string | null
+          review_state?: string
           review_status?: Database["public"]["Enums"]["review_status"]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           reviewer_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
@@ -5115,7 +5123,11 @@ export type Database = {
           project_id?: string | null
           proposed_suite_name?: string | null
           requirement_ids?: string[] | null
+          review_note?: string | null
+          review_state?: string
           review_status?: Database["public"]["Enums"]["review_status"]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           reviewer_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
@@ -5479,6 +5491,59 @@ export type Database = {
           },
         ]
       }
+      test_plan_document_versions: {
+        Row: {
+          change_note: string | null
+          content: string | null
+          created_at: string
+          created_by: string | null
+          document_id: string
+          id: string
+          kind: string | null
+          project_id: string | null
+          slug: string | null
+          test_plan_id: string
+          title: string | null
+          version: number
+        }
+        Insert: {
+          change_note?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_id: string
+          id?: string
+          kind?: string | null
+          project_id?: string | null
+          slug?: string | null
+          test_plan_id: string
+          title?: string | null
+          version?: number
+        }
+        Update: {
+          change_note?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_id?: string
+          id?: string
+          kind?: string | null
+          project_id?: string | null
+          slug?: string | null
+          test_plan_id?: string
+          title?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_plan_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "test_plan_documents_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_plan_documents: {
         Row: {
           created_at: string
@@ -5523,6 +5588,10 @@ export type Database = {
           id: string
           kind: string
           project_id: string
+          review_note: string | null
+          review_state: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           slug: string
           sort_order: number
           test_plan_id: string
@@ -5536,6 +5605,10 @@ export type Database = {
           id?: string
           kind: string
           project_id: string
+          review_note?: string | null
+          review_state?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           slug: string
           sort_order?: number
           test_plan_id: string
@@ -5549,6 +5622,10 @@ export type Database = {
           id?: string
           kind?: string
           project_id?: string
+          review_note?: string | null
+          review_state?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           slug?: string
           sort_order?: number
           test_plan_id?: string
@@ -5582,6 +5659,10 @@ export type Database = {
           id: string
           language: string
           project_id: string
+          review_note: string | null
+          review_state: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           test_case_id: string | null
           test_plan_id: string
           updated_at: string
@@ -5595,6 +5676,10 @@ export type Database = {
           id?: string
           language?: string
           project_id: string
+          review_note?: string | null
+          review_state?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           test_case_id?: string | null
           test_plan_id: string
           updated_at?: string
@@ -5608,6 +5693,10 @@ export type Database = {
           id?: string
           language?: string
           project_id?: string
+          review_note?: string | null
+          review_state?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           test_case_id?: string | null
           test_plan_id?: string
           updated_at?: string
@@ -5735,6 +5824,7 @@ export type Database = {
           codegen_progress: number | null
           codegen_progress_message: string | null
           codegen_progress_updated_at: string | null
+          codegen_skip_stubs: boolean
           codegen_status: string | null
           created_at: string
           created_by: string | null
@@ -5768,6 +5858,7 @@ export type Database = {
           codegen_progress?: number | null
           codegen_progress_message?: string | null
           codegen_progress_updated_at?: string | null
+          codegen_skip_stubs?: boolean
           codegen_status?: string | null
           created_at?: string
           created_by?: string | null
@@ -5801,6 +5892,7 @@ export type Database = {
           codegen_progress?: number | null
           codegen_progress_message?: string | null
           codegen_progress_updated_at?: string | null
+          codegen_skip_stubs?: boolean
           codegen_status?: string | null
           created_at?: string
           created_by?: string | null
@@ -5853,6 +5945,10 @@ export type Database = {
           name: string
           parent_id: string | null
           project_id: string
+          review_note: string | null
+          review_state: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           sort_order: number
           tags: string[]
           updated_at: string
@@ -5865,6 +5961,10 @@ export type Database = {
           name: string
           parent_id?: string | null
           project_id: string
+          review_note?: string | null
+          review_state?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           sort_order?: number
           tags?: string[]
           updated_at?: string
@@ -5877,6 +5977,10 @@ export type Database = {
           name?: string
           parent_id?: string | null
           project_id?: string
+          review_note?: string | null
+          review_state?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           sort_order?: number
           tags?: string[]
           updated_at?: string
