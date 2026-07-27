@@ -282,6 +282,21 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     } finally { setBusy(null); }
   }
 
+  const [exporting, setExporting] = useState(false);
+  const exportBundle = async () => {
+    setExporting(true);
+    const t = toast.loading("Packaging workflow bundle…");
+    try {
+      const res = await exportWorkflowBundle(testPlanId, (m) => toast.loading(m, { id: t }));
+      toast.success(
+        `Bundle downloaded — ${res.documents} docs · ${res.cases} cases · ${res.specs} specs`,
+        { id: t },
+      );
+    } catch (e: any) {
+      toast.error(e.message || "Export failed", { id: t });
+    } finally { setExporting(false); }
+  };
+
   const runSuite = async () => {
     if (!baseUrl.trim()) { toast.error("Set a Base URL first (target app under test)"); return; }
     setBusy("suite");
