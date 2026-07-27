@@ -15,8 +15,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, Wand2, Check, X } from "lucide-react";
+import { Loader2, Sparkles, Wand2, Check, X, History } from "lucide-react";
 import { logSuiteAudit } from "@/lib/suiteAudit";
+import { SuiteGroupingHistory } from "./SuiteGroupingHistory";
 
 export interface GroupingRules {
   strategy?: string;
@@ -45,6 +46,7 @@ export function SuiteGroupingPanel({ projectId, workspaceId, open, onOpenChange 
   });
   const [rulesLoaded, setRulesLoaded] = useState(false);
   const [accepted, setAccepted] = useState<Record<string, boolean>>({});
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useQuery({
     queryKey: ["suite-grouping-rules", projectId],
@@ -151,10 +153,51 @@ export function SuiteGroupingPanel({ projectId, workspaceId, open, onOpenChange 
         if (error) throw error;
       }
 
+      // Snapshot this application as a rollback-able grouping version.
+      const suiteNameById = new Map(
+        (existing ?? []).map((s: any) => [s.id as string, s.name as string]),
+      );
+      names.forEach((n) => {
+        const id = byName.get(String(n).toLowerCase());
+        if (id) suiteNameById.set(id, String(n));
+      });
+      const assignments = (rows as any[]).map((row) => {
+        const toId = byName.get(String(row.proposed_suite_name).toLowerCase()) ?? null;
+        return {
+          case_id: row.id,
+          title: row.title,
+          from_suite_id: row.suite_id ?? null,
+          from_suite_name: row.suite_id ? suiteNameById.get(row.suite_id) ?? null : null,
+          to_suite_id: toId,
+          to_suite_name: row.proposed_suite_name ?? null,
+        };
+      });
+
+      const { data: last } = await supabase
+        .from("suite_grouping_versions" as any)
+        .select("version")
+        .eq("project_id", projectId!)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      await supabase.from("suite_grouping_versions" as any).update({ is_current: false }).eq("project_id", projectId!);
+      const { data: auth } = await supabase.auth.getUser();
+      await supabase.from("suite_grouping_versions" as any).insert({
+        project_id: projectId!,
+        workspace_id: workspaceId,
+        version: ((last as any)?.version ?? 0) + 1,
+        rules: rules as any,
+        assignments: assignments as any,
+        note: `Applied ${assignments.length} AI assignment(s)`,
+        is_current: true,
+        created_by: auth?.user?.id ?? null,
+      });
+
       await logSuiteAudit({
         workspaceId, action: "suite.ai_grouping_applied",
         entityKind: "project", entityId: projectId,
-        meta: { applied: rows.length, suites: names },
+        meta: { applied: rows.length, suites: names, version: ((last as any)?.version ?? 0) + 1 },
       });
       return rows.length;
     },
@@ -164,6 +207,7 @@ export function SuiteGroupingPanel({ projectId, workspaceId, open, onOpenChange 
       qc.invalidateQueries({ queryKey: ["suite-proposals", projectId] });
       qc.invalidateQueries({ queryKey: ["test-suites", projectId] });
       qc.invalidateQueries({ queryKey: ["test-cases"] });
+      qc.invalidateQueries({ queryKey: ["suite-grouping-versions", projectId] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -317,6 +361,9 @@ export function SuiteGroupingPanel({ projectId, workspaceId, open, onOpenChange 
           >
             Select all
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)}>
+            <History className="mr-2 h-4 w-4" /> Version history
+          </Button>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -335,6 +382,13 @@ export function SuiteGroupingPanel({ projectId, workspaceId, open, onOpenChange 
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <SuiteGroupingHistory
+        projectId={projectId}
+        workspaceId={workspaceId}
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+      />
     </Dialog>
   );
 }

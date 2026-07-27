@@ -13,8 +13,9 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Download, Search, ShieldAlert, Loader2, Activity, Users, AlertTriangle,
-  Tag, X, ChevronDown, RefreshCw,
+  Tag, X, ChevronDown, RefreshCw, Layers,
 } from "lucide-react";
+import { SUITE_AUDIT_ACTIONS } from "@/lib/suiteAudit";
 import { format } from "date-fns";
 import { Navigate } from "react-router-dom";
 import {
@@ -42,6 +43,8 @@ export default function AuditLogPage() {
   const [selActions, setSelActions] = useState<string[]>([]);
   const [selKinds, setSelKinds] = useState<string[]>([]);
   const [selWorkspaces, setSelWorkspaces] = useState<string[]>([]);
+  /** Preset that narrows the log to suite lifecycle + test-case move/bulk operations. */
+  const [suiteOnly, setSuiteOnly] = useState(false);
 
   const rowsQ = useQuery({
     queryKey: ["audit-logs", currentOrganization?.id, from, to, pageSize],
@@ -92,6 +95,7 @@ export default function AuditLogPage() {
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return rows.filter((r) => {
+      if (suiteOnly && !SUITE_AUDIT_ACTIONS.includes(r.action as any)) return false;
       if (selActors.length && (!r.actor_id || !selActors.includes(r.actor_id))) return false;
       if (selActions.length && !selActions.includes(r.action)) return false;
       if (selKinds.length && (!r.entity_kind || !selKinds.includes(r.entity_kind))) return false;
@@ -105,7 +109,7 @@ export default function AuditLogPage() {
         JSON.stringify(r.meta || {}).toLowerCase().includes(s)
       );
     });
-  }, [rows, q, selActors, selActions, selKinds, selWorkspaces]);
+  }, [rows, q, selActors, selActions, selKinds, selWorkspaces, suiteOnly]);
 
   const stats = useMemo(() => {
     const uniqueActors = new Set(filtered.map((r) => r.actor_id).filter(Boolean)).size;
@@ -145,14 +149,47 @@ export default function AuditLogPage() {
     URL.revokeObjectURL(url);
   }
 
+  /** Suite-focused CSV: flattens the meta payload into move/reorder specific columns. */
+  function exportSuiteCsv() {
+    const suiteRows = filtered.filter((r) => SUITE_AUDIT_ACTIONS.includes(r.action as any));
+    const headers = [
+      "when", "actor_name", "actor_email", "action", "entity_kind", "entity_id",
+      "suite_id", "from_suite", "to_suite", "case_ids", "affected_count", "meta",
+    ];
+    const m = (r: Row) => (r.meta || {}) as any;
+    const dataRows = suiteRows.map((r) => [
+      new Date(r.created_at).toISOString(),
+      r.actor?.name || "",
+      r.actor?.email || "",
+      r.action,
+      r.entity_kind || "",
+      r.entity_id || "",
+      m(r).suite_id ?? "",
+      m(r).from_suite_name ?? m(r).from_suite_id ?? "",
+      m(r).to_suite_name ?? m(r).to_suite_id ?? "",
+      Array.isArray(m(r).case_ids) ? m(r).case_ids.join(" ") : (m(r).case_id ?? ""),
+      m(r).count ?? m(r).applied ?? (Array.isArray(m(r).order) ? m(r).order.length : ""),
+      JSON.stringify(r.meta || {}),
+    ]);
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [headers.map(esc).join(","), ...dataRows.map((r) => r.map(esc).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `suite-activity-${currentOrganization?.slug || "org"}-${format(new Date(), "yyyyMMdd-HHmm")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function clearAll() {
     setSelActors([]); setSelActions([]); setSelKinds([]); setSelWorkspaces([]);
-    setQ(""); setFrom(""); setTo("");
+    setQ(""); setFrom(""); setTo(""); setSuiteOnly(false);
   }
 
   if (currentOrganization && !canView) return <Navigate to="/organization" replace />;
 
-  const activeFilterCount = selActors.length + selActions.length + selKinds.length + selWorkspaces.length + (q ? 1 : 0) + (from ? 1 : 0) + (to ? 1 : 0);
+  const activeFilterCount = (suiteOnly ? 1 : 0) + selActors.length + selActions.length + selKinds.length + selWorkspaces.length + (q ? 1 : 0) + (from ? 1 : 0) + (to ? 1 : 0);
 
   const statCards = [
     { label: "Total events",   value: stats.total,       hint: "Matching filters",             icon: Activity,      color: "text-accent" },
@@ -214,6 +251,25 @@ export default function AuditLogPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant={suiteOnly ? "default" : "outline"}
+              onClick={() => setSuiteOnly((v) => !v)}
+            >
+              <Layers className="mr-2 h-3.5 w-3.5" />
+              Suite activity only
+            </Button>
+            {suiteOnly && (
+              <Button size="sm" variant="outline" onClick={exportSuiteCsv}>
+                <Download className="mr-2 h-3.5 w-3.5" /> Export suite CSV
+              </Button>
+            )}
+            <span className="text-[11px] text-muted-foreground">
+              Suite create/edit/delete, reorders, case moves and bulk edits.
+            </span>
           </div>
 
           {/* Dynamic filter chip rows */}

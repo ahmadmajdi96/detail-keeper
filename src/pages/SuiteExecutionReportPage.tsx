@@ -13,10 +13,14 @@ import { Progress } from "@/components/ui/progress";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatFilterCards } from "@/components/ui/stat-filter-cards";
 import {
   ChevronRight, Folder, Inbox, Loader2, Download, CheckCircle2, XCircle, Clock, Ban, Search, ExternalLink,
+  ListTree,
 } from "lucide-react";
 
 type Exec = {
@@ -48,6 +52,7 @@ export default function SuiteExecutionReportPage() {
   const [search, setSearch] = useState("");
   const [runFilter, setRunFilter] = useState("all");
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [drill, setDrill] = useState<{ id: string; name: string } | null>(null);
 
   const { data: suites = [] } = useQuery({
     queryKey: ["test-suites", projectId],
@@ -218,6 +223,15 @@ export default function SuiteExecutionReportPage() {
                         <Progress value={rate} className="h-2" />
                         <p className="text-[11px] text-muted-foreground mt-1 text-right">{rate}% passed</p>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDrill({ id: g.id, name: g.name })}
+                        disabled={!g.rows.length}
+                        title="Show originating test cases with their latest run"
+                      >
+                        <ListTree className="mr-1.5 h-3.5 w-3.5" /> Drill down
+                      </Button>
                       {g.id !== "__unassigned__" && (
                         <Button asChild variant="ghost" size="sm">
                           <Link to={`/test-cases?suite=${g.id}`}>
@@ -272,6 +286,98 @@ export default function SuiteExecutionReportPage() {
           })
         )}
       </div>
+
+      <SuiteDrillDown
+        suite={drill}
+        rows={drill ? (groups.find((g) => g.id === drill.id)?.rows ?? []) : []}
+        onOpenChange={(o) => !o && setDrill(null)}
+      />
     </AppLayout>
+  );
+}
+
+/**
+ * Drill-down: collapses the suite's executions into one row per originating
+ * test case, showing its latest run id, status and when it last ran.
+ */
+function SuiteDrillDown({
+  suite, rows, onOpenChange,
+}: {
+  suite: { id: string; name: string } | null;
+  rows: Exec[];
+  onOpenChange: (o: boolean) => void;
+}) {
+  const cases = useMemo(() => {
+    const byCase = new Map<string, { title: string; latest: Exec; runs: number; passed: number; failed: number }>();
+    // rows arrive newest-first, so the first hit per case is the latest run.
+    for (const r of rows) {
+      const key = r.test_case_id ?? `exec:${r.id}`;
+      const prev = byCase.get(key);
+      if (!prev) {
+        byCase.set(key, {
+          title: r.test_case?.title ?? "Untitled test case",
+          latest: r,
+          runs: 1,
+          passed: r.status === "passed" ? 1 : 0,
+          failed: r.status === "failed" ? 1 : 0,
+        });
+      } else {
+        prev.runs += 1;
+        if (r.status === "passed") prev.passed += 1;
+        if (r.status === "failed") prev.failed += 1;
+      }
+    }
+    return Array.from(byCase.entries()).map(([id, v]) => ({ caseId: id, ...v }));
+  }, [rows]);
+
+  return (
+    <Dialog open={!!suite} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ListTree className="h-4 w-4 text-accent" />
+            {suite?.name} — originating test cases
+          </DialogTitle>
+          <DialogDescription>
+            {cases.length} test case{cases.length === 1 ? "" : "s"} produced {rows.length} execution
+            {rows.length === 1 ? "" : "s"} in this suite. Each row shows the latest run.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="max-h-[60vh] overflow-y-auto rounded-md border border-border/50 divide-y divide-border/40">
+          {cases.map((c) => (
+            <div key={c.caseId} className="flex flex-wrap items-center gap-3 px-3 py-2.5 hover:bg-muted/40">
+              <span className="flex-1 min-w-[200px] truncate text-sm font-medium">{c.title}</span>
+              {c.caseId.startsWith("exec:") ? (
+                <span className="text-[10px] text-muted-foreground">no case id</span>
+              ) : (
+                <Link to={`/test-cases?case=${c.caseId}`} className="text-[10px] text-accent hover:underline">
+                  case {c.caseId.slice(0, 8)}
+                </Link>
+              )}
+              {c.latest.test_run_id ? (
+                <Link to={`/executions?run=${c.latest.test_run_id}`} className="font-mono text-[10px] text-accent hover:underline">
+                  latest run {c.latest.test_run_id.slice(0, 8)}
+                </Link>
+              ) : (
+                <span className="font-mono text-[10px] text-muted-foreground">exec {c.latest.id.slice(0, 8)}</span>
+              )}
+              <span className="text-[11px] text-muted-foreground">
+                {c.runs} run{c.runs === 1 ? "" : "s"} · {c.passed}P / {c.failed}F
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {new Date(c.latest.completed_at ?? c.latest.started_at ?? c.latest.created_at).toLocaleString()}
+              </span>
+              <Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[c.latest.status] ?? ""}`}>
+                {c.latest.status}
+              </Badge>
+            </div>
+          ))}
+          {!cases.length && (
+            <p className="px-3 py-8 text-center text-sm text-muted-foreground">No executions in this suite.</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
