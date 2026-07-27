@@ -61,7 +61,8 @@ function ConfirmButton({
 
 type Doc = { id: string; slug: string; title: string; kind: string; content: string; sort_order: number };
 type Spec = { id: string; filename: string; content: string; document_id: string | null; test_case_id: string | null };
-type TCRow = { test_case: { id: string; title: string; priority: number } };
+type TCase = { id: string; title: string; priority: number; test_type: string | null; priority_score: number | null; suite_id: string | null };
+type TCRow = { test_case: TCase };
 type OpenFile =
   | { kind: "doc"; id: string; label: string }
   | { kind: "spec"; id: string; label: string };
