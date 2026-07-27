@@ -203,7 +203,18 @@ export function GenerationSettingsPanel({ settings, onChange, disabled }: Props)
                     Generate the test plan and Playwright code only — the runner will not install
                     dependencies (<span className="font-mono">npm install</span>) or execute any tests.
                   </p>
+              </div>
+              <div className="flex items-start justify-between gap-3 rounded-md border border-border/50 bg-muted/20 p-2.5 mt-2">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Skeletons with skip stubs</Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Emit each generated test as <span className="font-mono">test.skip(...)</span> so you can open and
+                    inspect the code without any test ever running.
+                  </p>
                 </div>
+                <Switch checked={settings.skipStubs} onCheckedChange={(v) => onChange({ skipStubs: v })} />
+              </div>
+
                 <Switch checked={settings.dryRun} onCheckedChange={(v) => onChange({ dryRun: v })} />
               </div>
             </section>
