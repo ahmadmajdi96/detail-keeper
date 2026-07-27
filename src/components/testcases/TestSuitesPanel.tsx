@@ -362,26 +362,29 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
   const dragEnabled = sortBy === "manual" && !searchQuery.trim();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
-  const persistSuiteOrder = async (ids: string[]) => {
+  /** Seconds the undo snackbar stays actionable after a reorder. */
+  const UNDO_MS = 8000;
+
+  const persistSuiteOrder = async (ids: string[], undone = false) => {
     setSuiteOrder(ids);
     await Promise.all(
       ids.map((id, i) => supabase.from("test_suites").update({ sort_order: i } as any).eq("id", id)),
     );
     await logSuiteAudit({
       workspaceId, action: "suite.reordered", entityId: ids[0] ?? null,
-      meta: { order: ids, project_id: projectId },
+      meta: { order: ids, project_id: projectId, undo: undone },
     });
     qc.invalidateQueries({ queryKey: ["test-suites", projectId] });
   };
 
-  const persistCaseOrder = async (bucketId: string, ids: string[]) => {
+  const persistCaseOrder = async (bucketId: string, ids: string[], undone = false) => {
     setCaseOrder((p) => ({ ...p, [bucketId]: ids }));
     await Promise.all(
       ids.map((id, i) => supabase.from("test_cases").update({ suite_order: i } as any).eq("id", id)),
     );
     await logSuiteAudit({
       workspaceId, action: "suite.cases_reordered", entityKind: "test_case", entityId: ids[0] ?? null,
-      meta: { suite_id: bucketId === UNASSIGNED ? null : bucketId, order: ids },
+      meta: { suite_id: bucketId === UNASSIGNED ? null : bucketId, order: ids, undo: undone },
     });
     qc.invalidateQueries({ queryKey: ["test-cases"] });
   };
@@ -391,7 +394,21 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
     if (!over || active.id === over.id) return;
     const ids = orderedSuites.map((s) => s.id);
     const next = arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
-    persistSuiteOrder(next).catch((err) => toast.error(err.message));
+    persistSuiteOrder(next)
+      .then(() => {
+        toast.success("Suite order updated", {
+          duration: UNDO_MS,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              persistSuiteOrder(ids, true)
+                .then(() => toast.message("Suite order restored"))
+                .catch((err) => toast.error(err.message));
+            },
+          },
+        });
+      })
+      .catch((err) => toast.error(err.message));
   };
 
   const onCaseDragEnd = (bucketId: string, rows: CaseRow[]) => (e: DragEndEvent) => {
@@ -399,7 +416,21 @@ export function TestSuitesPanel({ projectId, workspaceId, testCases, searchQuery
     if (!over || active.id === over.id) return;
     const ids = rows.map((r) => r.id);
     const next = arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
-    persistCaseOrder(bucketId, next).catch((err) => toast.error(err.message));
+    persistCaseOrder(bucketId, next)
+      .then(() => {
+        toast.success("Test case order updated", {
+          duration: UNDO_MS,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              persistCaseOrder(bucketId, ids, true)
+                .then(() => toast.message("Test case order restored"))
+                .catch((err) => toast.error(err.message));
+            },
+          },
+        });
+      })
+      .catch((err) => toast.error(err.message));
   };
 
   const selectedIds = Object.keys(selected).filter((k) => selected[k]);
