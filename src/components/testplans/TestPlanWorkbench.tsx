@@ -23,6 +23,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronRight, FolderOpen, FlaskConical, FileSearch } from "lucide-react";
+import { CoverageSummary } from "./CoverageSummary";
+import { GenerationSettingsPanel, useGenerationSettings, limitLabel } from "./GenerationSettingsPanel";
 
 type ConfirmButtonProps = {
   size?: "sm" | "default"; variant?: "outline" | "default";
