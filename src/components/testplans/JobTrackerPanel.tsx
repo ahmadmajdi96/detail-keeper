@@ -109,9 +109,12 @@ function StageRow({
 
 export function JobTrackerPanel({ jobs }: { jobs: TrackedJob[] }) {
   const navigate = useNavigate();
+  const { can } = useCan();
+  const canDownload = can("artifact.view");
   const [collapsed, setCollapsed] = useState(false);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [stages, setStages] = useState<Record<string, StageEvent[]>>({});
+
 
   useEffect(() => {
     const next: Record<string, StageEvent[]> = {};
