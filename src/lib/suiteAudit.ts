@@ -25,7 +25,25 @@ export type SuiteAuditAction =
   | "suite.cases_bulk_updated"
   | "suite.ai_rules_updated"
   | "suite.ai_grouping_proposed"
-  | "suite.ai_grouping_applied";
+  | "suite.ai_grouping_applied"
+  | "suite.ai_grouping_rolled_back"
+  | "suite.ai_grouping_reapplied";
+
+/** Actions surfaced by the “Suite activity” preset on the audit log page. */
+export const SUITE_AUDIT_ACTIONS: SuiteAuditAction[] = [
+  "suite.created",
+  "suite.updated",
+  "suite.deleted",
+  "suite.reordered",
+  "suite.cases_reordered",
+  "suite.case_moved",
+  "suite.cases_bulk_updated",
+  "suite.ai_rules_updated",
+  "suite.ai_grouping_proposed",
+  "suite.ai_grouping_applied",
+  "suite.ai_grouping_rolled_back",
+  "suite.ai_grouping_reapplied",
+];
 
 /**
  * Records a suite/test-case governance event in the customer-facing audit log.
