@@ -387,8 +387,26 @@ export default function TestCasesPage() {
           </Select>
         </div>
 
-        {/* Test Cases Table */}
+        {/* Suites + flat list */}
+        <Tabs defaultValue="suites" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="suites">Test Suites</TabsTrigger>
+            <TabsTrigger value="all">All Test Cases</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="suites">
+            <TestSuitesPanel
+              projectId={projectId}
+              workspaceId={workspaceId}
+              testCases={filteredTestCases}
+              searchQuery=""
+              isLoading={isLoading}
+            />
+          </TabsContent>
+
+          <TabsContent value="all">
         <Card className="border-border/50">
+
           <CardContent className="p-0">
             {isLoading ? (
               <div className="flex items-center justify-center h-64">
