@@ -7,10 +7,12 @@ interface PageHeaderProps {
   description?: string;
   isAIPowered?: boolean;
   actions?: ReactNode;
+  /** Small inline element rendered next to the title (e.g. a unique ID). */
+  badge?: ReactNode;
   breadcrumbs?: { label: string; href?: string }[];
 }
 
-export function PageHeader({ title, description, isAIPowered, actions, breadcrumbs }: PageHeaderProps) {
+export function PageHeader({ title, description, isAIPowered, actions, breadcrumbs, badge }: PageHeaderProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -38,6 +40,7 @@ export function PageHeader({ title, description, isAIPowered, actions, breadcrum
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{title}</h1>
+            {badge}
             {isAIPowered && (
               <div className="flex items-center gap-1 rounded-full bg-accent/10 px-2 py-1 text-xs font-medium text-accent">
                 <Sparkles className="h-3 w-3" />
