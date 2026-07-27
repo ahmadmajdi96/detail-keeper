@@ -320,22 +320,27 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Sparkles className="h-4 w-4 text-accent" /> AI Workbench
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <GenerationSettingsPanel settings={settings} onChange={patchSettings} disabled={busy !== null} />
           {(() => {
             const casesRunning = busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued";
             const codeRunning = busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued";
             const anyRunning = busy !== null || casesRunning || codeRunning;
+            const noTypes = !settings.smoke && !settings.regression;
             return <>
           <ConfirmButton
-            size="sm" variant="outline" disabled={anyRunning}
+            size="sm" variant="outline" disabled={anyRunning || noTypes}
             icon={casesRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
             label="1. Generate Test Cases"
-            title="Sends plan documents + variable sets to testgenerator.qualixa.cortanexai.com"
+            title={noTypes ? "Select at least one test type in Generation Settings" : "Sends plan documents + variable sets to testgenerator.qualixa.cortanexai.com"}
             confirmTitle={cases.length > 0 ? "Regenerate test cases?" : "Generate test cases?"}
-            confirmDescription={cases.length > 0
-              ? `This plan already has ${cases.length} test case${cases.length === 1 ? "" : "s"}. Running generation again will submit a new ~25 minute job to the AI service and append newly generated cases to this plan. Existing cases are not deleted.`
-              : "This will submit plan documents and variable sets to the AI service. Generation typically takes ~25 minutes and cannot be undone once the credits are consumed."}
+            confirmDescription={`${[
+              settings.smoke ? `Smoke: max ${limitLabel(settings.maxSmoke)}` : null,
+              settings.regression ? `Regression: max ${limitLabel(settings.maxRegression)}` : null,
+            ].filter(Boolean).join(" · ")}. ${cases.length > 0
+              ? `This plan already has ${cases.length} test case${cases.length === 1 ? "" : "s"}. Running generation again will submit a new ~25 minute job and append newly generated cases. Existing cases are not deleted.`
+              : "This will submit plan documents and variable sets to the AI service. Generation typically takes ~25 minutes and cannot be undone once the credits are consumed."}`}
             confirmLabel="Start generation"
-            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId }, "Generation started")}
+            onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings }, "Generation started")}
           />
           <ConfirmButton
             size="sm" variant="outline" disabled={anyRunning || cases.length === 0}
@@ -344,11 +349,14 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             title={cases.length === 0 ? "Generate test cases first" : "Sends test cases + env-var names to the code generator"}
             confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
             confirmDescription={specs.length > 0
-              ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
-              : "Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright spec files."}
+              ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new ${settings.language} job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
+              : `Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}
             confirmLabel="Start codegen"
-            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId }, "Codegen started")}
+            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language }, "Codegen started")}
           />
+          </>;
+          })()}
+
           </>;
           })()}
 
