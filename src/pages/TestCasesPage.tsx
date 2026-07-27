@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TestSuitesPanel } from "@/components/testcases/TestSuitesPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
@@ -387,8 +388,26 @@ export default function TestCasesPage() {
           </Select>
         </div>
 
-        {/* Test Cases Table */}
+        {/* Suites + flat list */}
+        <Tabs defaultValue="suites" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="suites">Test Suites</TabsTrigger>
+            <TabsTrigger value="all">All Test Cases</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="suites">
+            <TestSuitesPanel
+              projectId={projectId}
+              workspaceId={workspaceId}
+              testCases={filteredTestCases}
+              searchQuery=""
+              isLoading={isLoading}
+            />
+          </TabsContent>
+
+          <TabsContent value="all">
         <Card className="border-border/50">
+
           <CardContent className="p-0">
             {isLoading ? (
               <div className="flex items-center justify-center h-64">
@@ -535,6 +554,9 @@ export default function TestCasesPage() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
+
 
         {/* Create Test Case Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

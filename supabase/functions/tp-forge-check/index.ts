@@ -122,6 +122,33 @@ Deno.serve(async (req) => {
       return j({ status: "failed", note: "test-cases fetch failed" });
     }
 
+    // ---- Suite auto-grouping -------------------------------------------
+    // Reuse existing project suites, create any new logical suite the
+    // generator implies (module / feature / category / first coverage tag).
+    const suiteCache = new Map<string, string>();
+    {
+      const { data: existing } = await admin
+        .from("test_suites").select("id,name").eq("project_id", plan.project_id);
+      (existing ?? []).forEach((s: any) => suiteCache.set(String(s.name).toLowerCase(), s.id));
+    }
+    const suiteIdFor = async (tc: any, tags: string[]): Promise<string | null> => {
+      const raw = tc.suite ?? tc.suiteName ?? tc.suite_name ?? tc.module ?? tc.feature
+        ?? tc.category ?? tc.epic ?? tc.area ?? tags[0];
+      const name = String(raw ?? "").trim().slice(0, 80);
+      if (!name) return null;
+      const key = name.toLowerCase();
+      if (suiteCache.has(key)) return suiteCache.get(key)!;
+      const { data: created } = await admin.from("test_suites").insert({
+        project_id: plan.project_id,
+        name,
+        description: "Auto-created by Qualixa AI generation",
+        created_by: userId,
+      }).select("id").single();
+      if (!created) return null;
+      suiteCache.set(key, created.id);
+      return created.id;
+    };
+
     let inserted = 0;
     for (const tc of items) {
       const title = String(tc.title || "Untitled").slice(0, 200);
@@ -134,12 +161,15 @@ Deno.serve(async (req) => {
       const tags = Array.isArray(tc.coverageTags) ? tc.coverageTags.slice(0, 8)
         : Array.isArray(tc.coverage_tags) ? tc.coverage_tags.slice(0, 8) : [];
       const preconds = String(tc.preconditions || "");
+      const suite_id = await suiteIdFor(tc, tags as string[]);
 
       const { data: row, error } = await admin.from("test_cases").insert({
         workspace_id: plan.workspace_id,
         project_id: plan.project_id,
+        suite_id,
         title,
         description,
+
         expected_result: expected,
         preconditions: preconds || null,
         priority,
