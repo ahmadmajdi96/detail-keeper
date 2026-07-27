@@ -8,11 +8,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   FileText, FileCode2, Play, Save, Sparkles, Wand2, Loader2, X, Lock,
-  ListChecks, FolderTree, Rocket, Settings2,
+  ListChecks, FolderTree, Rocket, Settings2, Package, ShieldOff,
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
 import { ForgeRunProgress } from "./ForgeRunProgress";
 import { ArtifactViewer } from "./ArtifactViewer";
+import { FileIcon, fileLanguage } from "@/lib/fileIcons";
+import { exportWorkflowBundle } from "@/lib/exportWorkflowBundle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
