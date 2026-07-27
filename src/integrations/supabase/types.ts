@@ -1868,6 +1868,85 @@ export type Database = {
           },
         ]
       }
+      doc_diff_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          decision: string
+          document_id: string
+          id: string
+          left_version: number | null
+          line_key: string
+          line_text: string | null
+          parent_id: string | null
+          project_id: string | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          right_version: number | null
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string
+          body: string
+          created_at?: string
+          decision?: string
+          document_id: string
+          id?: string
+          left_version?: number | null
+          line_key: string
+          line_text?: string | null
+          parent_id?: string | null
+          project_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          right_version?: number | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          decision?: string
+          document_id?: string
+          id?: string
+          left_version?: number | null
+          line_key?: string
+          line_text?: string | null
+          parent_id?: string | null
+          project_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          right_version?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doc_diff_comments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "test_plan_documents_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_diff_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "doc_diff_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_diff_comments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           created_at: string
@@ -5147,7 +5226,9 @@ export type Database = {
           priority_score: number | null
           project_id: string | null
           proposed_suite_name: string | null
+          provenance: Json
           requirement_ids: string[] | null
+          review_due_at: string | null
           review_note: string | null
           review_state: string
           review_status: Database["public"]["Enums"]["review_status"]
@@ -5183,7 +5264,9 @@ export type Database = {
           priority_score?: number | null
           project_id?: string | null
           proposed_suite_name?: string | null
+          provenance?: Json
           requirement_ids?: string[] | null
+          review_due_at?: string | null
           review_note?: string | null
           review_state?: string
           review_status?: Database["public"]["Enums"]["review_status"]
@@ -5219,7 +5302,9 @@ export type Database = {
           priority_score?: number | null
           project_id?: string | null
           proposed_suite_name?: string | null
+          provenance?: Json
           requirement_ids?: string[] | null
+          review_due_at?: string | null
           review_note?: string | null
           review_state?: string
           review_status?: Database["public"]["Enums"]["review_status"]
@@ -5685,10 +5770,12 @@ export type Database = {
           id: string
           kind: string
           project_id: string
+          review_due_at: string | null
           review_note: string | null
           review_state: string
           reviewed_at: string | null
           reviewed_by: string | null
+          reviewer_id: string | null
           slug: string
           sort_order: number
           test_plan_id: string
@@ -5702,10 +5789,12 @@ export type Database = {
           id?: string
           kind: string
           project_id: string
+          review_due_at?: string | null
           review_note?: string | null
           review_state?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          reviewer_id?: string | null
           slug: string
           sort_order?: number
           test_plan_id: string
@@ -5719,10 +5808,12 @@ export type Database = {
           id?: string
           kind?: string
           project_id?: string
+          review_due_at?: string | null
           review_note?: string | null
           review_state?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          reviewer_id?: string | null
           slug?: string
           sort_order?: number
           test_plan_id?: string
@@ -5756,13 +5847,19 @@ export type Database = {
           id: string
           language: string
           project_id: string
+          provenance: Json
+          review_due_at: string | null
           review_note: string | null
           review_state: string
           reviewed_at: string | null
           reviewed_by: string | null
+          reviewer_id: string | null
           test_case_id: string | null
           test_plan_id: string
           updated_at: string
+          validated_at: string | null
+          validation_report: Json | null
+          validation_status: string | null
         }
         Insert: {
           content?: string
@@ -5773,13 +5870,19 @@ export type Database = {
           id?: string
           language?: string
           project_id: string
+          provenance?: Json
+          review_due_at?: string | null
           review_note?: string | null
           review_state?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          reviewer_id?: string | null
           test_case_id?: string | null
           test_plan_id: string
           updated_at?: string
+          validated_at?: string | null
+          validation_report?: Json | null
+          validation_status?: string | null
         }
         Update: {
           content?: string
@@ -5790,13 +5893,19 @@ export type Database = {
           id?: string
           language?: string
           project_id?: string
+          provenance?: Json
+          review_due_at?: string | null
           review_note?: string | null
           review_state?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          reviewer_id?: string | null
           test_case_id?: string | null
           test_plan_id?: string
           updated_at?: string
+          validated_at?: string | null
+          validation_report?: Json | null
+          validation_status?: string | null
         }
         Relationships: [
           {
@@ -6048,10 +6157,13 @@ export type Database = {
           name: string
           parent_id: string | null
           project_id: string
+          provenance: Json
+          review_due_at: string | null
           review_note: string | null
           review_state: string
           reviewed_at: string | null
           reviewed_by: string | null
+          reviewer_id: string | null
           sort_order: number
           tags: string[]
           updated_at: string
@@ -6064,10 +6176,13 @@ export type Database = {
           name: string
           parent_id?: string | null
           project_id: string
+          provenance?: Json
+          review_due_at?: string | null
           review_note?: string | null
           review_state?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          reviewer_id?: string | null
           sort_order?: number
           tags?: string[]
           updated_at?: string
@@ -6080,10 +6195,13 @@ export type Database = {
           name?: string
           parent_id?: string | null
           project_id?: string
+          provenance?: Json
+          review_due_at?: string | null
           review_note?: string | null
           review_state?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          reviewer_id?: string | null
           sort_order?: number
           tags?: string[]
           updated_at?: string

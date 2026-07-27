@@ -123,6 +123,44 @@ Deno.serve(async (req) => {
         .replace(/(^|[^.\w])test\.only\s*\(/g, "$1test.skip(")
         .replace(/(^|[^.\w])test\.skip\.skip\s*\(/g, "$1test.skip(");
 
+    // Provenance for generated Playwright output: the document versions and
+    // traceability mappings that were live when codegen ran.
+    const { data: provDocs } = await admin
+      .from("test_plan_documents_v2")
+      .select("id, slug, title")
+      .eq("test_plan_id", test_plan_id);
+    const provDocIds = (provDocs ?? []).map((d: any) => d.id);
+    let provVersions: any[] = [];
+    if (provDocIds.length) {
+      const { data: vs } = await admin
+        .from("test_plan_document_versions")
+        .select("id, document_id, version")
+        .in("document_id", provDocIds)
+        .order("version", { ascending: false });
+      const seen = new Set<string>();
+      provVersions = (vs ?? []).filter((v: any) => {
+        if (seen.has(v.document_id)) return false;
+        seen.add(v.document_id);
+        return true;
+      });
+    }
+    const { data: provLinks } = await admin
+      .from("requirement_links")
+      .select("requirement_id, linked_type, linked_id")
+      .limit(2000);
+    const provenance = {
+      generator: "forge-codegen",
+      job_id: jobId,
+      generated_at: new Date().toISOString(),
+      skip_stubs: skipStubs,
+      documents: (provDocs ?? []).map((d: any) => {
+        const v = provVersions.find((x: any) => x.document_id === d.id);
+        return { document_id: d.id, slug: d.slug, title: d.title, version: v?.version ?? null, version_id: v?.id ?? null };
+      }),
+      traceability: { captured_at: new Date().toISOString(), mappings: (provLinks ?? []).length },
+      traceability_links: provLinks ?? [],
+    };
+
     let inserted = 0;
     for (const [path, content] of Object.entries(files)) {
       const filename = String(path).split("/").pop()!.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 200);
@@ -139,12 +177,12 @@ Deno.serve(async (req) => {
       const { data: existing } = await admin.from("test_plan_specs")
         .select("id").eq("test_plan_id", test_plan_id).eq("filename", filename).maybeSingle();
       if (existing) {
-        await admin.from("test_plan_specs").update({ content: text, language }).eq("id", existing.id);
+        await admin.from("test_plan_specs").update({ content: text, language, provenance } as any).eq("id", existing.id);
       } else {
         await admin.from("test_plan_specs").insert({
           test_plan_id, project_id: (plan as any).project_id,
-          filename, content: text, language, created_by: userId,
-        });
+          filename, content: text, language, created_by: userId, provenance,
+        } as any);
       }
       inserted++;
     }

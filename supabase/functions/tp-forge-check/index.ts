@@ -122,6 +122,57 @@ Deno.serve(async (req) => {
       return j({ status: "failed", note: "test-cases fetch failed" });
     }
 
+    // ---- Provenance snapshot -------------------------------------------
+    // Records exactly which document versions and requirement->artifact
+    // mappings existed when this generation produced its output, so every
+    // suite / case can be traced back to its inputs.
+    const buildProvenance = async () => {
+      const { data: docs } = await admin
+        .from("test_plan_documents_v2")
+        .select("id, slug, title, updated_at")
+        .eq("test_plan_id", test_plan_id);
+      const docIds = (docs ?? []).map((d: any) => d.id);
+      let versions: any[] = [];
+      if (docIds.length) {
+        const { data: vs } = await admin
+          .from("test_plan_document_versions")
+          .select("id, document_id, version, created_at")
+          .in("document_id", docIds)
+          .order("version", { ascending: false });
+        const seen = new Set<string>();
+        versions = (vs ?? []).filter((v: any) => {
+          if (seen.has(v.document_id)) return false;
+          seen.add(v.document_id);
+          return true;
+        });
+      }
+      const { data: links } = await admin
+        .from("requirement_links")
+        .select("requirement_id, linked_type, linked_id")
+        .limit(2000);
+      return {
+        generator: "forge",
+        job_id: jobId,
+        generated_at: new Date().toISOString(),
+        documents: (docs ?? []).map((d: any) => {
+          const v = versions.find((x: any) => x.document_id === d.id);
+          return {
+            document_id: d.id,
+            slug: d.slug,
+            title: d.title,
+            version: v?.version ?? null,
+            version_id: v?.id ?? null,
+          };
+        }),
+        traceability: {
+          captured_at: new Date().toISOString(),
+          mappings: (links ?? []).length,
+        },
+        traceability_links: links ?? [],
+      };
+    };
+    const provenance = await buildProvenance();
+
     // ---- Suite auto-grouping -------------------------------------------
     // Reuse existing project suites, create any new logical suite the
     // generator implies (module / feature / category / first coverage tag).
@@ -143,7 +194,8 @@ Deno.serve(async (req) => {
         name,
         description: "Auto-created by Qualixa AI generation",
         created_by: userId,
-      }).select("id").single();
+        provenance,
+      } as any).select("id").single();
       if (!created) return null;
       suiteCache.set(key, created.id);
       return created.id;
@@ -188,6 +240,12 @@ Deno.serve(async (req) => {
         ai_generated: true,
         coverage_tags: tags,
         created_by: userId,
+        provenance: {
+          ...provenance,
+          source_requirements: (provenance.traceability_links ?? [])
+            .filter((l: any) => l.linked_type === "test_case")
+            .map((l: any) => l.requirement_id),
+        },
       } as any).select("id").single();
       if (error || !row) continue;
 
