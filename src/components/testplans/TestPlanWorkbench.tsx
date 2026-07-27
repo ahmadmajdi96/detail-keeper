@@ -335,9 +335,20 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
       <div className="flex items-center justify-between border-b border-border/50 px-3 py-2 bg-muted/30">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Sparkles className="h-4 w-4 text-accent" /> AI Workbench
+          {settings.dryRun && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+              <ShieldOff className="h-3 w-3" /> Dry run — no install / no execution
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={exportBundle} disabled={exporting}
+            title="Download docs, plan, test cases and Playwright specs as one ZIP">
+            {exporting ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Package className="h-3.5 w-3.5 mr-1" />}
+            Export Bundle
+          </Button>
           <GenerationSettingsPanel settings={settings} onChange={patchSettings} disabled={busy !== null} />
+
           {(() => {
             const casesRunning = busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued";
             const codeRunning = busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued";
