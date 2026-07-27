@@ -209,7 +209,7 @@ describe("AI test plan unique ID — end to end", () => {
     });
 
     // the lookup went through plan_uid, not the raw UUID
-    const planQuery = queryLog.find((q) => q.table === "test_plans");
+    const planQuery = queryLog.find((q) => q.table === "test_plans" && q.filters.length > 0);
     expect(planQuery?.filters?.[0]?.[0]).toBe("plan_uid");
     expect(planQuery?.filters?.[0]?.[1]).toBe(PLAN_UID);
 
@@ -225,7 +225,7 @@ describe("AI test plan unique ID — end to end", () => {
     await waitFor(() => {
       expect(screen.getByText("AI Checkout Regression Plan")).toBeInTheDocument();
     });
-    const planQuery = queryLog.find((q) => q.table === "test_plans");
+    const planQuery = queryLog.find((q) => q.table === "test_plans" && q.filters.length > 0);
     expect(planQuery?.filters?.[0]).toEqual(["plan_uid", PLAN_UID]);
   });
 });
