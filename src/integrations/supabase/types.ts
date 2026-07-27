@@ -5044,6 +5044,7 @@ export type Database = {
           owner_id: string | null
           preconditions: string | null
           priority: number
+          priority_score: number | null
           project_id: string | null
           requirement_ids: string[] | null
           review_status: Database["public"]["Enums"]["review_status"]
@@ -5051,6 +5052,7 @@ export type Database = {
           source: string | null
           status: Database["public"]["Enums"]["test_case_status"]
           suite_id: string | null
+          test_type: string | null
           title: string
           updated_at: string
           version: number
@@ -5071,6 +5073,7 @@ export type Database = {
           owner_id?: string | null
           preconditions?: string | null
           priority?: number
+          priority_score?: number | null
           project_id?: string | null
           requirement_ids?: string[] | null
           review_status?: Database["public"]["Enums"]["review_status"]
@@ -5078,6 +5081,7 @@ export type Database = {
           source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
           suite_id?: string | null
+          test_type?: string | null
           title: string
           updated_at?: string
           version?: number
@@ -5098,6 +5102,7 @@ export type Database = {
           owner_id?: string | null
           preconditions?: string | null
           priority?: number
+          priority_score?: number | null
           project_id?: string | null
           requirement_ids?: string[] | null
           review_status?: Database["public"]["Enums"]["review_status"]
@@ -5105,6 +5110,7 @@ export type Database = {
           source?: string | null
           status?: Database["public"]["Enums"]["test_case_status"]
           suite_id?: string | null
+          test_type?: string | null
           title?: string
           updated_at?: string
           version?: number
@@ -5709,6 +5715,7 @@ export type Database = {
           ai_progress: number | null
           ai_progress_message: string | null
           ai_progress_updated_at: string | null
+          ai_settings: Json
           ai_status: string | null
           ai_suggested: boolean | null
           codegen_job_ref: string | null
@@ -5740,6 +5747,7 @@ export type Database = {
           ai_progress?: number | null
           ai_progress_message?: string | null
           ai_progress_updated_at?: string | null
+          ai_settings?: Json
           ai_status?: string | null
           ai_suggested?: boolean | null
           codegen_job_ref?: string | null
@@ -5771,6 +5779,7 @@ export type Database = {
           ai_progress?: number | null
           ai_progress_message?: string | null
           ai_progress_updated_at?: string | null
+          ai_settings?: Json
           ai_status?: string | null
           ai_suggested?: boolean | null
           codegen_job_ref?: string | null
