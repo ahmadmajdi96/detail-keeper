@@ -50,7 +50,9 @@ export const DEFAULT_SETTINGS: GenerationSettings = {
   duplicateDetection: true,
   language: "typescript",
   dryRun: true,
+  skipStubs: false,
 };
+
 
 /** Per-plan settings persisted locally so they survive reloads and navigation. */
 export function useGenerationSettings(testPlanId: string) {
