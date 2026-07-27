@@ -111,11 +111,28 @@ export function GenerationJobTracker() {
         catch { /* next tick retries */ }
       }));
 
-      const { data, error } = await supabase
-        .from("test_plans")
-        .select("id, name, ai_status, ai_last_run_at, ai_progress, ai_progress_message, ai_progress_updated_at, codegen_status, codegen_last_run_at, codegen_progress, codegen_progress_message, codegen_progress_updated_at")
+      const { data, error } = await (supabase.from("test_plans") as any)
+        .select("id, name, plan_uid, ai_status, ai_last_run_at, ai_progress, ai_progress_message, ai_progress_updated_at, ai_dry_run, codegen_status, codegen_last_run_at, codegen_progress, codegen_progress_message, codegen_progress_updated_at, codegen_dry_run")
         .in("id", ids);
       if (error || !data) return;
+
+      // Merge server-recorded stage logs (incl. explicit dry-run skip records)
+      // into the local timeline so they survive navigation and reloads.
+      try {
+        const { data: logs } = await (supabase.from("generation_stage_logs") as any)
+          .select("test_plan_id, kind, stage, message, dry_run, created_at")
+          .in("test_plan_id", ids)
+          .order("created_at", { ascending: true })
+          .limit(200);
+        for (const l of ((logs ?? []) as any[])) {
+          appendStage(l.test_plan_id, {
+            stage: l.stage as any,
+            message: l.message,
+            at: new Date(l.created_at).getTime(),
+          });
+        }
+      } catch { /* rls / offline */ }
+
 
       const nextJobs: TrackedJob[] = [];
 
