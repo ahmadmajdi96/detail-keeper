@@ -99,18 +99,25 @@ function normalizeDocs(payload: any): any[] {
   }).filter((d: any) => !!d.filename);
 }
 
+/** Drop the generator's "## Metadata" envelope from markdown documents. */
+function stripMarkdownMetadata(md: string): string {
+  return md.replace(/^##\s+Metadata\s*\n[\s\S]*?(?=^##\s+|\Z)/im, "").replace(/\n{3,}/g, "\n\n");
+}
+
 async function fetchDocContent(jobId: string, filename: string): Promise<string | null> {
   const fr = await rr(`/v1/jobs/${jobId}/documents/${encodeURIComponent(filename)}`);
   if (!fr.ok) return null;
+  const isMarkdown = /\.md$/i.test(filename);
   const ct = fr.headers.get("content-type") || "";
-  if (ct.includes("application/json")) {
+  if (ct.includes("application/json") && !isMarkdown) {
     const jd = await fr.json().catch(() => null);
     if (jd == null) return "";
     if (typeof jd === "string") return jd;
     if (typeof jd?.content === "string") return jd.content;
     return JSON.stringify(jd, null, 2);
   }
-  return await fr.text();
+  const text = await fr.text();
+  return isMarkdown ? stripMarkdownMetadata(text) : text;
 }
 
 function titleFromFilename(filename: string) {
