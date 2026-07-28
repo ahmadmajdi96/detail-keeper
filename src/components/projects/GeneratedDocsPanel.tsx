@@ -205,12 +205,10 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
     onError: (e: any) => toast.error(e.message),
   });
 
-  const ingest = (
-    <>
-      <DocumentIngestPanel projectId={projectId} repoJobStatus={repoJobStatus} canEdit={canEdit} />
-      <IngestJobsPanel projectId={projectId} canEdit={canEdit} />
-    </>
-  );
+  // Sources are uploaded once in the project wizard; this panel only tracks
+  // ingestion progress and offers resync/retry on the existing jobs.
+  const ingest = <IngestJobsPanel projectId={projectId} canEdit={canEdit} />;
+
 
   if (!repoJobId) {
     return (
