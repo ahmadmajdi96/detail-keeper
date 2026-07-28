@@ -15,6 +15,7 @@ import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { DynamicJsonView } from "./DynamicJsonView";
 import JSZip from "jszip";
 import { DocumentIngestPanel, IngestStatusBadge } from "./DocumentIngestPanel";
+import { IngestJobsPanel } from "./IngestJobsPanel";
 
 interface Props {
   projectId: string;
