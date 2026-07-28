@@ -230,6 +230,24 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
         if (upErr) throw upErr;
         await supabase.from("projects").update({ zip_storage_path: path, status: "processing" }).eq("id", projectId);
         supabase.functions.invoke("ingest-zip", { body: { project_id: projectId } }).catch(() => {});
+        // Send the same ZIP straight to the repository pipeline so AI Docs are
+        // generated without asking the user to upload the file a second time.
+        const file_base64 = await fileToBase64(zipFile);
+        const { error: rrErr } = await supabase.functions.invoke("repo-reader", {
+          body: {
+            action: "upload",
+            project_id: projectId,
+            filename: zipFile.name,
+            content_type: zipFile.type || "application/zip",
+            file_base64,
+          },
+        });
+        if (rrErr) {
+          await supabase.from("projects").update({
+            status: "failed", process_error: rrErr.message || "Document ingestion failed",
+          }).eq("id", projectId);
+          throw rrErr;
+        }
       } else if (locator === "github") {
         await supabase.from("projects").update({ status: "processing" }).eq("id", projectId);
         // Kick off Repo Reader clone job. Polling happens in the project detail page.
@@ -261,8 +279,44 @@ export function ProjectWizard({ open, onOpenChange, workspaceId, onCreated }: Pr
           } as any).select("id").single();
           if (docRow) supabase.functions.invoke("process-document", { body: { document_id: docRow.id } }).catch(() => {});
         }
-        await supabase.from("projects").update({ status: "ready" }).eq("id", projectId);
+
+        // Forward the very same documents to the BRD pipeline so AI Docs are
+        // generated from the wizard upload. Several files are bundled into a
+        // single ZIP because the service accepts one source per job.
+        await supabase.from("projects").update({ status: "processing" }).eq("id", projectId);
+        let brdName: string;
+        let brdType: string;
+        let brdBase64: string;
+        if (docFiles.length === 1) {
+          brdName = docFiles[0].name;
+          brdType = docFiles[0].type || "application/octet-stream";
+          brdBase64 = await fileToBase64(docFiles[0]);
+        } else {
+          const { default: JSZip } = await import("jszip");
+          const zip = new JSZip();
+          for (const f of docFiles) zip.file(f.name, f);
+          const blob = await zip.generateAsync({ type: "blob" });
+          brdName = `${projectName.replace(/[^a-z0-9-_]+/gi, "-").toLowerCase() || "project"}-docs.zip`;
+          brdType = "application/zip";
+          brdBase64 = await fileToBase64(blob);
+        }
+        const { error: brdErr } = await supabase.functions.invoke("repo-reader", {
+          body: {
+            action: "brd-upload",
+            project_id: projectId,
+            filename: brdName,
+            content_type: brdType,
+            file_base64: brdBase64,
+          },
+        });
+        if (brdErr) {
+          await supabase.from("projects").update({
+            status: "failed", process_error: brdErr.message || "Document ingestion failed",
+          }).eq("id", projectId);
+          throw brdErr;
+        }
       }
+
 
       return projectId;
     },
