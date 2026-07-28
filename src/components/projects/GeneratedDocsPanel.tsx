@@ -480,7 +480,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
                   </div>
                 );
               }
-              const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+              const isJson = looksLikeJson(raw);
               if (isJson) {
                 let parsed: unknown = null;
                 let parseError: string | null = null;
