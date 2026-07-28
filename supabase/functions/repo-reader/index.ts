@@ -4,7 +4,16 @@
 // repositories with only a project_id. Also mirrors generated documents into
 // project_generated_docs so they can be edited by users.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import JSZip from "npm:jszip@3.10.1";
 import { corsHeaders } from "../_shared/cors.ts";
+
+/** Wraps a single document into a .zip archive (the only shape the service ingests). */
+async function zipSingleFile(name: string, bytes: Uint8Array): Promise<Uint8Array> {
+  const zip = new JSZip();
+  zip.file(name.replace(/^\/+/, "") || "document", bytes);
+  return await zip.generateAsync({ type: "uint8array" });
+}
+
 
 const DEFAULT_BASE = "https://reporeader.qualixa.cortanexai.com";
 const DEFAULT_KEY = "qualixa-repo-reader-key";
@@ -370,18 +379,18 @@ Deno.serve(async (req) => {
     }
 
     // -------- BRD TEXT --------
+    // The service exposes a single ingestion endpoint (/v1/repositories/upload)
+    // that accepts a .zip archive, so BRD text/files are wrapped into a zip.
     if (action === "brd-generate") {
       const { filename = "system-brd.md", content } = body;
       if (!content) return j({ error: "content required" }, 400);
-      const res = await rr(`/v1/brd/generate`, {
-        method: "POST",
-        body: JSON.stringify({
-          filename,
-          content,
-          forward_to_test_doc: body.forward_to_test_doc ?? false,
-          metadata: { project_id: projectId, ...(body.metadata || {}) },
-        }),
-      });
+      const zipBytes = await zipSingleFile(filename, new TextEncoder().encode(String(content)));
+      const fd = new FormData();
+      fd.append("file", new Blob([zipBytes], { type: "application/zip" }), "brd-input.zip");
+      fd.append("forward_to_test_doc", String(body.forward_to_test_doc ?? false));
+      fd.append("metadata", JSON.stringify({ project_id: projectId, source: "brd_text", ...(body.metadata || {}) }));
+
+      const res = await rr(`/v1/repositories/upload`, { method: "POST", body: fd });
       const text = await res.text();
       if (!res.ok) return upstreamError(res.status, text);
       const data = JSON.parse(text);
@@ -411,16 +420,19 @@ Deno.serve(async (req) => {
       const { filename = "brd-input.zip", file_base64, content_type } = body;
       if (!file_base64) return j({ error: "file_base64 required" }, 400);
       const bytes = Uint8Array.from(atob(file_base64), (c) => c.charCodeAt(0));
-      const fd = new FormData();
-      fd.append(
-        "file",
-        new Blob([bytes], { type: content_type || "application/octet-stream" }),
-        filename,
-      );
-      fd.append("forward_to_test_doc", String(body.forward_to_test_doc ?? false));
-      fd.append("metadata", JSON.stringify({ project_id: projectId, ...(body.metadata || {}) }));
 
-      const res = await rr(`/v1/brd/upload`, { method: "POST", body: fd });
+      // Non-zip documents (docx/pdf/md...) are wrapped into a zip archive,
+      // which is the only payload shape the ingestion endpoint accepts.
+      const isZip = /\.zip$/i.test(filename) || (content_type || "").includes("zip");
+      const uploadBytes = isZip ? bytes : await zipSingleFile(filename, bytes);
+      const uploadName = isZip ? filename : `${filename.replace(/\.[^.]+$/, "") || "brd-input"}.zip`;
+
+      const fd = new FormData();
+      fd.append("file", new Blob([uploadBytes], { type: "application/zip" }), uploadName);
+      fd.append("forward_to_test_doc", String(body.forward_to_test_doc ?? false));
+      fd.append("metadata", JSON.stringify({ project_id: projectId, source: "brd_file", original_filename: filename, ...(body.metadata || {}) }));
+
+      const res = await rr(`/v1/repositories/upload`, { method: "POST", body: fd });
       const text = await res.text();
       if (!res.ok) return upstreamError(res.status, text);
       const data = JSON.parse(text);
@@ -443,6 +455,7 @@ Deno.serve(async (req) => {
       });
       return j({ job_id: newJobId, status: data.status || "queued", raw: data });
     }
+
 
     const jobId = project.repo_job_id;
     if (!jobId) return j({ status: "none", no_job: true, message: "Project has no repo job yet." }, 200);
