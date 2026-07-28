@@ -56,8 +56,10 @@ export function DynamicJsonView({ json, filename }: Props) {
   const isFilterable = useMemo(() => {
     if (Array.isArray(payload) && payload.length > 0) return true;
     if (payload && typeof payload === "object") return Object.keys(payload as any).length > 3;
-    return false;
-  }, [payload]);
+    // Fallback view renders the whole document, so filtering still helps.
+    return !!json && typeof json === "object";
+  }, [payload, json]);
+
 
   const hasMeta = Object.keys(meta).length > 0;
 
