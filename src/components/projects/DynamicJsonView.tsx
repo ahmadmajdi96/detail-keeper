@@ -105,13 +105,20 @@ export function DynamicJsonView({ json, filename }: Props) {
 
       <div className="rounded-lg border border-border/60 bg-card/40 p-3 overflow-x-auto">
         {isEmptyPayload ? (
-          <div className="py-8 text-center text-xs text-muted-foreground">
-            No {payloadKey ? prettyKey(payloadKey).toLowerCase() : "content"} were extracted from this repository.
+          // Nothing was extracted for the primary payload — never show a blank
+          // panel: fall back to the complete document so every field, count and
+          // policy note stays visible.
+          <div className="space-y-3">
+            <div className="text-xs text-muted-foreground">
+              No {payloadKey ? prettyKey(payloadKey).toLowerCase() : "content"} were extracted from this source. Showing the full document below.
+            </div>
+            <Node value={json} depth={0} query={query.toLowerCase()} />
           </div>
         ) : (
           <Node value={payload} depth={0} query={query.toLowerCase()} />
         )}
       </div>
+
     </div>
   );
 }
