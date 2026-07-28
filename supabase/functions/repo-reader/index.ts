@@ -129,9 +129,13 @@ function titleFromFilename(filename: string) {
 }
 
 async function syncDocuments(admin: any, projectId: string, jobId: string) {
+  const fileErrors: { filename: string; error: string }[] = [];
   try {
     const res = await rr(`/v1/jobs/${jobId}/documents`);
-    if (!res.ok) return { synced: 0, error: `documents ${res.status}` };
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      return { synced: 0, error: `Could not list documents (HTTP ${res.status}) ${t.slice(0, 200)}`, file_errors: fileErrors, files: [] };
+    }
     const docs = normalizeDocs(await res.json().catch(() => ({})));
     let synced = 0;
     for (const d of docs) {
@@ -146,23 +150,100 @@ async function syncDocuments(admin: any, projectId: string, jobId: string) {
         .eq("project_id", projectId).eq("slug", slug).maybeSingle();
       if (existing?.edited) continue;
 
-      const content = await fetchDocContent(jobId, filename);
-      if (content == null) continue;
+      let content: string | null = null;
+      try {
+        content = await fetchDocContent(jobId, filename);
+      } catch (e) {
+        fileErrors.push({ filename, error: (e as Error).message });
+        continue;
+      }
+      if (content == null) {
+        fileErrors.push({ filename, error: "Upstream returned no content for this file (download failed)." });
+        continue;
+      }
 
-      await admin.from("project_generated_docs").upsert({
+      const { error: upErr } = await admin.from("project_generated_docs").upsert({
         project_id: projectId,
         job_id: jobId,
         slug, filename, title, content,
         source_bytes: d.bytes ?? content.length,
         edited: false,
       }, { onConflict: "project_id,slug" });
+      if (upErr) {
+        fileErrors.push({ filename, error: `Could not save document: ${upErr.message}` });
+        continue;
+      }
       synced++;
     }
-    return { synced, total: docs.length };
+    return {
+      synced,
+      total: docs.length,
+      files: docs.map((d: any) => ({ filename: d.filename, bytes: d.bytes ?? null, title: d.title ?? null })),
+      file_errors: fileErrors,
+    };
   } catch (e) {
-    return { synced: 0, error: (e as Error).message };
+    return { synced: 0, error: (e as Error).message, file_errors: fileErrors, files: [] };
   }
 }
+
+/** Create an ingest-job history row (and a matching Documents entry for uploads). */
+async function recordIngest(
+  admin: any,
+  opts: {
+    projectId: string;
+    workspaceId: string | null;
+    ingestType: string;
+    sourceName: string;
+    jobRef: string | null;
+    status: string;
+    userId: string | null;
+    payload?: Record<string, unknown>;
+    fileSize?: number;
+    mimeType?: string;
+  },
+) {
+  let documentId: string | null = null;
+  try {
+    const { data: doc } = await admin.from("documents").insert({
+      project_id: opts.projectId,
+      workspace_id: opts.workspaceId,
+      filename: opts.sourceName,
+      file_size: opts.fileSize ?? 0,
+      mime_type: opts.mimeType || "application/octet-stream",
+      status: "processing",
+      uploader_id: opts.userId,
+    }).select("id").maybeSingle();
+    documentId = doc?.id ?? null;
+  } catch { /* documents mirror is best-effort */ }
+
+  await admin.from("ingest_jobs").insert({
+    project_id: opts.projectId,
+    workspace_id: opts.workspaceId,
+    job_ref: opts.jobRef,
+    ingest_type: opts.ingestType,
+    source_name: opts.sourceName,
+    status: opts.status || "queued",
+    stage: "Submitted to Repo Reader",
+    progress: 0,
+    payload: opts.payload || {},
+    document_id: documentId,
+    created_by: opts.userId,
+    stages: [{ stage: "queued", at: new Date().toISOString() }],
+  });
+  return documentId;
+}
+
+function stageLabel(status: string, progress: number | null) {
+  if (DONE.includes(status)) return "Documents generated";
+  if (FAILED.includes(status)) return "Failed";
+  if (status === "queued") return "Queued";
+  const p = progress ?? 0;
+  if (p < 25) return "Cloning / unpacking source";
+  if (p < 55) return "Scanning files";
+  if (p < 85) return "Generating documents with AI";
+  return "Finalising output";
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -188,9 +269,14 @@ Deno.serve(async (req) => {
 
     const { data: project, error: pErr } = await supabase
       .from("projects")
-      .select("id, repo_job_id, github_url, github_branch, github_repo_visibility")
+      .select("id, workspace_id, repo_job_id, github_url, github_branch, github_repo_visibility")
       .eq("id", projectId).maybeSingle();
     if (pErr || !project) return j({ error: "Project not found or forbidden" }, 403);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id ?? null;
+    const workspaceId = (project as any).workspace_id ?? null;
+
 
     // -------- BRANCHES (no job required) --------
     if (action === "branches") {
@@ -238,6 +324,14 @@ Deno.serve(async (req) => {
         github_branch: branch,
         github_repo_visibility: visibility,
       }).eq("id", projectId);
+      await recordIngest(admin, {
+        projectId, workspaceId, userId,
+        ingestType: "repo_clone",
+        sourceName: `${repo_url.split("/").slice(-1)[0]} (${branch})`,
+        jobRef: jobId,
+        status: data.status || "queued",
+        payload: { repo_url, branch, visibility },
+      });
       return j({ job_id: jobId, status: data.status || "queued", raw: data });
     }
 
@@ -263,6 +357,15 @@ Deno.serve(async (req) => {
         repo_job_meta: data,
         status: "processing",
       }).eq("id", projectId);
+      await recordIngest(admin, {
+        projectId, workspaceId, userId,
+        ingestType: "repo_zip",
+        sourceName: filename,
+        jobRef: jobId,
+        status: data.status || "queued",
+        fileSize: bytes.length,
+        mimeType: "application/zip",
+      });
       return j({ job_id: jobId, status: data.status || "queued", raw: data });
     }
 
@@ -290,6 +393,16 @@ Deno.serve(async (req) => {
         repo_job_meta: data,
         status: "processing",
       }).eq("id", projectId);
+      await recordIngest(admin, {
+        projectId, workspaceId, userId,
+        ingestType: "brd_text",
+        sourceName: filename,
+        jobRef: newJobId,
+        status: data.status || "queued",
+        fileSize: String(content).length,
+        mimeType: "text/markdown",
+        payload: { content },
+      });
       return j({ job_id: newJobId, status: data.status || "queued", raw: data });
     }
 
@@ -319,6 +432,15 @@ Deno.serve(async (req) => {
         repo_job_meta: data,
         status: "processing",
       }).eq("id", projectId);
+      await recordIngest(admin, {
+        projectId, workspaceId, userId,
+        ingestType: "brd_file",
+        sourceName: filename,
+        jobRef: newJobId,
+        status: data.status || "queued",
+        fileSize: bytes.length,
+        mimeType: content_type || "application/octet-stream",
+      });
       return j({ job_id: newJobId, status: data.status || "queued", raw: data });
     }
 
@@ -343,6 +465,41 @@ Deno.serve(async (req) => {
       }).eq("id", projectId);
       let sync;
       if (done) sync = await syncDocuments(admin, projectId, jobId);
+
+      // Mirror live progress + per-file errors onto the ingest history row
+      const { data: ij } = await admin
+        .from("ingest_jobs")
+        .select("id, document_id, stages")
+        .eq("project_id", projectId).eq("job_ref", jobId)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (ij) {
+        const label = stageLabel(status, data.progress ?? null);
+        const stages = Array.isArray(ij.stages) ? ij.stages : [];
+        if (stages[stages.length - 1]?.stage !== label) {
+          stages.push({ stage: label, at: new Date().toISOString(), progress: data.progress ?? null });
+        }
+        const fileErrors = [
+          ...(sync?.file_errors || []),
+          ...(Array.isArray(data.document_errors) ? data.document_errors : []),
+        ];
+        const uiStatus = failed ? "failed" : done ? (sync?.error ? "failed" : "processed") : "processing";
+        await admin.from("ingest_jobs").update({
+          status: uiStatus,
+          stage: label,
+          progress: data.progress ?? (done ? 100 : 0),
+          error: failed ? (data.error || `Repo Reader job ${status}`) : (sync?.error || null),
+          document_errors: fileErrors,
+          documents: sync?.files || [],
+          stages,
+        }).eq("id", ij.id);
+        if (ij.document_id) {
+          await admin.from("documents").update({
+            status: uiStatus === "processed" ? "processed" : uiStatus === "failed" ? "failed" : "processing",
+            processed_at: done || failed ? new Date().toISOString() : null,
+            requirements_count: sync?.synced ?? 0,
+          }).eq("id", ij.document_id);
+        }
+      }
       return j({ ...data, status, sync });
     }
 

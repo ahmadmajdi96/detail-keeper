@@ -2658,6 +2658,77 @@ export type Database = {
           },
         ]
       }
+      ingest_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_errors: Json
+          document_id: string | null
+          documents: Json
+          error: string | null
+          id: string
+          ingest_type: string
+          job_ref: string | null
+          payload: Json
+          progress: number
+          project_id: string
+          source_name: string | null
+          stage: string | null
+          stages: Json
+          status: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_errors?: Json
+          document_id?: string | null
+          documents?: Json
+          error?: string | null
+          id?: string
+          ingest_type?: string
+          job_ref?: string | null
+          payload?: Json
+          progress?: number
+          project_id: string
+          source_name?: string | null
+          stage?: string | null
+          stages?: Json
+          status?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_errors?: Json
+          document_id?: string | null
+          documents?: Json
+          error?: string | null
+          id?: string
+          ingest_type?: string
+          job_ref?: string | null
+          payload?: Json
+          progress?: number
+          project_id?: string
+          source_name?: string | null
+          stage?: string | null
+          stages?: Json
+          status?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingest_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_activity_log: {
         Row: {
           counts: Json | null

@@ -15,6 +15,7 @@ import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { DynamicJsonView } from "./DynamicJsonView";
 import JSZip from "jszip";
 import { DocumentIngestPanel, IngestStatusBadge } from "./DocumentIngestPanel";
+import { IngestJobsPanel } from "./IngestJobsPanel";
 
 interface Props {
   projectId: string;
@@ -205,7 +206,10 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
   });
 
   const ingest = (
-    <DocumentIngestPanel projectId={projectId} repoJobStatus={repoJobStatus} canEdit={canEdit} />
+    <>
+      <DocumentIngestPanel projectId={projectId} repoJobStatus={repoJobStatus} canEdit={canEdit} />
+      <IngestJobsPanel projectId={projectId} canEdit={canEdit} />
+    </>
   );
 
   if (!repoJobId) {

@@ -331,15 +331,20 @@ export default function DocumentsPage({ embedded = false }: { embedded?: boolean
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          <CardContent className="flex flex-col items-center justify-center py-10">
+          <CardContent
+            className="flex flex-col items-center justify-center py-10 cursor-pointer"
+            onClick={() => !uploadMutation.isPending && fileInputRef.current?.click()}
+          >
             <div className={`flex h-14 w-14 items-center justify-center rounded-xl mb-4 transition-all ${
               isDragging ? "ai-gradient ai-glow" : "bg-secondary"
             }`}>
-              <Upload className={`h-6 w-6 ${isDragging ? "text-white" : "text-muted-foreground"}`} />
+              {uploadMutation.isPending
+                ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                : <Upload className={`h-6 w-6 ${isDragging ? "text-white" : "text-muted-foreground"}`} />}
             </div>
             <h3 className="text-lg font-medium mb-1">Upload Documents</h3>
             <p className="text-sm text-muted-foreground mb-4 text-center max-w-md">
-              Drag and drop your files here, or click to browse. AI will automatically extract requirements.
+              Drag and drop your files here, or click anywhere in this area to browse. AI will automatically extract requirements.
             </p>
             <div className="flex items-center gap-2 mb-4">
               <Badge variant="secondary">PDF</Badge>
@@ -354,15 +359,6 @@ export default function DocumentsPage({ embedded = false }: { embedded?: boolean
               className="hidden"
               onChange={handleFileSelect}
             />
-            <Button 
-              className="ai-gradient text-white"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadMutation.isPending}
-            >
-              {uploadMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Upload className="mr-2 h-4 w-4" />
-              Choose Files
-            </Button>
           </CardContent>
         </Card>
       </motion.div>
