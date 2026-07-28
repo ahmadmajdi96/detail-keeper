@@ -203,56 +203,69 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
     onError: (e: any) => toast.error(e.message),
   });
 
+  const ingest = (
+    <DocumentIngestPanel projectId={projectId} repoJobStatus={repoJobStatus} canEdit={canEdit} />
+  );
+
   if (!repoJobId) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="py-16 text-center text-sm text-muted-foreground">
-          <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-40" />
-          <div className="font-medium mb-1">No AI documents yet</div>
-          <div>Link a GitHub repository to this project to generate technical documentation.</div>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        {ingest}
+        <Card className="border-dashed">
+          <CardContent className="py-16 text-center text-sm text-muted-foreground">
+            <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-40" />
+            <div className="font-medium mb-1">No AI documents yet</div>
+            <div>Upload a repository ZIP or a BRD, or link a GitHub repository to generate documentation.</div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (isRunning || (isReady && (docsQ.data?.length ?? 0) === 0)) {
     return (
-      <Card className="overflow-hidden border-accent/20 relative">
-        <div
-          className="absolute inset-0 opacity-30 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse 60% 40% at 50% 0%, hsl(var(--accent) / 0.35) 0%, transparent 60%)",
-          }}
-        />
-        <CardContent className="relative py-16 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 border border-accent/30 mb-4 relative">
-            <Loader2 className="h-7 w-7 animate-spin text-accent" />
-            <div className="absolute inset-0 rounded-full animate-ping bg-accent/20" />
-          </div>
-          <div className="text-lg font-semibold mb-1">Generating technical documents…</div>
-          <div className="text-xs text-muted-foreground mb-4">
-            Status: <span className="text-accent font-mono">{repoJobStatus || "queued"}</span>
-            {repoJobProgress != null ? <> · {repoJobProgress}%</> : null}
-          </div>
-          <div className="max-w-md mx-auto h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-accent via-primary to-accent transition-all duration-1000"
-              style={{ width: `${repoJobProgress ?? 15}%` }}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        {ingest}
+        <Card className="overflow-hidden border-accent/20 relative">
+          <div
+            className="absolute inset-0 opacity-30 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse 60% 40% at 50% 0%, hsl(var(--accent) / 0.35) 0%, transparent 60%)",
+            }}
+          />
+          <CardContent className="relative py-16 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 border border-accent/30 mb-4 relative">
+              <Loader2 className="h-7 w-7 animate-spin text-accent" />
+              <div className="absolute inset-0 rounded-full animate-ping bg-accent/20" />
+            </div>
+            <div className="text-lg font-semibold mb-1">Generating technical documents…</div>
+            <div className="text-xs text-muted-foreground mb-4">
+              Status: <span className="text-accent font-mono">{repoJobStatus || "queued"}</span>
+              {repoJobProgress != null ? <> · {repoJobProgress}%</> : null}
+            </div>
+            <div className="max-w-md mx-auto h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-accent via-primary to-accent transition-all duration-1000"
+                style={{ width: `${repoJobProgress ?? 15}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (!isReady) {
     return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-destructive">
-          Repo clone failed: {repoJobStatus || "unknown"}
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        {ingest}
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-destructive">
+            Processing failed: {repoJobStatus || "unknown"}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
