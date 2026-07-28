@@ -4,7 +4,16 @@
 // repositories with only a project_id. Also mirrors generated documents into
 // project_generated_docs so they can be edited by users.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import JSZip from "npm:jszip@3.10.1";
 import { corsHeaders } from "../_shared/cors.ts";
+
+/** Wraps a single document into a .zip archive (the only shape the service ingests). */
+async function zipSingleFile(name: string, bytes: Uint8Array): Promise<Uint8Array> {
+  const zip = new JSZip();
+  zip.file(name.replace(/^\/+/, "") || "document", bytes);
+  return await zip.generateAsync({ type: "uint8array" });
+}
+
 
 const DEFAULT_BASE = "https://reporeader.qualixa.cortanexai.com";
 const DEFAULT_KEY = "qualixa-repo-reader-key";
