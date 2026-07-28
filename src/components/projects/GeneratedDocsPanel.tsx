@@ -39,6 +39,11 @@ type Doc = {
 const EXPECTED_DOC_COUNT = 4;
 
 const DOC_ICONS: Record<string, string> = {
+  "00_brd": "📘",
+  "01_ui_pages": "🗺️",
+  "02_api_endpoints": "🔌",
+  "03_testing_data": "🗂️",
+  "04_full_mock_data": "🧬",
   "00_repo_scan_evidence_summary": "🔍",
   "01_validated_api_surface": "🔌",
   "02_validated_ui_route_map": "🗺️",
@@ -51,6 +56,13 @@ const DOC_ICONS: Record<string, string> = {
   "09_testing_data_catalog": "🗂️",
   "10_system_testing_requirements": "📋",
 };
+
+/** Upstream switched companion docs from .json to .md — sniff the content. */
+function looksLikeJson(raw: string) {
+  const t = (raw || "").trim();
+  if (!t.startsWith("{") && !t.startsWith("[")) return false;
+  try { JSON.parse(t); return true; } catch { return false; }
+}
 
 export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJobProgress, canEdit }: Props) {
   const qc = useQueryClient();
@@ -426,7 +438,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
                 <Download className="h-3.5 w-3.5 mr-1" /> Download
               </Button>
               {(() => {
-                const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+                const isJson = looksLikeJson(buffer || selected.content || "");
                 if (isJson) return null;
                 return canEdit ? (
                   <Button
@@ -468,7 +480,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
                   </div>
                 );
               }
-              const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+              const isJson = looksLikeJson(raw);
               if (isJson) {
                 let parsed: unknown = null;
                 let parseError: string | null = null;

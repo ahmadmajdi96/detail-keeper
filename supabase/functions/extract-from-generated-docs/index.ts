@@ -5,6 +5,13 @@ import { corsHeaders } from "../_shared/cors.ts";
 // Extracts endpoints, test cases, and requirements from the 4 latest generated
 // technical documents (slugs 10-13) for a project.
 const TARGET_SLUGS = [
+  // current Repo Reader companion documents (now emitted as .md)
+  "00_brd",
+  "01_ui_pages",
+  "02_api_endpoints",
+  "03_testing_data",
+  "04_full_mock_data",
+  // legacy slugs (older jobs)
   "01_validated_api_surface",
   "02_validated_ui_route_map",
   "08_pages",
@@ -56,12 +63,20 @@ serve(async (req) => {
       .eq("id", project_id).single();
     if (!project) throw new Error("Project not found");
 
-    const { data: docs, error: docsErr } = await sb.from("project_generated_docs")
+    const { data: matched, error: docsErr } = await sb.from("project_generated_docs")
       .select("id, slug, filename, title, content")
       .eq("project_id", project_id)
       .in("slug", TARGET_SLUGS);
     if (docsErr) throw docsErr;
-    if (!docs || docs.length === 0) throw new Error("No matching generated docs found");
+    let docs = matched || [];
+    if (docs.length === 0) {
+      // Filenames/slugs evolve upstream — fall back to every generated doc.
+      const { data: all } = await sb.from("project_generated_docs")
+        .select("id, slug, filename, title, content")
+        .eq("project_id", project_id);
+      docs = all || [];
+    }
+    if (docs.length === 0) throw new Error("No matching generated docs found");
 
     const combined = docs
       .sort((a, b) => a.slug.localeCompare(b.slug))
