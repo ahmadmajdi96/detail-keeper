@@ -432,6 +432,15 @@ Deno.serve(async (req) => {
         repo_job_meta: data,
         status: "processing",
       }).eq("id", projectId);
+      await recordIngest(admin, {
+        projectId, workspaceId, userId,
+        ingestType: "brd_file",
+        sourceName: filename,
+        jobRef: newJobId,
+        status: data.status || "queued",
+        fileSize: bytes.length,
+        mimeType: content_type || "application/octet-stream",
+      });
       return j({ job_id: newJobId, status: data.status || "queued", raw: data });
     }
 
