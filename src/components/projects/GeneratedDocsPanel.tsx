@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { DynamicJsonView } from "./DynamicJsonView";
 import JSZip from "jszip";
-import { DocumentIngestPanel, IngestStatusBadge } from "./DocumentIngestPanel";
+import { IngestStatusBadge } from "./DocumentIngestPanel";
 import { IngestJobsPanel } from "./IngestJobsPanel";
 
 interface Props {
@@ -205,12 +205,10 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
     onError: (e: any) => toast.error(e.message),
   });
 
-  const ingest = (
-    <>
-      <DocumentIngestPanel projectId={projectId} repoJobStatus={repoJobStatus} canEdit={canEdit} />
-      <IngestJobsPanel projectId={projectId} canEdit={canEdit} />
-    </>
-  );
+  // Sources are uploaded once in the project wizard; this panel only tracks
+  // ingestion progress and offers resync/retry on the existing jobs.
+  const ingest = <IngestJobsPanel projectId={projectId} canEdit={canEdit} />;
+
 
   if (!repoJobId) {
     return (
@@ -220,7 +218,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
           <CardContent className="py-16 text-center text-sm text-muted-foreground">
             <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-40" />
             <div className="font-medium mb-1">No AI documents yet</div>
-            <div>Upload a repository ZIP or a BRD, or link a GitHub repository to generate documentation.</div>
+            <div>Documents are ingested from the source you provided when the project was created.</div>
           </CardContent>
         </Card>
       </div>
