@@ -1,12 +1,20 @@
-// Server-side proxy to the Repo Reader service. Keeps the API key off the
-// client and lets the frontend act on cloned repositories with only a
-// project_id. Also mirrors generated documents into project_generated_docs
-// so they can be edited by users.
+// Server-side proxy to the Repo Reader service (v1).
+// Base: https://reporeader.qualixa.cortanexai.com
+// Keeps the API key off the client and lets the frontend act on cloned
+// repositories with only a project_id. Also mirrors generated documents into
+// project_generated_docs so they can be edited by users.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const BASE = Deno.env.get("REPO_READER_BASE_URL")!;
-const API_KEY = Deno.env.get("REPO_READER_API_KEY") || Deno.env.get("REPO_READER_TOKEN")!;
+const DEFAULT_BASE = "https://reporeader.qualixa.cortanexai.com";
+const DEFAULT_KEY = "qualixa-repo-reader-key";
+
+// Env overrides are honoured only when they point at a v1-compatible deployment.
+const BASE = (Deno.env.get("REPO_READER_BASE_URL_V1") || DEFAULT_BASE).replace(/\/+$/, "");
+const API_KEY = Deno.env.get("REPO_READER_API_KEY_V1") || DEFAULT_KEY;
+
+const DONE = ["succeeded", "completed", "success", "ready"];
+const FAILED = ["failed", "error", "canceled", "cancelled"];
 
 function j(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -22,50 +30,85 @@ async function rr(path: string, init: RequestInit = {}): Promise<Response> {
     return await fetch(`${BASE}${path}`, {
       ...init,
       headers: {
-        "x-api-key": API_KEY,
         Authorization: `Bearer ${API_KEY}`,
-        "Content-Type": "application/json",
         Accept: "application/json",
+        ...(init.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
         ...(init.headers || {}),
       },
     });
   } catch (e) {
     throw new UpstreamUnreachable(
-      `Repo Reader service unreachable at ${BASE}. The configured REPO_READER_BASE_URL is offline or invalid. (${(e as Error).message})`,
+      `Repo Reader service unreachable at ${BASE}. (${(e as Error).message})`,
     );
   }
+}
+
+async function passthrough(res: Response) {
+  const text = await res.text();
+  if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
+  return new Response(text || "{}", {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function normalizeDocs(payload: any): any[] {
+  const raw = Array.isArray(payload)
+    ? payload
+    : payload?.documents || payload?.files || payload?.items || [];
+  return (Array.isArray(raw) ? raw : []).map((d: any) => {
+    if (typeof d === "string") return { filename: d, bytes: undefined };
+    return {
+      filename: d.filename || d.name || d.path || d.file,
+      bytes: d.bytes ?? d.size,
+      title: d.title,
+      slug: d.slug,
+    };
+  }).filter((d: any) => !!d.filename);
+}
+
+async function fetchDocContent(jobId: string, filename: string): Promise<string | null> {
+  const fr = await rr(`/v1/jobs/${jobId}/documents/${encodeURIComponent(filename)}`);
+  if (!fr.ok) return null;
+  const ct = fr.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
+    const jd = await fr.json().catch(() => null);
+    if (jd == null) return "";
+    if (typeof jd === "string") return jd;
+    if (typeof jd?.content === "string") return jd.content;
+    return JSON.stringify(jd, null, 2);
+  }
+  return await fr.text();
+}
+
+function titleFromFilename(filename: string) {
+  return filename
+    .replace(/\.(md|json|txt|ya?ml)$/i, "")
+    .replace(/^\d+[_-]/, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 async function syncDocuments(admin: any, projectId: string, jobId: string) {
   try {
     const res = await rr(`/v1/jobs/${jobId}/documents`);
-    if (!res.ok) return { synced: 0 };
-    const data = await res.json();
-    const docs: any[] = data?.documents || [];
+    if (!res.ok) return { synced: 0, error: `documents ${res.status}` };
+    const docs = normalizeDocs(await res.json().catch(() => ({})));
     let synced = 0;
     for (const d of docs) {
-      const filename = d.filename || d.slug + ".md";
-      const slug = d.slug || filename.replace(/\.(md|json)$/i, "");
-      const title = d.title || slug;
+      const filename: string = d.filename;
+      const slug = d.slug || filename.replace(/\.(md|json|txt|ya?ml)$/i, "");
+      const title = d.title || titleFromFilename(filename);
 
-      // Skip if user has edited this doc already
+      // Skip if the user has edited this doc already
       const { data: existing } = await admin
         .from("project_generated_docs")
-        .select("id, edited, source_hash")
+        .select("id, edited")
         .eq("project_id", projectId).eq("slug", slug).maybeSingle();
       if (existing?.edited) continue;
 
-      // Fetch content
-      const fr = await rr(`/v1/jobs/${jobId}/documents/${encodeURIComponent(filename)}`);
-      if (!fr.ok) continue;
-      const ct = fr.headers.get("content-type") || "";
-      let content = "";
-      if (ct.includes("application/json")) {
-        const jd = await fr.json();
-        content = typeof jd === "string" ? jd : (jd?.content ?? JSON.stringify(jd, null, 2));
-      } else {
-        content = await fr.text();
-      }
+      const content = await fetchDocContent(jobId, filename);
+      if (content == null) continue;
 
       await admin.from("project_generated_docs").upsert({
         project_id: projectId,
@@ -85,8 +128,6 @@ async function syncDocuments(admin: any, projectId: string, jobId: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    if (!BASE || !API_KEY) return j({ error: "Repo Reader not configured" }, 500);
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return j({ error: "Unauthorized" }, 401);
 
@@ -107,8 +148,21 @@ Deno.serve(async (req) => {
     if (!projectId) return j({ error: "project_id required" }, 400);
 
     const { data: project, error: pErr } = await supabase
-      .from("projects").select("id, repo_job_id, github_url, github_branch, github_repo_visibility").eq("id", projectId).maybeSingle();
+      .from("projects")
+      .select("id, repo_job_id, github_url, github_branch, github_repo_visibility")
+      .eq("id", projectId).maybeSingle();
     if (pErr || !project) return j({ error: "Project not found or forbidden" }, 403);
+
+    // -------- BRANCHES (no job required) --------
+    if (action === "branches") {
+      const repo_url = body.repo_url || project.github_url;
+      if (!repo_url) return j({ error: "repo_url required" }, 400);
+      const res = await rr(`/v1/repositories/branches`, {
+        method: "POST",
+        body: JSON.stringify({ repo_url, access_token: body.access_token || null }),
+      });
+      return passthrough(res);
+    }
 
     // -------- CLONE --------
     if (action === "clone") {
@@ -117,11 +171,19 @@ Deno.serve(async (req) => {
       const visibility = body.visibility || project.github_repo_visibility || "public";
       const access_token = body.access_token || null;
       if (!repo_url) return j({ error: "repo_url required" }, 400);
-      if (visibility === "private" && !access_token) return j({ error: "access_token required for private repositories" }, 400);
+      if (visibility === "private" && !access_token) {
+        return j({ error: "access_token required for private repositories" }, 400);
+      }
 
       const res = await rr(`/v1/repositories/clone`, {
         method: "POST",
-        body: JSON.stringify({ repo_url, branch, access_token, metadata: { project_id: projectId } }),
+        body: JSON.stringify({
+          repo_url,
+          branch,
+          ...(access_token ? { access_token } : {}),
+          forward_to_test_doc: body.forward_to_test_doc ?? false,
+          metadata: { project_id: projectId, ...(body.metadata || {}) },
+        }),
       });
       const text = await res.text();
       if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
@@ -140,6 +202,31 @@ Deno.serve(async (req) => {
       return j({ job_id: jobId, status: data.status || "queued", raw: data });
     }
 
+    // -------- ZIP UPLOAD (base64 payload from the client) --------
+    if (action === "upload") {
+      const { filename = "repository.zip", file_base64 } = body;
+      if (!file_base64) return j({ error: "file_base64 required" }, 400);
+      const bytes = Uint8Array.from(atob(file_base64), (c) => c.charCodeAt(0));
+      const fd = new FormData();
+      fd.append("file", new Blob([bytes], { type: "application/zip" }), filename);
+      fd.append("forward_to_test_doc", String(body.forward_to_test_doc ?? false));
+      fd.append("metadata", JSON.stringify({ project_id: projectId, ...(body.metadata || {}) }));
+
+      const res = await rr(`/v1/repositories/upload`, { method: "POST", body: fd });
+      const text = await res.text();
+      if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
+      const data = JSON.parse(text);
+      const jobId = data.id || data.job_id;
+      await admin.from("projects").update({
+        repo_job_id: jobId,
+        repo_job_status: data.status || "queued",
+        repo_job_progress: data.progress ?? 0,
+        repo_job_meta: data,
+        status: "processing",
+      }).eq("id", projectId);
+      return j({ job_id: jobId, status: data.status || "queued", raw: data });
+    }
+
     const jobId = project.repo_job_id;
     if (!jobId) return j({ status: "none", no_job: true, message: "Project has no repo job yet." }, 200);
 
@@ -149,61 +236,108 @@ Deno.serve(async (req) => {
       const text = await res.text();
       if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
       const data = JSON.parse(text);
-      const status = data.status || data.state;
-      const done = status === "completed" || status === "ready" || status === "succeeded" || status === "success";
+      const status = String(data.status || data.state || "").toLowerCase();
+      const done = DONE.includes(status);
+      const failed = FAILED.includes(status);
       await admin.from("projects").update({
         repo_job_status: status,
         repo_job_progress: data.progress ?? null,
         repo_job_meta: data,
         ...(done ? { status: "ready", last_processed_at: new Date().toISOString() } : {}),
-        ...(status === "failed" || status === "error" ? { status: "failed", process_error: data.error || "Repo clone failed" } : {}),
+        ...(failed ? { status: "failed", process_error: data.error || `Repo job ${status}` } : {}),
       }).eq("id", projectId);
       let sync;
       if (done) sync = await syncDocuments(admin, projectId, jobId);
-      return j({ ...data, sync });
+      return j({ ...data, status, sync });
     }
 
-    // -------- LIST / GET / PUT / DELETE REPO FILES --------
-    if (action === "list") {
-      const limit = url.searchParams.get("limit") || "500";
-      const offset = url.searchParams.get("offset") || "0";
-      const res = await rr(`/v1/jobs/${jobId}/repository/files?limit=${limit}&offset=${offset}`);
-      const text = await res.text();
-      if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
-      return new Response(text, { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (action === "get") {
-      const path = body.path;
-      if (!path) return j({ error: "path required" }, 400);
-      const res = await rr(`/v1/jobs/${jobId}/repository/files/${encodeURI(path)}`);
-      const text = await res.text();
-      if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
-      return new Response(text, { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (action === "put") {
-      const { path, content = "", message } = body;
-      if (!path) return j({ error: "path required" }, 400);
-      const res = await rr(`/v1/jobs/${jobId}/repository/files/${encodeURI(path)}`, {
-        method: "PUT",
-        body: JSON.stringify({ content, message: message || `Edit ${path}` }),
+    // -------- SYNC STATUS --------
+    if (action === "sync-status") {
+      const res = await rr(`/v1/jobs/${jobId}/repository/sync-status`, {
+        method: "POST",
+        body: JSON.stringify({
+          branch: body.branch || project.github_branch || "main",
+          access_token: body.access_token || null,
+          fetch: body.fetch ?? true,
+        }),
       });
-      const text = await res.text();
-      if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
-      return new Response(text, { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return passthrough(res);
     }
-    if (action === "delete") {
-      const path = body.path;
-      if (!path) return j({ error: "path required" }, 400);
-      const res = await rr(`/v1/jobs/${jobId}/repository/files/${encodeURI(path)}`, { method: "DELETE" });
+
+    // -------- FORWARD TO TEST-DOC SERVICE --------
+    if (action === "forward") {
+      const res = await rr(`/v1/jobs/${jobId}/forward`, { method: "POST" });
+      return passthrough(res);
+    }
+
+    // -------- DOWNLOAD ZIP (returns a base64 payload) --------
+    if (action === "download-zip") {
+      const res = await rr(`/v1/jobs/${jobId}/download.zip`, { headers: { Accept: "application/zip" } });
+      if (!res.ok) {
+        const t = await res.text();
+        return j({ error: `Repo Reader ${res.status}: ${t.slice(0, 400)}` }, res.status);
+      }
+      const buf = new Uint8Array(await res.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+      return j({ filename: "repository-documentation.zip", base64: btoa(bin), bytes: buf.length });
+    }
+
+    // -------- GENERATED DOCUMENTS --------
+    if (action === "list") {
+      const res = await rr(`/v1/jobs/${jobId}/documents`);
       const text = await res.text();
       if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
+      const docs = normalizeDocs(JSON.parse(text || "{}"));
+      return j({ files: docs.map((d) => ({ path: d.filename, size: d.bytes })), documents: docs });
+    }
+
+    if (action === "get") {
+      const path = body.path || body.filename;
+      if (!path) return j({ error: "path required" }, 400);
+      const slug = String(path).replace(/\.(md|json|txt|ya?ml)$/i, "");
+      // Prefer the user-editable mirror when it exists
+      const { data: local } = await admin
+        .from("project_generated_docs")
+        .select("content, edited")
+        .eq("project_id", projectId).eq("slug", slug).maybeSingle();
+      if (local?.edited) return j({ content: local.content, source: "local" });
+      const content = await fetchDocContent(jobId, String(path));
+      if (content == null) return j({ error: `Document not found: ${path}` }, 404);
+      return j({ content, source: "upstream" });
+    }
+
+    if (action === "put") {
+      const path = body.path || body.filename;
+      if (!path) return j({ error: "path required" }, 400);
+      const slug = String(path).replace(/\.(md|json|txt|ya?ml)$/i, "");
+      const content = body.content ?? "";
+      const { error } = await admin.from("project_generated_docs").upsert({
+        project_id: projectId,
+        job_id: jobId,
+        slug,
+        filename: String(path),
+        title: titleFromFilename(String(path)),
+        content,
+        source_bytes: content.length,
+        edited: true,
+      }, { onConflict: "project_id,slug" });
+      if (error) return j({ error: error.message }, 400);
+      return j({ ok: true, slug });
+    }
+
+    if (action === "delete") {
+      const path = body.path || body.filename;
+      if (!path) return j({ error: "path required" }, 400);
+      const slug = String(path).replace(/\.(md|json|txt|ya?ml)$/i, "");
+      const { error } = await admin.from("project_generated_docs")
+        .delete().eq("project_id", projectId).eq("slug", slug);
+      if (error) return j({ error: error.message }, 400);
       return j({ ok: true });
     }
 
-    // -------- GENERATED DOCS --------
     if (action === "docs-sync") {
-      const r = await syncDocuments(admin, projectId, jobId);
-      return j(r);
+      return j(await syncDocuments(admin, projectId, jobId));
     }
 
     return j({ error: "Unknown action" }, 400);
