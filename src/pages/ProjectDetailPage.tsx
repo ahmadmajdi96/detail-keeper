@@ -248,11 +248,9 @@ export default function ProjectDetailPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents"><FileText className="h-3.5 w-3.5 mr-1" /> Documents</TabsTrigger>
+          <TabsTrigger value="docs"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Docs</TabsTrigger>
           {project.source_type === "github" && (
-            <>
-              <TabsTrigger value="docs"><Sparkles className="h-3.5 w-3.5 mr-1" /> AI Docs</TabsTrigger>
-              <TabsTrigger value="repository"><GitBranch className="h-3.5 w-3.5 mr-1" /> Repository</TabsTrigger>
-            </>
+            <TabsTrigger value="repository"><GitBranch className="h-3.5 w-3.5 mr-1" /> Repository</TabsTrigger>
           )}
           <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
