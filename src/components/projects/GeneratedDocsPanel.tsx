@@ -438,7 +438,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
                 <Download className="h-3.5 w-3.5 mr-1" /> Download
               </Button>
               {(() => {
-                const isJson = /\.json$/i.test(selected.filename) || /\.json$/i.test(selected.slug);
+                const isJson = looksLikeJson(buffer || selected.content || "");
                 if (isJson) return null;
                 return canEdit ? (
                   <Button
