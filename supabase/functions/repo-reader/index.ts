@@ -324,6 +324,14 @@ Deno.serve(async (req) => {
         github_branch: branch,
         github_repo_visibility: visibility,
       }).eq("id", projectId);
+      await recordIngest(admin, {
+        projectId, workspaceId, userId,
+        ingestType: "repo_clone",
+        sourceName: `${repo_url.split("/").slice(-1)[0]} (${branch})`,
+        jobRef: jobId,
+        status: data.status || "queued",
+        payload: { repo_url, branch, visibility },
+      });
       return j({ job_id: jobId, status: data.status || "queued", raw: data });
     }
 
