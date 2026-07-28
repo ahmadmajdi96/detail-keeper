@@ -63,10 +63,11 @@ serve(async (req) => {
       .eq("id", project_id).single();
     if (!project) throw new Error("Project not found");
 
-    const { data: docs, error: docsErr } = await sb.from("project_generated_docs")
+    const { data: matched, error: docsErr } = await sb.from("project_generated_docs")
       .select("id, slug, filename, title, content")
       .eq("project_id", project_id)
       .in("slug", TARGET_SLUGS);
+    if (docsErr) throw docsErr;
     let docs = matched || [];
     if (docs.length === 0) {
       // Filenames/slugs evolve upstream — fall back to every generated doc.
