@@ -274,14 +274,16 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
 
   return (
     <div className="space-y-4">
+      {ingest}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-accent" />
             AI-Generated Documentation
+            <IngestStatusBadge status={repoJobStatus} />
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {docs.length} documents generated from your repository · click any card to view or edit
+            {docs.length} documents generated · click any card to view or edit
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
