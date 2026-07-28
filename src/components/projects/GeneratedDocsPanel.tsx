@@ -205,7 +205,10 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
   });
 
   const ingest = (
-    <DocumentIngestPanel projectId={projectId} repoJobStatus={repoJobStatus} canEdit={canEdit} />
+    <>
+      <DocumentIngestPanel projectId={projectId} repoJobStatus={repoJobStatus} canEdit={canEdit} />
+      <IngestJobsPanel projectId={projectId} canEdit={canEdit} />
+    </>
   );
 
   if (!repoJobId) {
