@@ -296,27 +296,26 @@ export default function ProjectDetailPage() {
 
 
 
+        <TabsContent value="docs" className="space-y-4">
+          <GeneratedDocsPanel
+            projectId={project.id}
+            repoJobId={(project as any).repo_job_id || null}
+            repoJobStatus={(project as any).repo_job_status || null}
+            repoJobProgress={(project as any).repo_job_progress ?? null}
+            canEdit={canManage}
+          />
+        </TabsContent>
+
         {project.source_type === "github" && (
-          <>
-            <TabsContent value="docs" className="space-y-4">
-              <GeneratedDocsPanel
-                projectId={project.id}
-                repoJobId={(project as any).repo_job_id || null}
-                repoJobStatus={(project as any).repo_job_status || null}
-                repoJobProgress={(project as any).repo_job_progress ?? null}
-                canEdit={canManage}
-              />
-            </TabsContent>
-            <TabsContent value="repository" className="space-y-4">
-              <RepoFilesPanel
-                projectId={project.id}
-                repoJobId={(project as any).repo_job_id || null}
-                repoJobStatus={(project as any).repo_job_status || null}
-                repoJobProgress={(project as any).repo_job_progress ?? null}
-                canEdit={canManage}
-              />
-            </TabsContent>
-          </>
+          <TabsContent value="repository" className="space-y-4">
+            <RepoFilesPanel
+              projectId={project.id}
+              repoJobId={(project as any).repo_job_id || null}
+              repoJobStatus={(project as any).repo_job_status || null}
+              repoJobProgress={(project as any).repo_job_progress ?? null}
+              canEdit={canManage}
+            />
+          </TabsContent>
         )}
 
         {/* MEMBERS */}
