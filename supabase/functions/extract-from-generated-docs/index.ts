@@ -67,8 +67,15 @@ serve(async (req) => {
       .select("id, slug, filename, title, content")
       .eq("project_id", project_id)
       .in("slug", TARGET_SLUGS);
-    if (docsErr) throw docsErr;
-    if (!docs || docs.length === 0) throw new Error("No matching generated docs found");
+    let docs = matched || [];
+    if (docs.length === 0) {
+      // Filenames/slugs evolve upstream — fall back to every generated doc.
+      const { data: all } = await sb.from("project_generated_docs")
+        .select("id, slug, filename, title, content")
+        .eq("project_id", project_id);
+      docs = all || [];
+    }
+    if (docs.length === 0) throw new Error("No matching generated docs found");
 
     const combined = docs
       .sort((a, b) => a.slug.localeCompare(b.slug))
