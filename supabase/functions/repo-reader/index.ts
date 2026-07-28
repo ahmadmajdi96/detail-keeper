@@ -266,6 +266,62 @@ Deno.serve(async (req) => {
       return j({ job_id: jobId, status: data.status || "queued", raw: data });
     }
 
+    // -------- BRD TEXT --------
+    if (action === "brd-generate") {
+      const { filename = "system-brd.md", content } = body;
+      if (!content) return j({ error: "content required" }, 400);
+      const res = await rr(`/v1/brd/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          filename,
+          content,
+          forward_to_test_doc: body.forward_to_test_doc ?? false,
+          metadata: { project_id: projectId, ...(body.metadata || {}) },
+        }),
+      });
+      const text = await res.text();
+      if (!res.ok) return upstreamError(res.status, text);
+      const data = JSON.parse(text);
+      const newJobId = data.id || data.job_id;
+      await admin.from("projects").update({
+        repo_job_id: newJobId,
+        repo_job_status: data.status || "queued",
+        repo_job_progress: data.progress ?? 0,
+        repo_job_meta: data,
+        status: "processing",
+      }).eq("id", projectId);
+      return j({ job_id: newJobId, status: data.status || "queued", raw: data });
+    }
+
+    // -------- BRD FILE / BRD ZIP UPLOAD --------
+    if (action === "brd-upload") {
+      const { filename = "brd-input.zip", file_base64, content_type } = body;
+      if (!file_base64) return j({ error: "file_base64 required" }, 400);
+      const bytes = Uint8Array.from(atob(file_base64), (c) => c.charCodeAt(0));
+      const fd = new FormData();
+      fd.append(
+        "file",
+        new Blob([bytes], { type: content_type || "application/octet-stream" }),
+        filename,
+      );
+      fd.append("forward_to_test_doc", String(body.forward_to_test_doc ?? false));
+      fd.append("metadata", JSON.stringify({ project_id: projectId, ...(body.metadata || {}) }));
+
+      const res = await rr(`/v1/brd/upload`, { method: "POST", body: fd });
+      const text = await res.text();
+      if (!res.ok) return upstreamError(res.status, text);
+      const data = JSON.parse(text);
+      const newJobId = data.id || data.job_id;
+      await admin.from("projects").update({
+        repo_job_id: newJobId,
+        repo_job_status: data.status || "queued",
+        repo_job_progress: data.progress ?? 0,
+        repo_job_meta: data,
+        status: "processing",
+      }).eq("id", projectId);
+      return j({ job_id: newJobId, status: data.status || "queued", raw: data });
+    }
+
     const jobId = project.repo_job_id;
     if (!jobId) return j({ status: "none", no_job: true, message: "Project has no repo job yet." }, 200);
 
