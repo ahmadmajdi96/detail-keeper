@@ -465,6 +465,41 @@ Deno.serve(async (req) => {
       }).eq("id", projectId);
       let sync;
       if (done) sync = await syncDocuments(admin, projectId, jobId);
+
+      // Mirror live progress + per-file errors onto the ingest history row
+      const { data: ij } = await admin
+        .from("ingest_jobs")
+        .select("id, document_id, stages")
+        .eq("project_id", projectId).eq("job_ref", jobId)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (ij) {
+        const label = stageLabel(status, data.progress ?? null);
+        const stages = Array.isArray(ij.stages) ? ij.stages : [];
+        if (stages[stages.length - 1]?.stage !== label) {
+          stages.push({ stage: label, at: new Date().toISOString(), progress: data.progress ?? null });
+        }
+        const fileErrors = [
+          ...(sync?.file_errors || []),
+          ...(Array.isArray(data.document_errors) ? data.document_errors : []),
+        ];
+        const uiStatus = failed ? "failed" : done ? (sync?.error ? "failed" : "processed") : "processing";
+        await admin.from("ingest_jobs").update({
+          status: uiStatus,
+          stage: label,
+          progress: data.progress ?? (done ? 100 : 0),
+          error: failed ? (data.error || `Repo Reader job ${status}`) : (sync?.error || null),
+          document_errors: fileErrors,
+          documents: sync?.files || [],
+          stages,
+        }).eq("id", ij.id);
+        if (ij.document_id) {
+          await admin.from("documents").update({
+            status: uiStatus === "processed" ? "processed" : uiStatus === "failed" ? "failed" : "processing",
+            processed_at: done || failed ? new Date().toISOString() : null,
+            requirements_count: sync?.synced ?? 0,
+          }).eq("id", ij.document_id);
+        }
+      }
       return j({ ...data, status, sync });
     }
 
