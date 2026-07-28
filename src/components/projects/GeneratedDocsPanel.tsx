@@ -218,7 +218,7 @@ export function GeneratedDocsPanel({ projectId, repoJobId, repoJobStatus, repoJo
           <CardContent className="py-16 text-center text-sm text-muted-foreground">
             <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-40" />
             <div className="font-medium mb-1">No AI documents yet</div>
-            <div>Upload a repository ZIP or a BRD, or link a GitHub repository to generate documentation.</div>
+            <div>Documents are ingested from the source you provided when the project was created.</div>
           </CardContent>
         </Card>
       </div>
