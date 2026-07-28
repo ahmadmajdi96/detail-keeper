@@ -269,9 +269,14 @@ Deno.serve(async (req) => {
 
     const { data: project, error: pErr } = await supabase
       .from("projects")
-      .select("id, repo_job_id, github_url, github_branch, github_repo_visibility")
+      .select("id, workspace_id, repo_job_id, github_url, github_branch, github_repo_visibility")
       .eq("id", projectId).maybeSingle();
     if (pErr || !project) return j({ error: "Project not found or forbidden" }, 403);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id ?? null;
+    const workspaceId = (project as any).workspace_id ?? null;
+
 
     // -------- BRANCHES (no job required) --------
     if (action === "branches") {
