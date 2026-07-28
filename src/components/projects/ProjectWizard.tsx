@@ -12,6 +12,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+/** Read a File as raw base64 (no data-URL prefix) for the repo-reader edge function. */
+const fileToBase64 = (file: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
