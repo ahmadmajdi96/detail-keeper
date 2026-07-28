@@ -15,39 +15,102 @@ interface Props {
  * arrays of primitives become bulleted lists, and objects become collapsible
  * key/value cards.
  */
+const META_KEYS = new Set([
+  "schema_version", "document_type", "job_id", "model", "provider", "repo_name",
+  "root_path", "generated_from", "generated_at", "created_at", "completed_at",
+  "extraction_policy", "source", "metadata",
+]);
+
+const isMetaKey = (k: string) => META_KEYS.has(k) || /_count$/.test(k) || /^count$/.test(k);
+
+/** Split a top-level object into its real payload and its metadata envelope. */
+function splitPayload(json: unknown): { payload: unknown; meta: Record<string, unknown>; payloadKey?: string } {
+  if (!json || typeof json !== "object" || Array.isArray(json)) return { payload: json, meta: {} };
+  const obj = json as Record<string, unknown>;
+  const meta: Record<string, unknown> = {};
+  const rest: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (isMetaKey(k)) meta[k] = v;
+    else rest[k] = v;
+  }
+  const keys = Object.keys(rest);
+  // A single remaining key that holds the content → surface it directly.
+  if (keys.length === 1) return { payload: rest[keys[0]], meta, payloadKey: keys[0] };
+  if (keys.length === 0) return { payload: null, meta };
+  return { payload: rest, meta };
+}
+
+const prettyKey = (k: string) => k.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
 export function DynamicJsonView({ json, filename }: Props) {
   const [query, setQuery] = useState("");
+  const [showMeta, setShowMeta] = useState(false);
+
+  const { payload, meta, payloadKey } = useMemo(() => splitPayload(json), [json]);
+
+  const isEmptyPayload =
+    payload == null ||
+    (Array.isArray(payload) && payload.length === 0) ||
+    (typeof payload === "object" && !Array.isArray(payload) && Object.keys(payload as any).length === 0);
 
   const isFilterable = useMemo(() => {
-    if (Array.isArray(json) && json.length > 0) return true;
-    if (json && typeof json === "object") return Object.keys(json as any).length > 3;
+    if (Array.isArray(payload) && payload.length > 0) return true;
+    if (payload && typeof payload === "object") return Object.keys(payload as any).length > 3;
     return false;
-  }, [json]);
+  }, [payload]);
+
+  const hasMeta = Object.keys(meta).length > 0;
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Braces className="h-3.5 w-3.5 text-accent" />
           <span className="font-mono">{filename || "data.json"}</span>
-          <Badge variant="outline" className="text-[10px]">
-            {summarize(json)}
-          </Badge>
+          {payloadKey && (
+            <Badge variant="outline" className="text-[10px] border-accent/40 text-accent">
+              {prettyKey(payloadKey)}
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-[10px]">{summarize(payload)}</Badge>
         </div>
-        {isFilterable && (
-          <div className="relative">
-            <Search className="h-3 w-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter…"
-              className="h-7 pl-7 text-xs w-48"
-            />
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {hasMeta && (
+            <button
+              onClick={() => setShowMeta((s) => !s)}
+              className="text-[11px] text-muted-foreground hover:text-accent transition-colors underline-offset-2 hover:underline"
+            >
+              {showMeta ? "Hide metadata" : "Show metadata"}
+            </button>
+          )}
+          {isFilterable && (
+            <div className="relative">
+              <Search className="h-3 w-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter…"
+                className="h-7 pl-7 text-xs w-48"
+              />
+            </div>
+          )}
+        </div>
       </div>
+
+      {showMeta && hasMeta && (
+        <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+          <ObjectCard obj={meta} depth={0} query="" />
+        </div>
+      )}
+
       <div className="rounded-lg border border-border/60 bg-card/40 p-3 overflow-x-auto">
-        <Node value={json} depth={0} query={query.toLowerCase()} />
+        {isEmptyPayload ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
+            No {payloadKey ? prettyKey(payloadKey).toLowerCase() : "content"} were extracted from this repository.
+          </div>
+        ) : (
+          <Node value={payload} depth={0} query={query.toLowerCase()} />
+        )}
       </div>
     </div>
   );
