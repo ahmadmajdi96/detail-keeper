@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { DynamicJsonView } from "./DynamicJsonView";
 import JSZip from "jszip";
+import { DocumentIngestPanel, IngestStatusBadge } from "./DocumentIngestPanel";
 
 interface Props {
   projectId: string;
