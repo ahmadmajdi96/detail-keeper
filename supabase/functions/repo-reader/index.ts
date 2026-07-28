@@ -26,8 +26,8 @@ function j(body: unknown, status = 200) {
 class UpstreamUnreachable extends Error {}
 
 async function rr(path: string, init: RequestInit = {}): Promise<Response> {
-  try {
-    return await fetch(`${BASE}${path}`, {
+  const doFetch = () =>
+    fetch(`${BASE}${path}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${API_KEY}`,
@@ -36,6 +36,15 @@ async function rr(path: string, init: RequestInit = {}): Promise<Response> {
         ...(init.headers || {}),
       },
     });
+
+  try {
+    let res = await doFetch();
+    // Transient gateway errors: retry once after a short delay (not for uploads).
+    if ([502, 503, 504].includes(res.status) && !(init.body instanceof FormData)) {
+      await new Promise((r) => setTimeout(r, 1200));
+      res = await doFetch();
+    }
+    return res;
   } catch (e) {
     throw new UpstreamUnreachable(
       `Repo Reader service unreachable at ${BASE}. (${(e as Error).message})`,
@@ -43,14 +52,37 @@ async function rr(path: string, init: RequestInit = {}): Promise<Response> {
   }
 }
 
+/** Turn an upstream failure (often raw nginx HTML) into a clean, actionable message. */
+function upstreamError(status: number, text: string) {
+  const isHtml = /^\s*<(!doctype|html)/i.test(text);
+  if ([502, 503, 504].includes(status) || isHtml) {
+    return j(
+      {
+        error:
+          "The Repo Reader service is temporarily unavailable (gateway error). It may be restarting — please retry in a minute.",
+        code: "upstream_unavailable",
+        upstream_status: status,
+      },
+      503,
+    );
+  }
+  let detail = text.slice(0, 400);
+  try {
+    const parsed = JSON.parse(text);
+    detail = parsed?.error || parsed?.detail || parsed?.message || detail;
+  } catch { /* keep raw text */ }
+  return j({ error: `Repo Reader ${status}: ${detail}`, code: "upstream_error", upstream_status: status }, status);
+}
+
 async function passthrough(res: Response) {
   const text = await res.text();
-  if (!res.ok) return j({ error: `Repo Reader ${res.status}: ${text.slice(0, 400)}` }, res.status);
+  if (!res.ok) return upstreamError(res.status, text);
   return new Response(text || "{}", {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
 
 function normalizeDocs(payload: any): any[] {
   const raw = Array.isArray(payload)
