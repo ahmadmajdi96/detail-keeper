@@ -101,7 +101,7 @@ function normalizeDocs(payload: any): any[] {
 
 /** Drop the generator's "## Metadata" envelope from markdown documents. */
 function stripMarkdownMetadata(md: string): string {
-  return md.replace(/^##\s+Metadata\s*\n[\s\S]*?(?=^##\s+|\Z)/im, "").replace(/\n{3,}/g, "\n\n");
+  return md.replace(/^##\s+Metadata\s*\n(?:(?!^##\s)[\s\S])*/im, "").replace(/\n{3,}/g, "\n\n");
 }
 
 async function fetchDocContent(jobId: string, filename: string): Promise<string | null> {
