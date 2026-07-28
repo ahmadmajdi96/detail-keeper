@@ -129,9 +129,13 @@ function titleFromFilename(filename: string) {
 }
 
 async function syncDocuments(admin: any, projectId: string, jobId: string) {
+  const fileErrors: { filename: string; error: string }[] = [];
   try {
     const res = await rr(`/v1/jobs/${jobId}/documents`);
-    if (!res.ok) return { synced: 0, error: `documents ${res.status}` };
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      return { synced: 0, error: `Could not list documents (HTTP ${res.status}) ${t.slice(0, 200)}`, file_errors: fileErrors, files: [] };
+    }
     const docs = normalizeDocs(await res.json().catch(() => ({})));
     let synced = 0;
     for (const d of docs) {
@@ -146,23 +150,100 @@ async function syncDocuments(admin: any, projectId: string, jobId: string) {
         .eq("project_id", projectId).eq("slug", slug).maybeSingle();
       if (existing?.edited) continue;
 
-      const content = await fetchDocContent(jobId, filename);
-      if (content == null) continue;
+      let content: string | null = null;
+      try {
+        content = await fetchDocContent(jobId, filename);
+      } catch (e) {
+        fileErrors.push({ filename, error: (e as Error).message });
+        continue;
+      }
+      if (content == null) {
+        fileErrors.push({ filename, error: "Upstream returned no content for this file (download failed)." });
+        continue;
+      }
 
-      await admin.from("project_generated_docs").upsert({
+      const { error: upErr } = await admin.from("project_generated_docs").upsert({
         project_id: projectId,
         job_id: jobId,
         slug, filename, title, content,
         source_bytes: d.bytes ?? content.length,
         edited: false,
       }, { onConflict: "project_id,slug" });
+      if (upErr) {
+        fileErrors.push({ filename, error: `Could not save document: ${upErr.message}` });
+        continue;
+      }
       synced++;
     }
-    return { synced, total: docs.length };
+    return {
+      synced,
+      total: docs.length,
+      files: docs.map((d: any) => ({ filename: d.filename, bytes: d.bytes ?? null, title: d.title ?? null })),
+      file_errors: fileErrors,
+    };
   } catch (e) {
-    return { synced: 0, error: (e as Error).message };
+    return { synced: 0, error: (e as Error).message, file_errors: fileErrors, files: [] };
   }
 }
+
+/** Create an ingest-job history row (and a matching Documents entry for uploads). */
+async function recordIngest(
+  admin: any,
+  opts: {
+    projectId: string;
+    workspaceId: string | null;
+    ingestType: string;
+    sourceName: string;
+    jobRef: string | null;
+    status: string;
+    userId: string | null;
+    payload?: Record<string, unknown>;
+    fileSize?: number;
+    mimeType?: string;
+  },
+) {
+  let documentId: string | null = null;
+  try {
+    const { data: doc } = await admin.from("documents").insert({
+      project_id: opts.projectId,
+      workspace_id: opts.workspaceId,
+      filename: opts.sourceName,
+      file_size: opts.fileSize ?? 0,
+      mime_type: opts.mimeType || "application/octet-stream",
+      status: "processing",
+      uploader_id: opts.userId,
+    }).select("id").maybeSingle();
+    documentId = doc?.id ?? null;
+  } catch { /* documents mirror is best-effort */ }
+
+  await admin.from("ingest_jobs").insert({
+    project_id: opts.projectId,
+    workspace_id: opts.workspaceId,
+    job_ref: opts.jobRef,
+    ingest_type: opts.ingestType,
+    source_name: opts.sourceName,
+    status: opts.status || "queued",
+    stage: "Submitted to Repo Reader",
+    progress: 0,
+    payload: opts.payload || {},
+    document_id: documentId,
+    created_by: opts.userId,
+    stages: [{ stage: "queued", at: new Date().toISOString() }],
+  });
+  return documentId;
+}
+
+function stageLabel(status: string, progress: number | null) {
+  if (DONE.includes(status)) return "Documents generated";
+  if (FAILED.includes(status)) return "Failed";
+  if (status === "queued") return "Queued";
+  const p = progress ?? 0;
+  if (p < 25) return "Cloning / unpacking source";
+  if (p < 55) return "Scanning files";
+  if (p < 85) return "Generating documents with AI";
+  return "Finalising output";
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
