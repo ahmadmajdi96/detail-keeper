@@ -1,21 +1,23 @@
-// Poll the Playwright codegen job stored on a test plan. Writes live
-// progress into test_plans.codegen_* so any subscriber sees a progress
-// bar. When the remote job succeeds, fetches the bundle and persists
-// every file into test_plan_specs, then flips codegen_status to 'ready'.
-// Idempotent — safe to call every few seconds from the client.
+// Poll the Repo Reader Playwright code job stored on a test plan.
+//
+//   GET  /v1/jobs/<playwright_code_job_id>
+//   GET  /v1/jobs/<playwright_code_job_id>/documents
+//   GET  /v1/jobs/<playwright_code_job_id>/documents/<path>
+//
+// Writes live progress into test_plans.codegen_* and, on success, persists
+// every generated file into `test_plan_specs`, then flips codegen_status to
+// 'ready'. Idempotent — safe to call every few seconds from the client.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const FORGE_BASE = "https://testgenerator.qualixa.cortanexai.com";
+const BASE = (Deno.env.get("REPO_READER_BASE_URL_V1") || "https://reporeader.qualixa.cortanexai.com").replace(/\/+$/, "");
+const API_KEY = Deno.env.get("REPO_READER_API_KEY_V1") || "qualixa-repo-reader-key";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return j({ error: "Unauthorized" }, 401);
-
-    const apiKey = Deno.env.get("TESTGEN_API_KEY");
-    if (!apiKey) return j({ error: "TESTGEN_API_KEY is not configured" }, 500);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -43,9 +45,7 @@ Deno.serve(async (req) => {
     const jobId = (plan as any).codegen_job_ref;
     if (!jobId) return j({ status: (plan as any).codegen_status || "unknown", note: "no job ref" });
 
-    const s = await fetch(`${FORGE_BASE}/v1/codegen/${jobId}`, {
-      headers: { authorization: `Bearer ${apiKey}` },
-    });
+    const s = await rr(`/v1/jobs/${jobId}`);
     if (!s.ok) {
       const t = await s.text();
       return j({ status: (plan as any).codegen_status, remote_http: s.status, note: t.slice(0, 200) });
@@ -53,43 +53,33 @@ Deno.serve(async (req) => {
     const body = await s.json().catch(() => ({}));
     const rstatus = String(body?.status || body?.state || "").toLowerCase();
     const prog = (body?.progress && typeof body.progress === "object") ? body.progress : {};
-    const totalUnits = Number(prog.totalUnits ?? prog.totalFiles ?? body?.totalUnits ?? 0);
-    const completedUnits = Number(prog.completedUnits ?? prog.completedFiles ?? body?.completedUnits ?? 0);
     let percent: number | null = null;
     if (typeof body?.progress === "number") percent = clampPct(body.progress);
     else if (typeof body?.percent === "number") percent = clampPct(body.percent);
     else if (typeof prog.percent === "number") percent = clampPct(prog.percent);
-    else if (totalUnits > 0) percent = clampPct((completedUnits / totalUnits) * 100);
     const stage = body?.stage || body?.phase || prog.stage || null;
-    const message = buildMessage(rstatus, stage, completedUnits, totalUnits);
+    const message = buildMessage(rstatus, stage, percent);
 
-    if (["failed", "error", "cancelled"].includes(rstatus)) {
+    if (["failed", "error", "cancelled", "canceled"].includes(rstatus)) {
+      const detail = body?.error || body?.message || null;
       await admin.from("test_plans").update({
         codegen_status: "failed",
         codegen_progress: percent ?? 0,
-        codegen_progress_message: message || `Codegen ${rstatus}`,
+        codegen_progress_message: detail ? String(detail).slice(0, 300) : (message || `Codegen ${rstatus}`),
         codegen_progress_updated_at: new Date().toISOString(),
       }).eq("id", test_plan_id);
       return j({ status: "failed", remote_status: rstatus });
     }
 
-    const isSuccess = ["succeeded", "completed", "success", "completed_with_gaps", "completed_with_errors", "partial"].includes(rstatus)
+    const isSuccess = ["succeeded", "completed", "success", "ready"].includes(rstatus)
       || rstatus.startsWith("completed");
     if (!isSuccess) {
-      if (percent !== null && percent !== (plan as any).codegen_progress) {
-        await admin.from("test_plans").update({
-          codegen_status: "running",
-          codegen_progress: percent,
-          codegen_progress_message: message,
-          codegen_progress_updated_at: new Date().toISOString(),
-        }).eq("id", test_plan_id);
-      } else if (message) {
-        await admin.from("test_plans").update({
-          codegen_status: "running",
-          codegen_progress_message: message,
-          codegen_progress_updated_at: new Date().toISOString(),
-        }).eq("id", test_plan_id);
-      }
+      await admin.from("test_plans").update({
+        codegen_status: "running",
+        ...(percent !== null ? { codegen_progress: percent } : {}),
+        codegen_progress_message: message,
+        codegen_progress_updated_at: new Date().toISOString(),
+      }).eq("id", test_plan_id);
       return j({ status: "running", remote_status: rstatus, progress: percent, message });
     }
 
@@ -99,18 +89,22 @@ Deno.serve(async (req) => {
 
     await admin.from("test_plans").update({
       codegen_progress: 100,
-      codegen_progress_message: "Fetching generated files…",
+      codegen_progress_message: "Fetching generated Playwright files…",
       codegen_progress_updated_at: new Date().toISOString(),
     }).eq("id", test_plan_id);
 
-    const files = await fetchBundleWithRetry(jobId, apiKey);
-    if (!files) {
+    const paths = await listDocuments(jobId);
+    if (!paths.length) {
+      const msg = "Repo Reader finished but returned no Playwright files yet — re-run code generation.";
       await admin.from("test_plans").update({
         codegen_status: "failed",
-        codegen_progress_message: "Could not fetch generated files from Forge",
+        codegen_progress_message: msg,
         codegen_progress_updated_at: new Date().toISOString(),
       }).eq("id", test_plan_id);
-      return j({ status: "failed", note: "bundle fetch failed" });
+      await admin.from("generation_stage_logs").insert({
+        test_plan_id, kind: "code", stage: "failed", message: msg, meta: { job_ref: jobId },
+      } as any);
+      return j({ status: "failed", error: msg });
     }
 
     // When the plan asked for inspect-only skeletons, force every generated
@@ -123,8 +117,7 @@ Deno.serve(async (req) => {
         .replace(/(^|[^.\w])test\.only\s*\(/g, "$1test.skip(")
         .replace(/(^|[^.\w])test\.skip\.skip\s*\(/g, "$1test.skip(");
 
-    // Provenance for generated Playwright output: the document versions and
-    // traceability mappings that were live when codegen ran.
+    // ---- Provenance snapshot -------------------------------------------
     const { data: provDocs } = await admin
       .from("test_plan_documents_v2")
       .select("id, slug, title")
@@ -144,35 +137,36 @@ Deno.serve(async (req) => {
         return true;
       });
     }
-    const { data: provLinks } = await admin
+    const { count: linkCount } = await admin
       .from("requirement_links")
-      .select("requirement_id, linked_type, linked_id")
-      .limit(2000);
+      .select("requirement_id", { count: "exact", head: true });
     const provenance = {
-      generator: "forge-codegen",
+      generator: "repo-reader-playwright-code",
       job_id: jobId,
       generated_at: new Date().toISOString(),
       skip_stubs: skipStubs,
+      env: { base_url_env: "PLAYWRIGHT_BASE_URL", api_base_url_env: "API_BASE_URL", auth_token_env: "E2E_AUTH_TOKEN" },
       documents: (provDocs ?? []).map((d: any) => {
         const v = provVersions.find((x: any) => x.document_id === d.id);
         return { document_id: d.id, slug: d.slug, title: d.title, version: v?.version ?? null, version_id: v?.id ?? null };
       }),
-      traceability: { captured_at: new Date().toISOString(), mappings: (provLinks ?? []).length },
-      traceability_links: provLinks ?? [],
+      traceability: { captured_at: new Date().toISOString(), mappings: linkCount ?? 0 },
     };
 
     let inserted = 0;
-    for (const [path, content] of Object.entries(files)) {
-      const filename = String(path).split("/").pop()!.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 200);
-      const raw = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+    const failedFiles: string[] = [];
+    for (const path of paths) {
+      const raw = await fetchDocument(jobId, path);
+      if (raw === null) { failedFiles.push(path); continue; }
+      const filename = path.replace(/^\/+/, "").replace(/[^a-zA-Z0-9._/-]/g, "-").slice(0, 240);
       const isSpec = /\.(spec|test)\.(ts|tsx|js|mjs)$/i.test(filename);
       const text = skipStubs && isSpec
         ? `// Generated as an inspect-only skeleton — every test is skipped.\n${toSkipStub(raw)}`
         : raw;
       const language = filename.endsWith(".json") ? "json"
         : filename.endsWith(".ts") || filename.endsWith(".tsx") ? "typescript"
-        : filename.endsWith(".js") ? "javascript" : "text";
-
+        : filename.endsWith(".js") ? "javascript"
+        : filename.endsWith(".md") ? "markdown" : "text";
 
       const { data: existing } = await admin.from("test_plan_specs")
         .select("id").eq("test_plan_id", test_plan_id).eq("filename", filename).maybeSingle();
@@ -187,10 +181,20 @@ Deno.serve(async (req) => {
       inserted++;
     }
 
+    if (inserted === 0) {
+      const msg = "Could not download any generated Playwright files from Repo Reader.";
+      await admin.from("test_plans").update({
+        codegen_status: "failed",
+        codegen_progress_message: msg,
+        codegen_progress_updated_at: new Date().toISOString(),
+      }).eq("id", test_plan_id);
+      return j({ status: "failed", error: msg, failed_files: failedFiles });
+    }
+
     await admin.from("test_plans").update({
       codegen_status: "ready",
       codegen_progress: 100,
-      codegen_progress_message: `Generated ${inserted} spec file${inserted === 1 ? "" : "s"}`,
+      codegen_progress_message: `Generated ${inserted} Playwright file${inserted === 1 ? "" : "s"}`,
       codegen_progress_updated_at: new Date().toISOString(),
     }).eq("id", test_plan_id);
 
@@ -201,9 +205,9 @@ Deno.serve(async (req) => {
           test_plan_id, kind: "code", stage: "persist", dry_run: dry,
           install_skipped: dry, execution_skipped: dry,
           message: dry
-            ? `Specs persisted (${inserted} file${inserted === 1 ? "" : "s"}) — no dependencies installed, no tests executed`
-            : `Specs persisted (${inserted} file${inserted === 1 ? "" : "s"})`,
-          meta: { inserted, skip_stubs: skipStubs },
+            ? `Playwright project persisted (${inserted} file${inserted === 1 ? "" : "s"}) — no dependencies installed, no tests executed`
+            : `Playwright project persisted (${inserted} file${inserted === 1 ? "" : "s"})`,
+          meta: { inserted, skip_stubs: skipStubs, failed_files: failedFiles },
         },
         {
           test_plan_id, kind: "code", stage: "done", dry_run: dry,
@@ -215,67 +219,67 @@ Deno.serve(async (req) => {
         },
       ]);
     }
-    return j({ status: "ready", inserted });
+    return j({ status: "ready", inserted, failed_files: failedFiles });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
 });
+
+function rr(path: string, init: RequestInit = {}) {
+  return fetch(`${BASE}${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json", ...(init.headers ?? {}) },
+  });
+}
 
 function clampPct(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(99, Math.round(n)));
 }
 
-function buildMessage(status: string, stage: any, done: number, total: number): string {
-  if (stage) return `${String(stage)}${total ? ` · ${done}/${total} files` : ""}`;
-  if (total > 0) return `Generating specs · ${done}/${total} files`;
-  if (status === "queued") return "Queued at Forge";
-  if (status === "running") return "Generating Playwright code…";
-  return "";
+function buildMessage(status: string, stage: unknown, percent: number | null): string {
+  if (stage) return `${String(stage)}${percent !== null ? ` · ${percent}%` : ""}`;
+  if (status === "queued") return "Queued on Repo Reader";
+  if (status === "running") return "Generating Playwright project…";
+  return "Working…";
 }
 
-async function fetchBundleWithRetry(jobId: string, apiKey: string): Promise<Record<string, any> | null> {
-  const urls = [
-    `${FORGE_BASE}/v1/codegen/${jobId}/bundle`,
-    `${FORGE_BASE}/v1/codegen/${jobId}/files`,
-    `${FORGE_BASE}/v1/codegen/${jobId}/artifacts`,
-  ];
-  for (const url of urls) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const r = await fetch(url, { headers: { authorization: `Bearer ${apiKey}` } });
-        if (!r.ok) { await sleep(500 * (attempt + 1)); continue; }
-        const body = await r.json().catch(() => ({}));
-        const files = extractFiles(body);
-        if (files && Object.keys(files).length) return files;
-      } catch {
-        await sleep(500 * (attempt + 1));
+/** List every file the code job produced (nested paths included). */
+async function listDocuments(jobId: string): Promise<string[]> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await rr(`/v1/jobs/${jobId}/documents`);
+      if (r.ok) {
+        const body = await r.json();
+        const arr = Array.isArray(body) ? body : (body?.documents ?? body?.files ?? []);
+        const list = (Array.isArray(arr) ? arr : [])
+          .map((d: any) => String(typeof d === "string" ? d : (d?.path ?? d?.filename ?? d?.name ?? d?.slug ?? "")))
+          .filter(Boolean);
+        if (list.length) return list;
       }
-    }
+    } catch { /* retry */ }
+    await sleep(700 * (attempt + 1));
   }
-  return null;
+  return [];
 }
 
-function extractFiles(body: any): Record<string, any> | null {
-  if (!body || typeof body !== "object") return null;
-  if (body.files && typeof body.files === "object" && !Array.isArray(body.files)) return body.files;
-  if (Array.isArray(body.files)) {
-    const out: Record<string, any> = {};
-    for (const f of body.files) {
-      const p = f?.path || f?.filename || f?.name;
-      const c = f?.content ?? f?.body ?? f?.source;
-      if (p) out[String(p)] = c ?? "";
-    }
-    return out;
-  }
-  if (Array.isArray(body.artifacts)) {
-    const out: Record<string, any> = {};
-    for (const f of body.artifacts) {
-      const p = f?.path || f?.filename || f?.name;
-      const c = f?.content ?? f?.body ?? f?.source;
-      if (p) out[String(p)] = c ?? "";
-    }
-    return out;
+/** Fetch a single (possibly nested) document as text. */
+async function fetchDocument(jobId: string, path: string): Promise<string | null> {
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const r = await rr(`/v1/jobs/${jobId}/documents/${encoded}`);
+      if (r.ok) {
+        const text = await r.text();
+        // Some documents are returned wrapped in a JSON envelope.
+        try {
+          const p = JSON.parse(text);
+          if (p && typeof p === "object" && typeof p.content === "string") return p.content;
+        } catch { /* plain text */ }
+        return text;
+      }
+    } catch { /* retry */ }
+    await sleep(400 * (attempt + 1));
   }
   return null;
 }
