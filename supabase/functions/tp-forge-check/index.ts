@@ -122,12 +122,20 @@ Deno.serve(async (req) => {
 
     const catalog = await fetchCatalog(jobId);
     if (!catalog) {
+      const available = await listDocuments(jobId);
+      const msg = available.length
+        ? `Repo Reader finished but "${CATALOG_JSON}" is missing. Files returned: ${available.slice(0, 8).join(", ")}. Re-run generation or contact support.`
+        : `Repo Reader finished but returned no downloadable documents yet — "${CATALOG_JSON}" is unavailable. Try re-running generation.`;
       await admin.from("test_plans").update({
         ai_status: "failed",
-        ai_progress_message: "Could not fetch the generated test-case catalog from Repo Reader",
+        ai_progress_message: msg,
         ai_progress_updated_at: new Date().toISOString(),
       }).eq("id", test_plan_id);
-      return j({ status: "failed", note: "catalog fetch failed" });
+      await admin.from("generation_stage_logs").insert({
+        test_plan_id, kind: "cases", stage: "failed", message: msg,
+        meta: { job_ref: jobId, available_documents: available },
+      } as any);
+      return j({ status: "failed", error: msg, available_documents: available }, 200);
     }
     const items: any[] = Array.isArray(catalog.test_cases) ? catalog.test_cases : [];
 
