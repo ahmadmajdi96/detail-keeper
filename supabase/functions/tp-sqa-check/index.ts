@@ -117,6 +117,20 @@ Deno.serve(async (req) => {
       return j({ status: "failed", error: msg });
     }
 
+    // ---- completed: persist coverage returned by Repo Reader ----------
+    if (data.coverage_summary || data.test_type_coverage) {
+      await admin.from("test_plans").update({
+        coverage_summary: data.coverage_summary ?? null,
+        test_type_coverage: Array.isArray(data.test_type_coverage) ? data.test_type_coverage : null,
+        coverage_source: {
+          job_id: data.job_id ?? jobId,
+          source_document: data.source_document ?? null,
+          source_slug: data.source_slug ?? null,
+          fetched_at: new Date().toISOString(),
+        },
+      }).eq("id", test_plan_id);
+    }
+
     // ---- completed: list + download all generated documents ----
     const listRes = await rr(`/v1/jobs/${jobId}/documents`);
     if (!listRes.ok) {
