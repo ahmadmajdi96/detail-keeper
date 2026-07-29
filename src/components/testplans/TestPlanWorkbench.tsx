@@ -29,6 +29,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronRight, FolderOpen, FlaskConical, FileSearch } from "lucide-react";
 import { CoverageSummary } from "./CoverageSummary";
 import { GenerationSettingsPanel, useGenerationSettings, limitLabel } from "./GenerationSettingsPanel";
+import { GenerationStatusStrip } from "./GenerationStatusStrip";
+import { TestCaseCatalogPanel } from "./TestCaseCatalogPanel";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReviewQueue, type ReviewKind } from "./ReviewQueue";
 
