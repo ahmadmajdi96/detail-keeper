@@ -117,19 +117,54 @@ Deno.serve(async (req) => {
       return j({ status: "failed", error: msg });
     }
 
-    // ---- completed: persist coverage returned by Repo Reader ----------
-    if (data.coverage_summary || data.test_type_coverage) {
+    // ---- completed: persist coverage (from job payload, else parsed from source docs) ----
+    let coverageSummary = data.coverage_summary ?? null;
+    let testTypeCoverage = Array.isArray(data.test_type_coverage) ? data.test_type_coverage : null;
+    let sourceDocument = data.source_document ?? null;
+    let sourceSlug = data.source_slug ?? null;
+
+    if (!coverageSummary && !testTypeCoverage) {
+      const sourceJobId = data?.source?.source_job_id ?? plan.docs_source_job_ref ?? null;
+      const candidates: string[] = (data?.source?.source_documents ?? [])
+        .map((d: any) => d?.filename)
+        .filter((f: any) => typeof f === "string");
+      const ordered = [
+        ...candidates.filter((f) => /full_mock_data/i.test(f)),
+        ...candidates.filter((f) => !/full_mock_data/i.test(f)),
+      ];
+      if (sourceJobId) {
+        for (const filename of ordered) {
+          try {
+            const dr = await rr(`/v1/jobs/${sourceJobId}/documents/${encodeURIComponent(filename)}`);
+            if (!dr.ok) continue;
+            const md = await dr.text();
+            const summary = parseCoverageSummary(md);
+            const byType = parseCoverageByTestType(md);
+            if (summary || byType.length) {
+              coverageSummary = summary;
+              testTypeCoverage = byType.length ? byType : null;
+              sourceDocument = filename;
+              sourceSlug = filename.replace(/\.(md|json|txt|ya?ml)$/i, "");
+              break;
+            }
+          } catch { /* try next document */ }
+        }
+      }
+    }
+
+    if (coverageSummary || testTypeCoverage) {
       await admin.from("test_plans").update({
-        coverage_summary: data.coverage_summary ?? null,
-        test_type_coverage: Array.isArray(data.test_type_coverage) ? data.test_type_coverage : null,
+        coverage_summary: coverageSummary,
+        test_type_coverage: testTypeCoverage,
         coverage_source: {
           job_id: data.job_id ?? jobId,
-          source_document: data.source_document ?? null,
-          source_slug: data.source_slug ?? null,
+          source_document: sourceDocument,
+          source_slug: sourceSlug,
           fetched_at: new Date().toISOString(),
         },
       }).eq("id", test_plan_id);
     }
+
 
     // ---- completed: list + download all generated documents ----
     const listRes = await rr(`/v1/jobs/${jobId}/documents`);
