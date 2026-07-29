@@ -376,6 +376,10 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             title="Edit requirement ⇄ test-case mappings">
             <Grid3x3 className="h-3.5 w-3.5 mr-1" /> Traceability
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setCatalogOpen(true)}
+            title="Browse the generated test-case catalog with filters">
+            <FlaskConical className="h-3.5 w-3.5 mr-1" /> Catalog
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" disabled={exporting}
