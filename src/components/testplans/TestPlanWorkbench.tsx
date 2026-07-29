@@ -299,6 +299,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const [validationOpen, setValidationOpen] = useState(false);
   const [provenanceOpen, setProvenanceOpen] = useState(false);
   const [matrixOpen, setMatrixOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [historyDoc, setHistoryDoc] = useState<{ id: string; label: string } | null>(null);
   const exportBundle = async (approvedOnly = false) => {
     setExporting(true);
