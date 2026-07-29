@@ -83,277 +83,173 @@ export async function terminateRemoteDocJob(
 }
 
 // ---------------- generate_test_plan_from_docs ----------------
-// New flow: send all AI-generated project docs (project_generated_docs) to the
-// external Doc Generator service, wait for it to produce the 10 test-plan docs,
-// and persist them as test_plan_documents_v2 rows so the workbench renders them.
+// The legacy Doc Generator upload flow is gone. Documents are now produced by
+// Repo Reader from the project's already-completed source job:
+//   POST /v1/jobs/<source_job_id>/sqa-plan  -> poll -> download .md documents.
 export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
   const test_plan_id = job.payload?.test_plan_id;
   if (!test_plan_id) throw new Error("payload.test_plan_id required");
+
+  const BASE = (Deno.env.get("REPO_READER_BASE_URL_V1") || "https://reporeader.qualixa.cortanexai.com").replace(/\/+$/, "");
+  const KEY = Deno.env.get("REPO_READER_API_KEY_V1") || "qualixa-repo-reader-key";
+  const rr = (path: string, init: RequestInit = {}, timeout = 30_000) =>
+    fetchWithTimeout(`${BASE}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${KEY}`, Accept: "application/json", ...(init.headers || {}) },
+    }, timeout);
+
+  const DONE = ["succeeded", "success", "completed", "ready"];
+  const FAILED = ["failed", "error", "cancelled", "canceled"];
 
   await sb.from("test_plans").update({
     ai_status: "running",
     ai_last_run_at: new Date().toISOString(),
   }).eq("id", test_plan_id);
 
-  await setProgress(sb, job.id, 5, "Loading plan & AI project docs");
-
   const { data: plan } = await sb.from("test_plans").select("*").eq("id", test_plan_id).single();
   if (!plan) throw new Error("Test plan not found");
-
-  const { data: aiDocs } = await sb
-    .from("project_generated_docs")
-    .select("slug, filename, title, content")
-    .eq("project_id", plan.project_id)
-    .order("slug", { ascending: true });
-
-  const docs = aiDocs || [];
-  if (!docs.length) {
-    throw new Error("Project has no AI-generated documents yet. Generate them from the project's AI Docs tab first.");
-  }
-
-  const BASE = Deno.env.get("DOC_GENERATOR_BASE_URL") || "https://docgenerator.qualixa.cortanexai.com";
-  const KEY = Deno.env.get("DOC_GENERATOR_API_KEY");
-  if (!KEY) throw new Error("DOC_GENERATOR_API_KEY not configured");
-
-  const EXPECTED_FILES = [
-    "00_master_test_plan.md",
-    "01_unit_test_plan.md",
-    "02_integration_api_test_plan.md",
-    "03_stress_load_test_plan.md",
-    "04_penetration_security_test_plan.md",
-    "05_benchmark_performance_test_plan.md",
-    "06_edge_case_catalog.md",
-    "07_automation_backlog.md",
-    "08_traceability_matrix.md",
-    "09_execution_runbook.md",
-    "10_target_app_access_guide.md",
-    "11_testing_variables_secrets_template.md",
-    "12_ui_route_selector_map.md",
-    "13_api_contract_reference.md",
-    "14_test_data_management_guide.md",
-    "15_environment_dependency_guide.md",
-    "16_constraints_safety_guardrails.md",
-    "17_acceptance_user_story_criteria.md",
-    "18_bug_history_risk_notes.md",
-    "19_visual_accessibility_standards.md",
-  ];
+  if (!plan.project_id) throw nonRetryableError("This test plan is not linked to a project");
 
   const checkpoint = job.checkpoint || {};
   const startedAt = checkpoint.started_at || new Date().toISOString();
   const overallStarted = new Date(startedAt).getTime();
   const MAX_TOTAL_MS = 60 * 60 * 1000;
-  const POLL_DELAY_MS = 2 * 60 * 1000;
-  const STUCK_WITHOUT_CHANGE_MS = 35 * 60 * 1000;
+  const POLL_DELAY_MS = 60 * 1000;
   let remoteJobId = checkpoint.remote_job_id as string | undefined;
   let remoteStatus = checkpoint.remote_status || "queued";
   let remoteProgress = typeof checkpoint.remote_progress === "number" ? checkpoint.remote_progress : 0;
-  let lastRemoteChangeAt = checkpoint.last_remote_change_at || startedAt;
 
-  if (Date.now() - overallStarted > MAX_TOTAL_MS) {
-    if (remoteJobId) {
-      await terminateRemoteDocJob(BASE, KEY, remoteJobId, `Qualixa safe-runtime limit exceeded (${Math.round(MAX_TOTAL_MS / 60000)}m)`);
-    }
-    throw nonRetryableError(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
-  }
-
-  // 1. Build multipart with each project doc as a file, unless this job already
-  // has a checkpointed remote job to resume.
+  // 1. Create the SQA plan job on Repo Reader (once).
   if (!remoteJobId) {
-    // Doc Generator accepts up to 75 MB for JSON inventory files and 15 MB
-    // for everything else. Skip only files exceeding their applicable limit.
-    const MAX_MD_BYTES = 15 * 1024 * 1024;
-    const MAX_JSON_BYTES = 75 * 1024 * 1024;
-    const skipped: string[] = [];
-    const uploadable: typeof docs = [];
-    for (const d of docs) {
-      const raw = d.filename || d.slug || "document";
-      const isJson = raw.toLowerCase().endsWith(".json");
-      const size = new Blob([d.content || ""]).size;
-      const limit = isJson ? MAX_JSON_BYTES : MAX_MD_BYTES;
-      if (size > limit) {
-        skipped.push(`${raw} (${(size / 1024 / 1024).toFixed(1)} MB > ${limit / 1024 / 1024} MB)`);
-        continue;
-      }
-      uploadable.push(d);
+    await setProgress(sb, job.id, 10, "Starting SQA testing-plan generation on Repo Reader");
+    const { data: project } = await sb
+      .from("projects")
+      .select("id, repo_job_id, repo_job_status")
+      .eq("id", plan.project_id)
+      .maybeSingle();
+    const sourceJobId = project?.repo_job_id as string | undefined;
+    if (!sourceJobId) {
+      throw nonRetryableError("The project has no completed source job yet — ingest a repository or BRD first.");
     }
-    if (!uploadable.length) {
-      throw nonRetryableError(`All ${docs.length} docs exceed Doc Generator size limits. Oversized: ${skipped.join(", ")}`);
+    if (!DONE.includes(String(project?.repo_job_status || "").toLowerCase())) {
+      throw nonRetryableError(`The project's source job is not completed yet (status: ${project?.repo_job_status || "unknown"}).`);
     }
-    await setProgress(
-      sb,
-      job.id,
-      15,
-      `Uploading ${uploadable.length} docs to Doc Generator${skipped.length ? ` (skipping ${skipped.length} oversized: ${skipped.join(", ")})` : ""}`,
-    );
-    const form = new FormData();
-    for (const d of uploadable) {
-      const raw = d.filename || d.slug || "document";
-      const hasExt = /\.[a-z0-9]+$/i.test(raw);
-      const name = hasExt ? raw : `${raw}.md`;
-      const isJson = name.toLowerCase().endsWith(".json");
-      form.append(
-        "files",
-        new Blob([d.content || ""], { type: isJson ? "application/json" : "text/markdown" }),
-        name,
-      );
-    }
-    form.append("metadata", JSON.stringify({
-      source: "qualixa",
-      test_plan_id,
-      project_id: plan.project_id,
-      plan_name: plan.name,
-      plan_description: plan.description,
-      expected_files: EXPECTED_FILES,
-    }));
 
-    const createRes = await fetchWithTimeout(`${BASE}/v1/jobs`, {
+    const createRes = await rr(`/v1/jobs/${sourceJobId}/sqa-plan`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${KEY}` },
-      body: form,
-    }, 30_000);
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        metadata: { test_plan_id, project_id: plan.project_id, source: "qualixa" },
+        forward_to_test_doc: false,
+      }),
+    });
+    const t = await createRes.text();
     if (!createRes.ok) {
-      const t = await createRes.text();
-      throw new Error(`Doc Generator create job failed (${createRes.status}): ${t.slice(0, 300)}`);
+      const msg = `Repo Reader sqa-plan failed (${createRes.status}): ${t.slice(0, 300)}`;
+      if (createRes.status >= 400 && createRes.status < 500) throw nonRetryableError(msg);
+      throw new Error(msg);
     }
-    const createJson = await createRes.json();
-    remoteJobId = createJson.id || createJson.job_id;
-    if (!remoteJobId) throw new Error("Doc Generator did not return a job id");
-    const nextCheckpoint = {
-      started_at: startedAt,
-      remote_job_id: remoteJobId,
-      remote_status: "queued",
-      remote_progress: 0,
-      last_remote_change_at: new Date().toISOString(),
-      expected_files: EXPECTED_FILES,
-    };
-    lastRemoteChangeAt = nextCheckpoint.last_remote_change_at;
-    await setProgress(sb, job.id, 25, "Doc Generator queued — waiting for documents", nextCheckpoint);
-    return waitForJob(
-      25,
-      "Doc Generator queued — waiting for documents",
-      nextCheckpoint,
-      POLL_DELAY_MS,
-    );
+    const created = JSON.parse(t || "{}");
+    remoteJobId = created.id || created.job_id;
+    if (!remoteJobId) throw new Error("Repo Reader did not return a job id");
+
+    const cp = { started_at: startedAt, remote_job_id: remoteJobId, remote_status: "queued", remote_progress: 0 };
+    await sb.from("test_plans").update({
+      docs_status: "running",
+      docs_job_ref: remoteJobId,
+      docs_source_job_ref: sourceJobId,
+      docs_progress: 0,
+      docs_progress_message: "SQA testing-plan job queued on Repo Reader",
+      docs_progress_updated_at: new Date().toISOString(),
+      docs_last_run_at: new Date().toISOString(),
+    }).eq("id", test_plan_id);
+    return waitForJob(20, "Repo Reader queued — generating SQA documents", cp, POLL_DELAY_MS);
   }
 
-  // 2. Poll once per worker invocation, then release the worker. The external
-  // service keeps running with the checkpointed remote_job_id, so platform
-  // request timeouts cannot restart generation or create duplicate remote jobs.
+  // 2. Poll once per worker invocation.
+  const pollRes = await rr(`/v1/jobs/${remoteJobId}`, {}, 20_000);
   let lastErr: string | null = null;
-  const pollRes = await fetchWithTimeout(`${BASE}/v1/jobs/${remoteJobId}`, {
-    headers: { Authorization: `Bearer ${KEY}` },
-  }, 20_000);
   let pj: any = {};
-
   if (!pollRes.ok) {
     lastErr = `poll ${pollRes.status}`;
   } else {
-    pj = await pollRes.json();
-    const nextStatus = (pj.status || remoteStatus || "running").toLowerCase();
-    const nextProgress = typeof pj.progress === "number" ? pj.progress : remoteProgress;
-    if (nextStatus !== remoteStatus || nextProgress !== remoteProgress) {
-      lastRemoteChangeAt = new Date().toISOString();
-    }
-    remoteStatus = nextStatus;
-    remoteProgress = nextProgress;
+    pj = await pollRes.json().catch(() => ({}));
+    remoteStatus = String(pj.status || pj.state || remoteStatus).toLowerCase();
+    remoteProgress = typeof pj.progress === "number" ? pj.progress : remoteProgress;
   }
 
-  const mapped = 25 + Math.min(60, Math.round(remoteProgress * 0.6));
-  const nextCheckpoint = {
+  const mapped = 20 + Math.min(65, Math.round(remoteProgress * 0.65));
+  const cp = {
     started_at: startedAt,
     remote_job_id: remoteJobId,
     remote_status: remoteStatus,
     remote_progress: remoteProgress,
-    last_remote_change_at: lastRemoteChangeAt,
-    expected_files: EXPECTED_FILES,
     last_poll_at: new Date().toISOString(),
     last_poll_error: lastErr,
   };
-  await setProgress(sb, job.id, mapped, `Doc Generator: ${remoteStatus || "running"}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`, nextCheckpoint);
+  const label = `Repo Reader: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`;
+  await setProgress(sb, job.id, mapped, label, cp);
+  await sb.from("test_plans").update({
+    docs_status: "running",
+    docs_progress: remoteProgress,
+    docs_progress_message: label,
+    docs_progress_updated_at: new Date().toISOString(),
+  }).eq("id", test_plan_id);
 
-  if (["failed", "error", "cancelled", "canceled"].includes(remoteStatus)) {
-    // Remote already terminal — no terminate call needed.
-    throw nonRetryableError(`Doc Generator failed: ${pj.error || remoteStatus}`);
+  if (FAILED.includes(remoteStatus)) {
+    await sb.from("test_plans").update({ ai_status: "failed", docs_status: "failed" }).eq("id", test_plan_id);
+    throw nonRetryableError(`Repo Reader SQA plan ${remoteStatus}: ${pj.error || ""}`);
   }
-  if (!["succeeded", "success", "completed", "ready"].includes(remoteStatus)) {
-    if (Date.now() - new Date(lastRemoteChangeAt).getTime() > STUCK_WITHOUT_CHANGE_MS) {
-      await terminateRemoteDocJob(BASE, KEY, remoteJobId, `Qualixa detected stuck job — no change in ${Math.round(STUCK_WITHOUT_CHANGE_MS / 60000)}m`);
-      throw nonRetryableError(`Doc Generator appears stuck: no status/progress change for ${Math.round(STUCK_WITHOUT_CHANGE_MS / 60000)} minutes (last: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""})`);
-    }
+  if (!DONE.includes(remoteStatus)) {
     if (Date.now() - overallStarted > MAX_TOTAL_MS) {
-      await terminateRemoteDocJob(BASE, KEY, remoteJobId, `Qualixa safe-runtime limit exceeded (${Math.round(MAX_TOTAL_MS / 60000)}m)`);
-      throw nonRetryableError(`Doc Generator exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes). Last status: ${remoteStatus}${remoteProgress ? ` · ${remoteProgress}%` : ""}`);
+      await sb.from("test_plans").update({ ai_status: "failed", docs_status: "failed" }).eq("id", test_plan_id);
+      throw nonRetryableError(`Repo Reader exceeded the safe runtime limit (${Math.round(MAX_TOTAL_MS / 60000)} minutes).`);
     }
-    return waitForJob(
-      mapped,
-      `Doc Generator: ${remoteStatus || "running"}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`,
-      nextCheckpoint,
-      POLL_DELAY_MS,
-    );
-  }
-  if (!["succeeded", "success", "completed", "ready"].includes(remoteStatus)) {
-    return waitForJob(
-      mapped,
-      `Doc Generator: ${remoteStatus || "running"}${remoteProgress ? ` · ${remoteProgress}%` : ""}${lastErr ? ` · ${lastErr}` : ""}`,
-      nextCheckpoint,
-      POLL_DELAY_MS,
-    );
+    return waitForJob(mapped, label, cp, POLL_DELAY_MS);
   }
 
-  // 3. List generated documents.
-  await setProgress(sb, job.id, 88, "Downloading generated documents");
-  const listRes = await fetchWithTimeout(`${BASE}/v1/jobs/${remoteJobId}/documents`, {
-    headers: { Authorization: `Bearer ${KEY}` },
-  }, 20_000);
-  if (!listRes.ok) throw new Error(`Doc Generator list failed: ${listRes.status}`);
-  const listJson = await listRes.json();
-  const documents: Array<{ filename: string; title?: string; slug?: string; bytes?: number }> =
-    listJson.documents || [];
-
-  if (!documents.length) throw new Error("Doc Generator returned no documents");
-  // Doc Generator filenames are dynamic — accept whatever it returns, sorted by
-  // filename so numeric-prefixed docs stay in order.
-  const orderedDocuments = [...documents].sort((a: any, b: any) =>
-    String(a.filename || a.name || "").localeCompare(String(b.filename || b.name || ""))
-  ) as Array<{ filename: string; title?: string; slug?: string; bytes?: number }>;
-
-  // 4. Download each doc and persist to test_plan_documents_v2 (replace).
-  await sb.from("test_plan_documents_v2").delete().eq("test_plan_id", test_plan_id);
+  // 3. Download the generated documents.
+  await setProgress(sb, job.id, 88, "Downloading generated SQA documents");
+  const listRes = await rr(`/v1/jobs/${remoteJobId}/documents`, {}, 20_000);
+  if (!listRes.ok) throw new Error(`Repo Reader document list failed: ${listRes.status}`);
+  const listJson = await listRes.json().catch(() => ({}));
+  const rawList = Array.isArray(listJson) ? listJson : (listJson.documents || listJson.files || listJson.items || []);
+  const documents = (Array.isArray(rawList) ? rawList : [])
+    .map((d: any) => (typeof d === "string" ? { filename: d } : { filename: d.filename || d.name || d.path || d.file, title: d.title, slug: d.slug }))
+    .filter((d: any) => !!d.filename)
+    .sort((a: any, b: any) => String(a.filename).localeCompare(String(b.filename)));
+  if (!documents.length) throw new Error("Repo Reader returned no documents");
 
   const rows: any[] = [];
-  for (let i = 0; i < orderedDocuments.length; i++) {
-    const d = orderedDocuments[i];
-    const dlRes = await fetchWithTimeout(
-      `${BASE}/v1/jobs/${remoteJobId}/documents/${encodeURIComponent(d.filename)}`,
-      { headers: { Authorization: `Bearer ${KEY}` } },
-      20_000,
-    );
+  for (let i = 0; i < documents.length; i++) {
+    const d = documents[i];
+    const dlRes = await rr(`/v1/jobs/${remoteJobId}/documents/${encodeURIComponent(d.filename)}`, {}, 30_000);
     if (!dlRes.ok) continue;
     const content = await dlRes.text();
-    const baseName = (d.filename || `doc-${i + 1}`).replace(/\.(md|json)$/i, "");
-    const slug = (d.slug || baseName).toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, 60);
+    const baseName = String(d.filename).replace(/\.(md|json|txt|ya?ml)$/i, "");
+    const slug = (d.slug || baseName).toLowerCase().replace(/[^a-z0-9-_]+/g, "-").slice(0, 60);
     rows.push({
       test_plan_id,
       project_id: plan.project_id,
       slug,
-      title: d.title || baseName.replace(/^\d+_?/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      title: d.title || baseName.replace(/^\d+[_-]?/, "").replace(/^sqa[_-]/i, "").replace(/[_-]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
       kind: inferPlanDocKind(baseName),
       content,
       sort_order: i,
       created_by: plan.created_by,
     });
   }
+  if (!rows.length) throw new Error("No documents could be downloaded from Repo Reader");
 
-  if (!rows.length) throw new Error("No documents downloaded from Doc Generator");
-
+  await sb.from("test_plan_documents_v2").delete().eq("test_plan_id", test_plan_id);
   const { error: insErr } = await sb.from("test_plan_documents_v2").insert(rows);
   if (insErr) throw new Error(`Persist docs failed: ${insErr.message}`);
 
   const nextVersion = (plan.current_version || 1) + 1;
   await sb.from("test_plan_versions").insert({
     test_plan_id, version: nextVersion,
-    snapshot: { source: "doc-generator", remote_job_id: remoteJobId, document_count: rows.length },
-    change_summary: `Doc Generator produced ${rows.length} document(s)`,
+    snapshot: { source: "repo-reader-sqa", remote_job_id: remoteJobId, document_count: rows.length },
+    change_summary: `Repo Reader produced ${rows.length} SQA document(s)`,
     created_by: plan.created_by,
   });
 
@@ -361,6 +257,10 @@ export async function handleGenerateTestPlanFromDocs(sb: Sb, job: any) {
     ai_status: "ready",
     ai_suggested: true,
     current_version: nextVersion,
+    docs_status: "ready",
+    docs_progress: 100,
+    docs_progress_message: `Persisted ${rows.length} SQA document(s)`,
+    docs_progress_updated_at: new Date().toISOString(),
   }).eq("id", test_plan_id);
 
   await setProgress(sb, job.id, 100, `Generated ${rows.length} test-plan document(s)`);
