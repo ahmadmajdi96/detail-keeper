@@ -94,8 +94,8 @@ Deno.serve(async (req) => {
     await admin.from("generation_stage_logs").insert({
       test_plan_id, kind: "docs", stage: "submit",
       message: `SQA plan job ${jobId} created from source job ${sourceJobId}`,
-      created_by: userId,
-    }).select().maybeSingle().catch?.(() => {});
+      meta: { source_job_id: sourceJobId, requested_by: userId },
+    });
 
     return j({ success: true, job_id: jobId, status: data.status || "queued", source_job_id: sourceJobId }, 202);
   } catch (e) {
