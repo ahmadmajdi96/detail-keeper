@@ -253,9 +253,16 @@ async function listDocuments(jobId: string): Promise<string[]> {
         const body = await r.json();
         const arr = Array.isArray(body) ? body : (body?.documents ?? body?.files ?? []);
         const list = (Array.isArray(arr) ? arr : [])
-          .map((d: any) => String(typeof d === "string" ? d : (d?.path ?? d?.filename ?? d?.name ?? d?.slug ?? "")))
+          .map((d: any) => {
+            if (typeof d === "string") return d;
+            // Prefer the relative filename — `path` is an absolute server path
+            // (/data/artifacts/...) which the documents endpoint rejects.
+            const raw = String(d?.filename ?? d?.name ?? d?.path ?? "");
+            return raw.includes("/outputs/") ? raw.split("/outputs/").pop()! : raw.replace(/^\/+/, "");
+          })
           .filter(Boolean);
         if (list.length) return list;
+
       }
     } catch { /* retry */ }
     await sleep(700 * (attempt + 1));
