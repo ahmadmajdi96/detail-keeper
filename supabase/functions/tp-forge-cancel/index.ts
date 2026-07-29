@@ -37,17 +37,18 @@ Deno.serve(async (req) => {
     if (jobId) {
       // Try both common cancel routes; ignore failures — local flip still runs.
       for (const url of [
-        `${FORGE_BASE}/v1/test-generations/${jobId}/cancel`,
-        `${FORGE_BASE}/v1/test-generations/${jobId}`,
+        `${BASE}/v1/jobs/${jobId}/cancel`,
+        `${BASE}/v1/jobs/${jobId}`,
       ]) {
         try {
           await fetch(url, {
             method: url.endsWith("/cancel") ? "POST" : "DELETE",
-            headers: { authorization: `Bearer ${apiKey}` },
+            headers: { Authorization: `Bearer ${API_KEY}` },
           });
         } catch { /* ignore */ }
       }
     }
+
 
     await admin.from("test_plans").update({
       ai_status: "failed",
