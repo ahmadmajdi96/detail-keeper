@@ -6105,6 +6105,8 @@ export type Database = {
           codegen_progress_updated_at: string | null
           codegen_skip_stubs: boolean
           codegen_status: string | null
+          coverage_source: Json | null
+          coverage_summary: Json | null
           created_at: string
           created_by: string | null
           current_version: number
@@ -6126,6 +6128,7 @@ export type Database = {
           runs_count: number | null
           scope: string | null
           status: string
+          test_type_coverage: Json | null
           updated_at: string
           variables: Json
           workspace_id: string | null
@@ -6148,6 +6151,8 @@ export type Database = {
           codegen_progress_updated_at?: string | null
           codegen_skip_stubs?: boolean
           codegen_status?: string | null
+          coverage_source?: Json | null
+          coverage_summary?: Json | null
           created_at?: string
           created_by?: string | null
           current_version?: number
@@ -6169,6 +6174,7 @@ export type Database = {
           runs_count?: number | null
           scope?: string | null
           status?: string
+          test_type_coverage?: Json | null
           updated_at?: string
           variables?: Json
           workspace_id?: string | null
@@ -6191,6 +6197,8 @@ export type Database = {
           codegen_progress_updated_at?: string | null
           codegen_skip_stubs?: boolean
           codegen_status?: string | null
+          coverage_source?: Json | null
+          coverage_summary?: Json | null
           created_at?: string
           created_by?: string | null
           current_version?: number
@@ -6212,6 +6220,7 @@ export type Database = {
           runs_count?: number | null
           scope?: string | null
           status?: string
+          test_type_coverage?: Json | null
           updated_at?: string
           variables?: Json
           workspace_id?: string | null
