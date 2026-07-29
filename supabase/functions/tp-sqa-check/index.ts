@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     const { data: plan } = await supabase
       .from("test_plans")
-      .select("id, project_id, docs_job_ref, docs_status")
+      .select("id, project_id, docs_job_ref, docs_status, docs_source_job_ref")
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
@@ -117,19 +117,54 @@ Deno.serve(async (req) => {
       return j({ status: "failed", error: msg });
     }
 
-    // ---- completed: persist coverage returned by Repo Reader ----------
-    if (data.coverage_summary || data.test_type_coverage) {
+    // ---- completed: persist coverage (from job payload, else parsed from source docs) ----
+    let coverageSummary = data.coverage_summary ?? null;
+    let testTypeCoverage = Array.isArray(data.test_type_coverage) ? data.test_type_coverage : null;
+    let sourceDocument = data.source_document ?? null;
+    let sourceSlug = data.source_slug ?? null;
+
+    if (!coverageSummary && !testTypeCoverage) {
+      const sourceJobId = data?.source?.source_job_id ?? plan.docs_source_job_ref ?? null;
+      const candidates: string[] = (data?.source?.source_documents ?? [])
+        .map((d: any) => d?.filename)
+        .filter((f: any) => typeof f === "string");
+      const ordered = [
+        ...candidates.filter((f) => /full_mock_data/i.test(f)),
+        ...candidates.filter((f) => !/full_mock_data/i.test(f)),
+      ];
+      if (sourceJobId) {
+        for (const filename of ordered) {
+          try {
+            const dr = await rr(`/v1/jobs/${sourceJobId}/documents/${encodeURIComponent(filename)}`);
+            if (!dr.ok) continue;
+            const md = await dr.text();
+            const summary = parseCoverageSummary(md);
+            const byType = parseCoverageByTestType(md);
+            if (summary || byType.length) {
+              coverageSummary = summary;
+              testTypeCoverage = byType.length ? byType : null;
+              sourceDocument = filename;
+              sourceSlug = filename.replace(/\.(md|json|txt|ya?ml)$/i, "");
+              break;
+            }
+          } catch { /* try next document */ }
+        }
+      }
+    }
+
+    if (coverageSummary || testTypeCoverage) {
       await admin.from("test_plans").update({
-        coverage_summary: data.coverage_summary ?? null,
-        test_type_coverage: Array.isArray(data.test_type_coverage) ? data.test_type_coverage : null,
+        coverage_summary: coverageSummary,
+        test_type_coverage: testTypeCoverage,
         coverage_source: {
           job_id: data.job_id ?? jobId,
-          source_document: data.source_document ?? null,
-          source_slug: data.source_slug ?? null,
+          source_document: sourceDocument,
+          source_slug: sourceSlug,
           fetched_at: new Date().toISOString(),
         },
       }).eq("id", test_plan_id);
     }
+
 
     // ---- completed: list + download all generated documents ----
     const listRes = await rr(`/v1/jobs/${jobId}/documents`);
@@ -206,4 +241,52 @@ function j(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status, headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// ---- markdown coverage parsing helpers -----------------------------------
+function tableRows(md: string, heading: RegExp): string[][] {
+  const lines = md.split(/\r?\n/);
+  const start = lines.findIndex((l) => heading.test(l.trim()));
+  if (start === -1) return [];
+  const rows: string[][] = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (/^#{2,3}\s/.test(line)) break;
+    if (!line.startsWith("|")) { if (rows.length) break; continue; }
+    const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+    if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
+    rows.push(cells);
+  }
+  return rows;
+}
+
+const snake = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+const numOr = (v: string) => {
+  const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+};
+
+function parseCoverageSummary(md: string): Record<string, unknown> | null {
+  const rows = tableRows(md, /^##\s+Coverage Summary$/i);
+  const body = rows.filter((r) => r.length >= 2 && !/^field$/i.test(r[0]));
+  if (!body.length) return null;
+  const out: Record<string, unknown> = {};
+  for (const [field, value] of body) {
+    const key = snake(field);
+    out[key] = /%/.test(value) ? value : (numOr(value) ?? value);
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function parseCoverageByTestType(md: string) {
+  const rows = tableRows(md, /^###\s+Coverage By Test Type$/i);
+  const body = rows.filter((r) => r.length >= 3 && !/^test type$/i.test(r[0]));
+  return body.map((r) => ({
+    test_type: r[0],
+    requirements_covered: numOr(r[1]) ?? 0,
+    requirement_coverage: r[2],
+    priority: r[3] ?? null,
+    execution_scope: r[4] ?? null,
+    evidence: r[5] ?? null,
+  }));
 }
