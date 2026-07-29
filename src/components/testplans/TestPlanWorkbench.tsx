@@ -190,14 +190,15 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("test_plans")
-        .select("ai_status, ai_progress, ai_progress_message, codegen_status, codegen_progress, codegen_progress_message")
+        .select("docs_status, docs_progress, docs_progress_message, ai_status, ai_progress, ai_progress_message, codegen_status, codegen_progress, codegen_progress_message")
         .eq("id", testPlanId)
         .maybeSingle();
       return data as any;
     },
     refetchInterval: (q) => {
       const d: any = q.state.data;
-      const s = d?.ai_status; const c = d?.codegen_status;
+      const s = d?.ai_status; const c = d?.codegen_status; const g = d?.docs_status;
+      if (g === "running" || g === "queued") return 5000;
       return (s === "running" || s === "queued" || c === "running" || c === "queued") ? 4000 : false;
     },
   });
@@ -391,9 +392,22 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           {(() => {
             const casesRunning = busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued";
             const codeRunning = busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued";
-            const anyRunning = busy !== null || casesRunning || codeRunning;
+            const docsRunning = busy === "docs" || planProgress?.docs_status === "running" || planProgress?.docs_status === "queued";
+            const anyRunning = busy !== null || casesRunning || codeRunning || docsRunning;
             const noTypes = !settings.smoke && !settings.regression;
             return <>
+          <ConfirmButton
+            size="sm" variant="outline" disabled={anyRunning}
+            icon={docsRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileText className="h-3.5 w-3.5 mr-1" />}
+            label="0. Generate QA Documents"
+            title="Builds the SQA testing plan documents from the project's already-ingested documents (no upload needed)"
+            confirmTitle={docs.length > 0 ? "Regenerate QA documents?" : "Generate QA documents?"}
+            confirmDescription={docs.length > 0
+              ? `This plan already has ${docs.length} document${docs.length === 1 ? "" : "s"}. Repo Reader will rebuild the seven SQA documents from the project's completed ingestion job and overwrite files with matching names. Previous versions stay in document history.`
+              : "Repo Reader reuses the project's already-ingested documents — nothing is uploaded — and returns the SQA master strategy, testing-types matrix, quality scorecard, test boundaries, manual and automation plans, and execution governance."}
+            confirmLabel="Start generation"
+            onConfirm={() => runStep("docs", "tp-generate-docs", { test_plan_id: testPlanId }, "Document generation started")}
+          />
           <ConfirmButton
             size="sm" variant="outline" disabled={anyRunning || noTypes}
             icon={casesRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1" />}
