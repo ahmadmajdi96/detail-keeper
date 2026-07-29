@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     const { data: plan } = await admin
       .from("test_plans")
-      .select("id, project_id, workspace_id, ai_status, ai_job_ref, ai_progress, ai_dry_run")
+      .select("id, project_id, workspace_id, ai_status, ai_job_ref, ai_progress, ai_dry_run, ai_progress_updated_at")
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
@@ -100,12 +100,25 @@ Deno.serve(async (req) => {
     if ((plan as any).ai_status === "ready") {
       return j({ status: "ready", remote_status: rstatus, note: "already persisted" });
     }
-
-    await admin.from("test_plans").update({
+    // Claim the persist step so concurrent polls don't duplicate the work.
+    // ai_status stays "running" so the global tracker keeps showing the job.
+    const PERSIST_MSG = "Persisting generated test cases…";
+    const claimAgeMs = Date.now() - new Date((plan as any).ai_progress_updated_at ?? 0).getTime();
+    const claimIsStale = claimAgeMs > 10 * 60 * 1000;
+    const claimQuery = admin.from("test_plans").update({
+      ai_status: "running",
       ai_progress: 100,
-      ai_progress_message: "Persisting generated test cases…",
+      ai_progress_message: PERSIST_MSG,
       ai_progress_updated_at: new Date().toISOString(),
-    }).eq("id", test_plan_id);
+    }).eq("id", test_plan_id).neq("ai_status", "ready");
+    const { data: claimed } = await (claimIsStale
+      ? claimQuery
+      : claimQuery.neq("ai_progress_message", PERSIST_MSG)).select("id");
+    if (!claimed || claimed.length === 0) {
+      return j({ status: "running", remote_status: rstatus, progress: 100, message: PERSIST_MSG });
+    }
+
+
 
     const catalog = await fetchCatalog(jobId);
     if (!catalog) {
@@ -118,113 +131,104 @@ Deno.serve(async (req) => {
     }
     const items: any[] = Array.isArray(catalog.test_cases) ? catalog.test_cases : [];
 
-    // ---- Provenance snapshot -------------------------------------------
-    const buildProvenance = async () => {
-      const { data: docs } = await admin
-        .from("test_plan_documents_v2")
-        .select("id, slug, title, updated_at")
-        .eq("test_plan_id", test_plan_id);
-      const docIds = (docs ?? []).map((d: any) => d.id);
-      let versions: any[] = [];
-      if (docIds.length) {
-        const { data: vs } = await admin
-          .from("test_plan_document_versions")
-          .select("id, document_id, version, created_at")
-          .in("document_id", docIds)
-          .order("version", { ascending: false });
-        const seen = new Set<string>();
-        versions = (vs ?? []).filter((v: any) => {
-          if (seen.has(v.document_id)) return false;
-          seen.add(v.document_id);
-          return true;
-        });
-      }
-      const { data: links } = await admin
-        .from("requirement_links")
-        .select("requirement_id, linked_type, linked_id")
-        .limit(2000);
-      return {
-        generator: "repo-reader",
-        job_id: jobId,
-        source_job_id: catalog.source_job_id ?? null,
-        sqa_job_id: catalog.sqa_job_id ?? null,
-        schema_version: catalog.schema_version ?? null,
-        generated_at: new Date().toISOString(),
-        documents: (docs ?? []).map((d: any) => {
-          const v = versions.find((x: any) => x.document_id === d.id);
-          return {
-            document_id: d.id,
-            slug: d.slug,
-            title: d.title,
-            version: v?.version ?? null,
-            version_id: v?.id ?? null,
-          };
-        }),
-        traceability: {
-          captured_at: new Date().toISOString(),
-          mappings: (links ?? []).length,
-        },
-        traceability_links: links ?? [],
-      };
+    // ---- Provenance snapshot (compact — no per-case link dump) ----------
+    const { data: docs } = await admin
+      .from("test_plan_documents_v2")
+      .select("id, slug, title, updated_at")
+      .eq("test_plan_id", test_plan_id);
+    const docIds = (docs ?? []).map((d: any) => d.id);
+    let versions: any[] = [];
+    if (docIds.length) {
+      const { data: vs } = await admin
+        .from("test_plan_document_versions")
+        .select("id, document_id, version, created_at")
+        .in("document_id", docIds)
+        .order("version", { ascending: false });
+      const seen = new Set<string>();
+      versions = (vs ?? []).filter((v: any) => {
+        if (seen.has(v.document_id)) return false;
+        seen.add(v.document_id);
+        return true;
+      });
+    }
+    const { count: linkCount } = await admin
+      .from("requirement_links")
+      .select("requirement_id", { count: "exact", head: true });
+    const provenance = {
+      generator: "repo-reader",
+      job_id: jobId,
+      source_job_id: catalog.source_job_id ?? null,
+      sqa_job_id: catalog.sqa_job_id ?? null,
+      schema_version: catalog.schema_version ?? null,
+      generated_at: new Date().toISOString(),
+      documents: (docs ?? []).map((d: any) => {
+        const v = versions.find((x: any) => x.document_id === d.id);
+        return {
+          document_id: d.id,
+          slug: d.slug,
+          title: d.title,
+          version: v?.version ?? null,
+          version_id: v?.id ?? null,
+        };
+      }),
+      traceability: {
+        captured_at: new Date().toISOString(),
+        mappings: linkCount ?? 0,
+      },
     };
-    const provenance = await buildProvenance();
 
-    // ---- Suite auto-grouping (by test_type / tags) ----------------------
+    // ---- Suite auto-grouping (bulk, one round trip per new suite batch) --
     const suiteCache = new Map<string, string>();
     {
       const { data: existing } = await admin
         .from("test_suites").select("id,name").eq("project_id", plan.project_id);
       (existing ?? []).forEach((s: any) => suiteCache.set(String(s.name).toLowerCase(), s.id));
     }
-    const suiteIdFor = async (tc: any, tags: string[]): Promise<string | null> => {
+    const normalized = items.map((tc: any) => {
+      const tags = Array.isArray(tc.coverage_tags) ? tc.coverage_tags.slice(0, 8)
+        : Array.isArray(tc.coverageTags) ? tc.coverageTags.slice(0, 8) : [];
       const raw = tc.suite ?? tc.suite_name ?? tc.module ?? tc.feature
         ?? tc.category ?? tc.area ?? tc.test_type ?? tags[0];
-      const name = String(raw ?? "").trim().slice(0, 80);
-      if (!name) return null;
-      const key = name.toLowerCase();
-      if (suiteCache.has(key)) return suiteCache.get(key)!;
-      const { data: created } = await admin.from("test_suites").insert({
-        project_id: plan.project_id,
-        name,
-        description: "Auto-created by Qualixa AI generation",
-        created_by: userId,
-        provenance,
-      } as any).select("id").single();
-      if (!created) return null;
-      suiteCache.set(key, created.id);
-      return created.id;
-    };
+      const suiteName = String(raw ?? "").trim().slice(0, 80);
+      return { tc, tags: tags as string[], suiteName };
+    });
+    const missingSuites = [...new Set(
+      normalized.map((n) => n.suiteName).filter((n) => n && !suiteCache.has(n.toLowerCase())),
+    )];
+    if (missingSuites.length) {
+      const { data: createdSuites } = await admin.from("test_suites").insert(
+        missingSuites.map((name) => ({
+          project_id: plan.project_id,
+          name,
+          description: "Auto-created by Qualixa AI generation",
+          created_by: userId,
+          provenance,
+        })) as any,
+      ).select("id,name");
+      (createdSuites ?? []).forEach((s: any) => suiteCache.set(String(s.name).toLowerCase(), s.id));
+    }
 
-    let inserted = 0;
-    for (const tc of items) {
-      const title = String(tc.title || "Untitled").slice(0, 200);
-      const description = String(tc.description || "");
-      const expected = String(tc.expected_result || tc.expectedResult || "");
+    // ---- Bulk insert test cases in chunks --------------------------------
+    const rows = normalized.map(({ tc, tags, suiteName }) => {
       const pr = String(tc.priority || "P2").toLowerCase();
       const priority = pr.includes("p0") || pr.includes("critical") ? 1
         : pr.includes("p1") || pr.includes("high") ? 1
         : pr.includes("p3") || pr.includes("low") ? 3 : 2;
-      const tags = Array.isArray(tc.coverage_tags) ? tc.coverage_tags.slice(0, 8)
-        : Array.isArray(tc.coverageTags) ? tc.coverageTags.slice(0, 8) : [];
-      const preconds = String(tc.preconditions || "");
-      const suite_id = await suiteIdFor(tc, tags as string[]);
-
       const rawType = String(tc.test_type ?? tc.testType ?? "").toLowerCase();
-      const tagText = (tags as string[]).join(" ").toLowerCase();
+      const tagText = tags.join(" ").toLowerCase();
       const test_type = rawType.includes("smoke") || tagText.includes("smoke") ? "smoke" : "regression";
       const rawScore = Number(tc.score ?? tc.priority_score ?? tc.priorityScore);
       const priority_score = Number.isFinite(rawScore)
         ? Math.max(0, Math.min(100, Math.round(rawScore)))
         : null;
-
-      const { data: row, error } = await admin.from("test_cases").insert({
+      return {
         workspace_id: plan.workspace_id,
         project_id: plan.project_id,
-        suite_id,
-        title,
-        description,
-        expected_result: expected,
-        preconditions: preconds || null,
+        suite_id: suiteName ? (suiteCache.get(suiteName.toLowerCase()) ?? null) : null,
+        title: String(tc.title || "Untitled").slice(0, 200),
+        description: String(tc.description || ""),
+        expected_result: String(tc.expected_result || tc.expectedResult || ""),
+        preconditions: String(tc.preconditions || "") || null,
         priority,
         test_type,
         priority_score,
@@ -238,30 +242,44 @@ Deno.serve(async (req) => {
           score_factors: tc.score_factors ?? null,
           ai_suggestions: tc.ai_suggestions ?? null,
           automation: tc.automation ?? null,
-          source_requirements: (provenance.traceability_links ?? [])
-            .filter((l: any) => l.linked_type === "test_case")
-            .map((l: any) => l.requirement_id),
         },
-      } as any).select("id").single();
-      if (error || !row) continue;
+      };
+    });
 
-      await admin.from("test_plan_test_cases").insert({
-        test_plan_id, test_case_id: row.id, added_by: userId,
-      } as any);
+    let inserted = 0;
+    const CHUNK = 50;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const slice = rows.slice(i, i + CHUNK);
+      const { data: createdCases, error } = await admin
+        .from("test_cases").insert(slice as any).select("id");
+      if (error || !createdCases?.length) continue;
 
-      const steps: any[] = Array.isArray(tc.steps) ? tc.steps : [];
-      if (steps.length) {
-        await admin.from("test_case_steps").insert(
-          steps.map((st: any, i: number) => ({
-            test_case_id: row.id,
-            step_number: Number(st.index ?? i + 1),
+      const links = createdCases.map((c: any) => ({
+        test_plan_id, test_case_id: c.id, added_by: userId,
+      }));
+      await admin.from("test_plan_test_cases").insert(links as any);
+
+      const stepRows: any[] = [];
+      createdCases.forEach((c: any, k: number) => {
+        const tc = normalized[i + k]?.tc;
+        const steps: any[] = Array.isArray(tc?.steps) ? tc.steps : [];
+        steps.forEach((st: any, si: number) => {
+          stepRows.push({
+            test_case_id: c.id,
+            step_number: Number(st.index ?? si + 1),
             action: String(st.action ?? st.step ?? ""),
             expected_result: String(st.expected_result ?? st.expectedResult ?? ""),
-          })),
-        );
+          });
+        });
+      });
+      if (stepRows.length) {
+        for (let sIdx = 0; sIdx < stepRows.length; sIdx += 500) {
+          await admin.from("test_case_steps").insert(stepRows.slice(sIdx, sIdx + 500) as any);
+        }
       }
-      inserted++;
+      inserted += createdCases.length;
     }
+
 
     // ---- Playwright skeletons (optional companion artifact) -------------
     let skeletonSaved = false;
