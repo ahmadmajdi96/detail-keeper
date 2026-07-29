@@ -740,6 +740,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         />
       )}
 
+      <TestCaseCatalogPanel testPlanId={testPlanId} open={catalogOpen} onOpenChange={setCatalogOpen} />
+
       <Dialog open={matrixOpen} onOpenChange={setMatrixOpen}>
         <DialogContent className="max-w-6xl">
           <DialogHeader>
