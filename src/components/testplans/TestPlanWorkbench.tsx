@@ -588,13 +588,12 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                     .sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
                   if (list.length === 0) return null;
                   return (
-                    <div key={type} className="pt-1">
-                      <div className={`text-[10px] uppercase tracking-wide px-2 pb-0.5 ${cls}`}>{label} ({list.length})</div>
+                    <WBSubGroup key={type} label={label} count={list.length} className={cls} defaultOpen={type === "smoke"}>
                       {list.map(c => {
                         const caseSpecs = specsByCase.get(c.id) || [];
-                        return (
-                          <div key={c.id}>
-                            <div className="flex items-center gap-1.5 text-[11px] px-2 py-1 truncate">
+                        if (caseSpecs.length === 0) {
+                          return (
+                            <div key={c.id} className="flex items-center gap-1.5 text-[11px] px-2 py-1 truncate">
                               <span className="text-accent">🧪</span>
                               <span className="truncate flex-1">{c.title}</span>
                               {typeof c.priority_score === "number" && (
@@ -602,19 +601,31 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                               )}
                               <span className="text-[10px] text-muted-foreground">P{c.priority}</span>
                             </div>
+                          );
+                        }
+                        return (
+                          <WBSubGroup
+                            key={c.id}
+                            label={c.title}
+                            count={caseSpecs.length}
+                            icon={<span className="text-accent">🧪</span>}
+                            className="text-foreground normal-case tracking-normal"
+                            trailing={<span className="text-[10px] text-muted-foreground">P{c.priority}</span>}
+                          >
                             {caseSpecs.map(s => (
                               <button key={s.id}
                                 onClick={() => openFile({ kind: "spec", id: s.id, label: s.filename })}
-                                className="w-full text-left text-xs pl-7 pr-2 py-1 rounded hover:bg-muted/50 truncate">
+                                className="w-full text-left text-xs pl-4 pr-2 py-1 rounded hover:bg-muted/50 truncate">
                                 <span className="inline-flex items-center gap-1.5"><FileIcon name={s.filename} /> {s.filename}</span>
                               </button>
                             ))}
-                          </div>
+                          </WBSubGroup>
                         );
                       })}
-                    </div>
+                    </WBSubGroup>
                   );
                 })}
+
               </WBFolder>
 
               <WBFolder icon={<FileCode2 className="h-3.5 w-3.5 text-amber-400" />} label="Automation" count={specs.length}>
@@ -781,6 +792,34 @@ function WBFolder({
       </CollapsibleTrigger>
       <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
         <div className="pl-3 pr-1 pt-1 pb-2 space-y-0.5">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function WBSubGroup({
+  label, count, className, icon, trailing, defaultOpen, children,
+}: {
+  label: string;
+  count?: number | null;
+  className?: string;
+  icon?: React.ReactNode;
+  trailing?: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="pt-1">
+      <CollapsibleTrigger className={`w-full flex items-center gap-1.5 px-2 py-1 rounded text-[10px] uppercase tracking-wide hover:bg-muted/40 transition-colors ${className ?? "text-muted-foreground"}`}>
+        <ChevronRight className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
+        {icon}
+        <span className="flex-1 text-left truncate">{label}</span>
+        {typeof count === "number" && <span className="font-mono text-[10px] opacity-70">{count}</span>}
+        {trailing}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+        <div className="pl-3">{children}</div>
       </CollapsibleContent>
     </Collapsible>
   );
