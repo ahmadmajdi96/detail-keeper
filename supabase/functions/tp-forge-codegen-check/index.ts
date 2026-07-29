@@ -158,7 +158,9 @@ Deno.serve(async (req) => {
     for (const path of paths) {
       const raw = await fetchDocument(jobId, path);
       if (raw === null) { failedFiles.push(path); continue; }
-      const filename = path.replace(/^\/+/, "").replace(/[^a-zA-Z0-9._/-]/g, "-").slice(0, 240);
+      const relPath = (path.includes("/outputs/") ? path.split("/outputs/").pop()! : path).replace(/^\/+/, "");
+      const filename = relPath.replace(/[^a-zA-Z0-9._/-]/g, "-").slice(0, 240);
+
       const isSpec = /\.(spec|test)\.(ts|tsx|js|mjs)$/i.test(filename);
       const text = skipStubs && isSpec
         ? `// Generated as an inspect-only skeleton — every test is skipped.\n${toSkipStub(raw)}`
