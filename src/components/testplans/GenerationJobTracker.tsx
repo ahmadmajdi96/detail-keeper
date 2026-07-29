@@ -32,12 +32,20 @@ const LABELS: Record<string, string> = {
 
 // Unified key so the tracker can operate on both ai_* and codegen_* columns
 // through the same code path.
-type JobKind = "cases" | "code";
+type JobKind = "cases" | "code" | "docs";
 const JOB_COLS: Record<JobKind, {
   status: string; jobRef: string; lastRun: string; progress: string;
   progressMsg: string; progressAt: string; checkFn: string;
   casesInvalidateKeys?: string[]; specsInvalidateKey?: string;
+  docsInvalidateKey?: string;
 }> = {
+  docs: {
+    status: "docs_status", jobRef: "docs_job_ref",
+    lastRun: "docs_last_run_at", progress: "docs_progress",
+    progressMsg: "docs_progress_message", progressAt: "docs_progress_updated_at",
+    checkFn: "tp-sqa-check",
+    docsInvalidateKey: "tp-docs",
+  },
   cases: {
     status: "ai_status", jobRef: "ai_job_ref",
     lastRun: "ai_last_run_at", progress: "ai_progress",
@@ -97,6 +105,7 @@ export function GenerationJobTracker() {
     async function tick() {
       const orphanCase = await adoptOrphans("cases");
       const orphanCode = await adoptOrphans("code");
+      const orphanDocs = await adoptOrphans("docs");
 
       const active = readAllBusy();
       const ids = Object.keys(active);
@@ -105,14 +114,14 @@ export function GenerationJobTracker() {
       // Ask the appropriate server function for each active plan.
       await Promise.all(ids.map(async (id) => {
         const kind = active[id]?.kind;
-        if (kind !== "cases" && kind !== "code") return;
+        if (kind !== "cases" && kind !== "code" && kind !== "docs") return;
         const fn = JOB_COLS[kind].checkFn;
         try { await supabase.functions.invoke(fn, { body: { test_plan_id: id } }); }
         catch { /* next tick retries */ }
       }));
 
       const { data, error } = await (supabase.from("test_plans") as any)
-        .select("id, name, plan_uid, ai_status, ai_last_run_at, ai_progress, ai_progress_message, ai_progress_updated_at, ai_dry_run, codegen_status, codegen_last_run_at, codegen_progress, codegen_progress_message, codegen_progress_updated_at, codegen_dry_run")
+        .select("id, name, plan_uid, docs_status, docs_job_ref, docs_last_run_at, docs_progress, docs_progress_message, docs_progress_updated_at, ai_status, ai_last_run_at, ai_progress, ai_progress_message, ai_progress_updated_at, ai_dry_run, codegen_status, codegen_last_run_at, codegen_progress, codegen_progress_message, codegen_progress_updated_at, codegen_dry_run")
         .in("id", ids);
       if (error || !data) return;
 
@@ -139,7 +148,7 @@ export function GenerationJobTracker() {
       for (const row of data as any[]) {
         const busy = active[row.id];
         const kind = busy?.kind;
-        if (kind !== "cases" && kind !== "code") continue;
+        if (kind !== "cases" && kind !== "code" && kind !== "docs") continue;
         const cols = JOB_COLS[kind];
         const kindLabel = LABELS[kind] || "generation";
 
@@ -171,7 +180,7 @@ export function GenerationJobTracker() {
           progress,
           message,
           startedAt: busy.startedAt,
-          dryRun: kind === "code" ? row.codegen_dry_run !== false : row.ai_dry_run !== false,
+          dryRun: kind === "docs" ? false : kind === "code" ? row.codegen_dry_run !== false : row.ai_dry_run !== false,
         });
 
         const lastRunAt = row[cols.lastRun] ? new Date(row[cols.lastRun]).getTime() : 0;
@@ -197,6 +206,7 @@ export function GenerationJobTracker() {
             for (const k of cols.casesInvalidateKeys) qc.invalidateQueries({ queryKey: [k, row.id] });
           }
           if (cols.specsInvalidateKey) qc.invalidateQueries({ queryKey: [cols.specsInvalidateKey, row.id] });
+          if (cols.docsInvalidateKey) qc.invalidateQueries({ queryKey: [cols.docsInvalidateKey, row.id] });
           qc.invalidateQueries({ queryKey: ["test-plan", row.id] });
           if (prev !== status) {
             if (status === "ready") {
@@ -230,10 +240,11 @@ export function GenerationJobTracker() {
 
       setJobs(nextJobs);
 
-      for (const id of [...orphanCase, ...orphanCode]) {
+      for (const id of [...orphanCase, ...orphanCode, ...orphanDocs]) {
         const row = (data as any[]).find((r) => r.id === id);
         if (!row) continue;
-        const kind = active[id]?.kind === "code" ? "Playwright code" : "test cases";
+        const k = active[id]?.kind;
+        const kind = k === "code" ? "Playwright code" : k === "docs" ? "QA documents" : "test cases";
         toast.info(`Resuming ${kind} generation for “${row.name}”`, {
           description: "Live progress restored.",
           action: { label: "Open", onClick: () => navigate(`/test-plans/${row.id}`) },
@@ -245,7 +256,7 @@ export function GenerationJobTracker() {
     // come back) shows the job immediately, before the first network tick.
     const seeded = readAllBusy();
     setJobs(Object.entries(seeded)
-      .filter(([, e]) => e.kind === "cases" || e.kind === "code")
+      .filter(([, e]) => e.kind === "cases" || e.kind === "code" || e.kind === "docs")
       .map(([planId, e]) => ({
         planId, planName: "Test plan", kind: e.kind as JobKind,
         status: "running", progress: null, message: null, startedAt: e.startedAt,

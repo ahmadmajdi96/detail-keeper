@@ -19,7 +19,7 @@ import {
 export type TrackedJob = {
   planId: string;
   planName: string;
-  kind: "cases" | "code";
+  kind: "cases" | "code" | "docs";
   status: string;
   progress: number | null;
   message: string | null;
@@ -27,9 +27,10 @@ export type TrackedJob = {
   dryRun?: boolean;
 };
 
-const PIPELINE: Record<"cases" | "code", StageId[]> = {
+const PIPELINE: Record<"cases" | "code" | "docs", StageId[]> = {
   cases: ["submit", "docs", "cases", "persist"],
   code: ["submit", "codegen", "persist"],
+  docs: ["submit", "docs", "persist"],
 };
 
 function StageRow({

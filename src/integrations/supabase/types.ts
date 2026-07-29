@@ -6109,6 +6109,13 @@ export type Database = {
           created_by: string | null
           current_version: number
           description: string | null
+          docs_job_ref: string | null
+          docs_last_run_at: string | null
+          docs_progress: number | null
+          docs_progress_message: string | null
+          docs_progress_updated_at: string | null
+          docs_source_job_ref: string | null
+          docs_status: string | null
           id: string
           name: string
           objective: string | null
@@ -6145,6 +6152,13 @@ export type Database = {
           created_by?: string | null
           current_version?: number
           description?: string | null
+          docs_job_ref?: string | null
+          docs_last_run_at?: string | null
+          docs_progress?: number | null
+          docs_progress_message?: string | null
+          docs_progress_updated_at?: string | null
+          docs_source_job_ref?: string | null
+          docs_status?: string | null
           id?: string
           name: string
           objective?: string | null
@@ -6181,6 +6195,13 @@ export type Database = {
           created_by?: string | null
           current_version?: number
           description?: string | null
+          docs_job_ref?: string | null
+          docs_last_run_at?: string | null
+          docs_progress?: number | null
+          docs_progress_message?: string | null
+          docs_progress_updated_at?: string | null
+          docs_source_job_ref?: string | null
+          docs_status?: string | null
           id?: string
           name?: string
           objective?: string | null
