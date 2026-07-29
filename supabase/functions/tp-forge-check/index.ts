@@ -291,6 +291,7 @@ Deno.serve(async (req) => {
 
     // ---- Playwright skeletons (optional companion artifact) -------------
     let skeletonSaved = false;
+    let skeletonNote: string | null = null;
     try {
       const sk = await rr(`/v1/jobs/${jobId}/documents/${encodeURIComponent(SKELETON_FILE)}`);
       if (sk.ok) {
@@ -309,9 +310,21 @@ Deno.serve(async (req) => {
             } as any);
           }
           skeletonSaved = true;
+        } else {
+          skeletonNote = `Repo Reader returned an empty "${SKELETON_FILE}" — run "Generate Playwright Code" to produce specs.`;
         }
+      } else {
+        skeletonNote = `Playwright skeletons ("${SKELETON_FILE}") were not produced by this job — run "Generate Playwright Code" to create spec files.`;
       }
-    } catch { /* optional artifact */ }
+    } catch (e) {
+      skeletonNote = `Could not fetch Playwright skeletons from Repo Reader (${(e as Error).message}). Test cases were saved successfully.`;
+    }
+    if (skeletonNote) {
+      await admin.from("generation_stage_logs").insert({
+        test_plan_id, kind: "cases", stage: "warning", message: skeletonNote,
+        meta: { job_ref: jobId, file: SKELETON_FILE },
+      } as any);
+    }
 
     await admin.from("test_plans").update({
       ai_status: "ready",
