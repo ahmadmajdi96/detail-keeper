@@ -122,12 +122,20 @@ Deno.serve(async (req) => {
 
     const catalog = await fetchCatalog(jobId);
     if (!catalog) {
+      const available = await listDocuments(jobId);
+      const msg = available.length
+        ? `Repo Reader finished but "${CATALOG_JSON}" is missing. Files returned: ${available.slice(0, 8).join(", ")}. Re-run generation or contact support.`
+        : `Repo Reader finished but returned no downloadable documents yet — "${CATALOG_JSON}" is unavailable. Try re-running generation.`;
       await admin.from("test_plans").update({
         ai_status: "failed",
-        ai_progress_message: "Could not fetch the generated test-case catalog from Repo Reader",
+        ai_progress_message: msg,
         ai_progress_updated_at: new Date().toISOString(),
       }).eq("id", test_plan_id);
-      return j({ status: "failed", note: "catalog fetch failed" });
+      await admin.from("generation_stage_logs").insert({
+        test_plan_id, kind: "cases", stage: "failed", message: msg,
+        meta: { job_ref: jobId, available_documents: available },
+      } as any);
+      return j({ status: "failed", error: msg, available_documents: available }, 200);
     }
     const items: any[] = Array.isArray(catalog.test_cases) ? catalog.test_cases : [];
 
@@ -283,6 +291,7 @@ Deno.serve(async (req) => {
 
     // ---- Playwright skeletons (optional companion artifact) -------------
     let skeletonSaved = false;
+    let skeletonNote: string | null = null;
     try {
       const sk = await rr(`/v1/jobs/${jobId}/documents/${encodeURIComponent(SKELETON_FILE)}`);
       if (sk.ok) {
@@ -301,9 +310,21 @@ Deno.serve(async (req) => {
             } as any);
           }
           skeletonSaved = true;
+        } else {
+          skeletonNote = `Repo Reader returned an empty "${SKELETON_FILE}" — run "Generate Playwright Code" to produce specs.`;
         }
+      } else {
+        skeletonNote = `Playwright skeletons ("${SKELETON_FILE}") were not produced by this job — run "Generate Playwright Code" to create spec files.`;
       }
-    } catch { /* optional artifact */ }
+    } catch (e) {
+      skeletonNote = `Could not fetch Playwright skeletons from Repo Reader (${(e as Error).message}). Test cases were saved successfully.`;
+    }
+    if (skeletonNote) {
+      await admin.from("generation_stage_logs").insert({
+        test_plan_id, kind: "cases", stage: "warning", message: skeletonNote,
+        meta: { job_ref: jobId, file: SKELETON_FILE },
+      } as any);
+    }
 
     await admin.from("test_plans").update({
       ai_status: "ready",
@@ -333,7 +354,7 @@ Deno.serve(async (req) => {
         },
       ]);
     }
-    return j({ status: "ready", inserted, skeleton_saved: skeletonSaved });
+    return j({ status: "ready", inserted, skeleton_saved: skeletonSaved, note: skeletonNote });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
@@ -366,6 +387,19 @@ async function fetchCatalog(jobId: string): Promise<any | null> {
     await sleep(600 * (attempt + 1));
   }
   return null;
+}
+
+/** Best-effort listing of the documents a job produced (for error messages). */
+async function listDocuments(jobId: string): Promise<string[]> {
+  try {
+    const r = await rr(`/v1/jobs/${jobId}/documents`);
+    if (!r.ok) return [];
+    const body = await r.json();
+    const arr = Array.isArray(body) ? body : (body?.documents ?? body?.files ?? []);
+    return (Array.isArray(arr) ? arr : [])
+      .map((d: any) => String(typeof d === "string" ? d : (d?.filename ?? d?.name ?? d?.slug ?? "")))
+      .filter(Boolean);
+  } catch { return []; }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

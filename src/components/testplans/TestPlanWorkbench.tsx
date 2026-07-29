@@ -29,6 +29,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronRight, FolderOpen, FlaskConical, FileSearch } from "lucide-react";
 import { CoverageSummary } from "./CoverageSummary";
 import { GenerationSettingsPanel, useGenerationSettings, limitLabel } from "./GenerationSettingsPanel";
+import { GenerationStatusStrip } from "./GenerationStatusStrip";
+import { TestCaseCatalogPanel } from "./TestCaseCatalogPanel";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReviewQueue, type ReviewKind } from "./ReviewQueue";
 
@@ -297,6 +299,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const [validationOpen, setValidationOpen] = useState(false);
   const [provenanceOpen, setProvenanceOpen] = useState(false);
   const [matrixOpen, setMatrixOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [historyDoc, setHistoryDoc] = useState<{ id: string; label: string } | null>(null);
   const exportBundle = async (approvedOnly = false) => {
     setExporting(true);
@@ -373,6 +376,10 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           <Button size="sm" variant="outline" onClick={() => setMatrixOpen(true)}
             title="Edit requirement ⇄ test-case mappings">
             <Grid3x3 className="h-3.5 w-3.5 mr-1" /> Traceability
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setCatalogOpen(true)}
+            title="Browse the generated test-case catalog with filters">
+            <FlaskConical className="h-3.5 w-3.5 mr-1" /> Catalog
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -488,53 +495,30 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         </div>
       </div>
 
-      {(busy === "cases" || planProgress?.ai_status === "running" || planProgress?.ai_status === "queued") && (
-        <div className="border-b border-accent/40 bg-accent/10 px-3 py-2 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs text-accent">
-            <Lock className="h-3.5 w-3.5" />
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="font-medium">
-              Generating test cases — safe to navigate; we'll notify you when it finishes.
-            </span>
-            <span className="ml-auto font-mono text-accent/80">
-              {typeof planProgress?.ai_progress === "number" ? `${planProgress.ai_progress}%` : "…"}
-            </span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-background/40">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 transition-[width] duration-700"
-              style={{ width: `${Math.max(4, Math.min(100, Number(planProgress?.ai_progress) || 8))}%` }}
-            />
-          </div>
-          {planProgress?.ai_progress_message && (
-            <p className="text-[11px] text-accent/70 truncate">{planProgress.ai_progress_message}</p>
-          )}
-        </div>
-      )}
+      <GenerationStatusStrip
+        testPlanId={testPlanId}
+        jobs={[
+          {
+            kind: "docs",
+            status: busy === "docs" && !planProgress?.docs_status ? "running" : planProgress?.docs_status,
+            progress: planProgress?.docs_progress,
+            message: planProgress?.docs_progress_message,
+          },
+          {
+            kind: "cases",
+            status: busy === "cases" && !planProgress?.ai_status ? "running" : planProgress?.ai_status,
+            progress: planProgress?.ai_progress,
+            message: planProgress?.ai_progress_message,
+          },
+          {
+            kind: "code",
+            status: busy === "code" && !planProgress?.codegen_status ? "running" : planProgress?.codegen_status,
+            progress: planProgress?.codegen_progress,
+            message: planProgress?.codegen_progress_message,
+          },
+        ]}
+      />
 
-      {(busy === "code" || planProgress?.codegen_status === "running" || planProgress?.codegen_status === "queued") && (
-        <div className="border-b border-cyan-500/40 bg-cyan-500/10 px-3 py-2 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs text-cyan-300">
-            <FileCode2 className="h-3.5 w-3.5" />
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="font-medium">
-              Generating Playwright code — safe to navigate; we'll notify you when it finishes.
-            </span>
-            <span className="ml-auto font-mono text-cyan-300/80">
-              {typeof planProgress?.codegen_progress === "number" ? `${planProgress.codegen_progress}%` : "…"}
-            </span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-background/40">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-[width] duration-700"
-              style={{ width: `${Math.max(4, Math.min(100, Number(planProgress?.codegen_progress) || 8))}%` }}
-            />
-          </div>
-          {planProgress?.codegen_progress_message && (
-            <p className="text-[11px] text-cyan-300/70 truncate">{planProgress.codegen_progress_message}</p>
-          )}
-        </div>
-      )}
 
 
       <div className="grid grid-cols-12 min-h-[600px]">
@@ -755,6 +739,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           onOpenChange={(o) => !o && setHistoryDoc(null)}
         />
       )}
+
+      <TestCaseCatalogPanel testPlanId={testPlanId} open={catalogOpen} onOpenChange={setCatalogOpen} />
 
       <Dialog open={matrixOpen} onOpenChange={setMatrixOpen}>
         <DialogContent className="max-w-6xl">

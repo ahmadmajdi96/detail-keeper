@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -31,13 +32,20 @@ export interface GenerationSettings {
   negativeTests: boolean;
   boundaryCases: boolean;
   duplicateDetection: boolean;
-  language: "typescript" | "javascript" | "java";
+  language: "typescript" | "javascript" | "java" | "python";
+  /** Automation framework sent to Repo Reader (`settings.automation.framework`). */
+  framework: string;
+  /** Output root folders requested from Repo Reader (`settings.automation.output_roots`). */
+  outputRoots: string[];
   /** Generate artifacts only — never install dependencies or execute tests. */
   dryRun: boolean;
   /** Emit Playwright skeletons with `test.skip(...)` stubs for inspection only. */
   skipStubs: boolean;
 
 }
+
+export const FRAMEWORKS = ["Playwright", "Cypress", "Selenium", "Puppeteer", "Pytest"] as const;
+export const DEFAULT_OUTPUT_ROOTS = ["pages/", "tests/", "fixtures/", "utils/"];
 
 export const DEFAULT_SETTINGS: GenerationSettings = {
   smoke: true,
@@ -49,6 +57,8 @@ export const DEFAULT_SETTINGS: GenerationSettings = {
   boundaryCases: true,
   duplicateDetection: true,
   language: "typescript",
+  framework: "Playwright",
+  outputRoots: DEFAULT_OUTPUT_ROOTS,
   dryRun: true,
   skipStubs: false,
 };
@@ -180,31 +190,67 @@ export function GenerationSettingsPanel({ settings, onChange, disabled }: Props)
               </div>
             </section>
 
-            <section className="space-y-2 border-t border-border/50 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Automation</p>
+            <section className="space-y-3 border-t border-border/50 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Automation overrides</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Language</Label>
+                  <Select value={settings.language} onValueChange={(v: any) => onChange({ language: v })}>
+                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="typescript">TypeScript</SelectItem>
+                      <SelectItem value="javascript">JavaScript</SelectItem>
+                      <SelectItem value="java">Java</SelectItem>
+                      <SelectItem value="python">Python</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Framework</Label>
+                  <Select value={settings.framework} onValueChange={(v) => onChange({ framework: v })}>
+                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {FRAMEWORKS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Language</Label>
-                <Select value={settings.language} onValueChange={(v: any) => onChange({ language: v })}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="typescript">TypeScript</SelectItem>
-                    <SelectItem value="javascript">JavaScript</SelectItem>
-                    <SelectItem value="java">Java</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Output roots</Label>
+                  <button
+                    type="button"
+                    className="text-[10px] text-muted-foreground underline-offset-2 hover:underline"
+                    onClick={() => onChange({ outputRoots: DEFAULT_OUTPUT_ROOTS })}
+                  >
+                    Reset
+                  </button>
+                </div>
+                <Input
+                  className="h-8 font-mono text-xs"
+                  value={settings.outputRoots.join(", ")}
+                  placeholder="pages/, tests/, fixtures/, utils/"
+                  onChange={(e) =>
+                    onChange({
+                      outputRoots: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                    })
+                  }
+                />
                 <p className="text-[11px] text-muted-foreground">
-                  Framework: Playwright · Output: pages/ · tests/ · fixtures/ · utils/ · PageObjectManager
+                  Comma-separated folders requested from the generator · PageObjectManager is always included.
                 </p>
               </div>
-              <div className="flex items-start justify-between gap-3 rounded-md border border-border/50 bg-muted/20 p-2.5 mt-2">
+              <div className="flex items-start justify-between gap-3 rounded-md border border-border/50 bg-muted/20 p-2.5">
                 <div className="space-y-0.5">
                   <Label className="text-sm">Dry run (no execution)</Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Generate the test plan and Playwright code only — the runner will not install
+                    Generate the test plan and automation code only — the runner will not install
                     dependencies (<span className="font-mono">npm install</span>) or execute any tests.
                   </p>
+                </div>
+                <Switch checked={settings.dryRun} onCheckedChange={(v) => onChange({ dryRun: v })} />
               </div>
-              <div className="flex items-start justify-between gap-3 rounded-md border border-border/50 bg-muted/20 p-2.5 mt-2">
+              <div className="flex items-start justify-between gap-3 rounded-md border border-border/50 bg-muted/20 p-2.5">
                 <div className="space-y-0.5">
                   <Label className="text-sm">Skeletons with skip stubs</Label>
                   <p className="text-[11px] text-muted-foreground">
@@ -213,9 +259,6 @@ export function GenerationSettingsPanel({ settings, onChange, disabled }: Props)
                   </p>
                 </div>
                 <Switch checked={settings.skipStubs} onCheckedChange={(v) => onChange({ skipStubs: v })} />
-              </div>
-
-                <Switch checked={settings.dryRun} onCheckedChange={(v) => onChange({ dryRun: v })} />
               </div>
             </section>
           </div>
