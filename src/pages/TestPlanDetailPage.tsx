@@ -267,6 +267,48 @@ export default function TestPlanDetailPage() {
     onError: (e: any) => toast.error(e.message || "Save failed"),
   });
 
+  // ---- Mandatory Playwright environment variables --------------------
+  const REQUIRED_ENV: { key: string; label: string; placeholder: string }[] = [
+    { key: "PLAYWRIGHT_BASE_URL", label: "UI base URL", placeholder: "https://app.example.com" },
+    { key: "API_BASE_URL", label: "API base URL", placeholder: "https://api.example.com" },
+    { key: "E2E_AUTH_TOKEN", label: "E2E auth token", placeholder: "eyJhbGciOi…" },
+  ];
+  const envValue = (key: string) => {
+    for (const s of varSets) {
+      const hit = s.variables.find((v) => v.key.trim() === key);
+      if (hit) return hit.value ?? "";
+    }
+    return "";
+  };
+  const missingEnv = REQUIRED_ENV.filter((e) => !envValue(e.key).trim()).map((e) => e.key);
+  const setEnvValue = (key: string, value: string) => {
+    setVarSets((prev) => {
+      let found = false;
+      const next = prev.map((s) => ({
+        ...s,
+        variables: s.variables.map((v) => {
+          if (v.key.trim() !== key) return v;
+          found = true;
+          return { ...v, value };
+        }),
+      }));
+      if (found) return next;
+      const idx = next.findIndex((s) => s.id === "required-env");
+      if (idx >= 0) {
+        next[idx] = { ...next[idx], variables: [...next[idx].variables, { key, value }] };
+        return next;
+      }
+      return [{
+        id: "required-env",
+        name: "Required Environment",
+        description: "Mandatory environment variables consumed by the generated Playwright project.",
+        variables: [{ key, value }],
+      }, ...next];
+    });
+  };
+
+
+
   const { data: impWorkspaces = [] } = useQuery({
     queryKey: ["plan-import-workspaces"],
     enabled: importOpen,
