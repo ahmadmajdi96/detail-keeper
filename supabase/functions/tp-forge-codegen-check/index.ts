@@ -158,7 +158,9 @@ Deno.serve(async (req) => {
     for (const path of paths) {
       const raw = await fetchDocument(jobId, path);
       if (raw === null) { failedFiles.push(path); continue; }
-      const filename = path.replace(/^\/+/, "").replace(/[^a-zA-Z0-9._/-]/g, "-").slice(0, 240);
+      const relPath = (path.includes("/outputs/") ? path.split("/outputs/").pop()! : path).replace(/^\/+/, "");
+      const filename = relPath.replace(/[^a-zA-Z0-9._/-]/g, "-").slice(0, 240);
+
       const isSpec = /\.(spec|test)\.(ts|tsx|js|mjs)$/i.test(filename);
       const text = skipStubs && isSpec
         ? `// Generated as an inspect-only skeleton — every test is skipped.\n${toSkipStub(raw)}`
@@ -253,9 +255,16 @@ async function listDocuments(jobId: string): Promise<string[]> {
         const body = await r.json();
         const arr = Array.isArray(body) ? body : (body?.documents ?? body?.files ?? []);
         const list = (Array.isArray(arr) ? arr : [])
-          .map((d: any) => String(typeof d === "string" ? d : (d?.path ?? d?.filename ?? d?.name ?? d?.slug ?? "")))
+          .map((d: any) => {
+            if (typeof d === "string") return d;
+            // Prefer the relative filename — `path` is an absolute server path
+            // (/data/artifacts/...) which the documents endpoint rejects.
+            const raw = String(d?.filename ?? d?.name ?? d?.path ?? "");
+            return raw.includes("/outputs/") ? raw.split("/outputs/").pop()! : raw.replace(/^\/+/, "");
+          })
           .filter(Boolean);
         if (list.length) return list;
+
       }
     } catch { /* retry */ }
     await sleep(700 * (attempt + 1));
@@ -265,7 +274,9 @@ async function listDocuments(jobId: string): Promise<string[]> {
 
 /** Fetch a single (possibly nested) document as text. */
 async function fetchDocument(jobId: string, path: string): Promise<string | null> {
-  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  const rel = (path.includes("/outputs/") ? path.split("/outputs/").pop()! : path).replace(/^\/+/, "");
+  const encoded = rel.split("/").map(encodeURIComponent).join("/");
+
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const r = await rr(`/v1/jobs/${jobId}/documents/${encoded}`);
