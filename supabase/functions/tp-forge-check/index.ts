@@ -389,6 +389,19 @@ async function fetchCatalog(jobId: string): Promise<any | null> {
   return null;
 }
 
+/** Best-effort listing of the documents a job produced (for error messages). */
+async function listDocuments(jobId: string): Promise<string[]> {
+  try {
+    const r = await rr(`/v1/jobs/${jobId}/documents`);
+    if (!r.ok) return [];
+    const body = await r.json();
+    const arr = Array.isArray(body) ? body : (body?.documents ?? body?.files ?? []);
+    return (Array.isArray(arr) ? arr : [])
+      .map((d: any) => String(typeof d === "string" ? d : (d?.filename ?? d?.name ?? d?.slug ?? "")))
+      .filter(Boolean);
+  } catch { return []; }
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function j(body: unknown, status = 200) {
