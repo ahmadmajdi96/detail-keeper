@@ -272,7 +272,9 @@ async function listDocuments(jobId: string): Promise<string[]> {
 
 /** Fetch a single (possibly nested) document as text. */
 async function fetchDocument(jobId: string, path: string): Promise<string | null> {
-  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  const rel = (path.includes("/outputs/") ? path.split("/outputs/").pop()! : path).replace(/^\/+/, "");
+  const encoded = rel.split("/").map(encodeURIComponent).join("/");
+
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const r = await rr(`/v1/jobs/${jobId}/documents/${encoded}`);
