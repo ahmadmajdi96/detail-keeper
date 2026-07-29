@@ -354,7 +354,7 @@ Deno.serve(async (req) => {
         },
       ]);
     }
-    return j({ status: "ready", inserted, skeleton_saved: skeletonSaved });
+    return j({ status: "ready", inserted, skeleton_saved: skeletonSaved, note: skeletonNote });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
