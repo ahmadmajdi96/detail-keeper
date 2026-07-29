@@ -1,9 +1,10 @@
-// Cancel an in-flight testcase-forge generation for a plan. Best-effort:
-// asks the remote service to cancel, then flips the plan status locally.
+// Cancel an in-flight test-case generation for a plan. Best-effort:
+// asks the Repo Reader service to cancel, then flips the plan status locally.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const FORGE_BASE = "https://testgenerator.qualixa.cortanexai.com";
+const BASE = (Deno.env.get("REPO_READER_BASE_URL_V1") || "https://reporeader.qualixa.cortanexai.com").replace(/\/+$/, "");
+const API_KEY = Deno.env.get("REPO_READER_API_KEY_V1") || "qualixa-repo-reader-key";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -11,8 +12,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return j({ error: "Unauthorized" }, 401);
 
-    const apiKey = Deno.env.get("TESTGEN_API_KEY");
-    if (!apiKey) return j({ error: "TESTGEN_API_KEY is not configured" }, 500);
+
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -37,17 +37,18 @@ Deno.serve(async (req) => {
     if (jobId) {
       // Try both common cancel routes; ignore failures — local flip still runs.
       for (const url of [
-        `${FORGE_BASE}/v1/test-generations/${jobId}/cancel`,
-        `${FORGE_BASE}/v1/test-generations/${jobId}`,
+        `${BASE}/v1/jobs/${jobId}/cancel`,
+        `${BASE}/v1/jobs/${jobId}`,
       ]) {
         try {
           await fetch(url, {
             method: url.endsWith("/cancel") ? "POST" : "DELETE",
-            headers: { authorization: `Bearer ${apiKey}` },
+            headers: { Authorization: `Bearer ${API_KEY}` },
           });
         } catch { /* ignore */ }
       }
     }
+
 
     await admin.from("test_plans").update({
       ai_status: "failed",
