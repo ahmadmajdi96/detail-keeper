@@ -826,6 +826,46 @@ export default function TestPlanDetailPage() {
                       Save
                     </Button>
                   </div>
+
+                  {/* Mandatory environment variables for Playwright codegen */}
+                  <div className={`rounded-lg border p-4 space-y-3 transition-colors ${missingEnv.length ? "border-destructive/50 bg-destructive/5" : "border-accent/40 bg-accent/5"}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-mono uppercase tracking-wider text-accent">Required environment variables</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          The generated Playwright project reads these names at runtime. All three are mandatory before Playwright code can be generated.
+                        </p>
+                      </div>
+                      <Badge variant={missingEnv.length ? "destructive" : "secondary"} className="text-[10px] shrink-0">
+                        {missingEnv.length ? `${missingEnv.length} missing` : "complete"}
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      {REQUIRED_ENV.map((e) => {
+                        const val = envValue(e.key);
+                        const empty = !val.trim();
+                        return (
+                          <div key={e.key} className="grid gap-2 md:grid-cols-[minmax(0,220px)_1fr] items-center">
+                            <div className="flex items-center gap-2">
+                              <code className="font-mono text-xs text-foreground">{e.key}</code>
+                              <span className="text-destructive text-xs">*</span>
+                            </div>
+                            <Input
+                              value={val}
+                              placeholder={`${e.label} — ${e.placeholder}`}
+                              aria-label={e.key}
+                              className={empty ? "border-destructive/60" : ""}
+                              onChange={(ev) => setEnvValue(e.key, ev.target.value)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Mapped to <code className="font-mono">base_url_env</code>, <code className="font-mono">api_base_url_env</code> and <code className="font-mono">auth_token_env</code> in the Repo Reader Playwright request. Remember to Save.
+                    </p>
+                  </div>
+
                   {importOpen && (
                     <div className="rounded-lg border border-accent/40 bg-accent/5 p-4 space-y-3">
                       <p className="text-xs font-mono tracking-wider text-accent uppercase">Import variable sets from another plan</p>
