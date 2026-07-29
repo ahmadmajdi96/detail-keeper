@@ -49,8 +49,13 @@ Deno.serve(async (req) => {
       boundaryCases: s.boundaryCases !== false,
       duplicateDetection: s.duplicateDetection !== false,
       language: typeof s.language === "string" ? s.language : "TypeScript",
+      framework: typeof s.framework === "string" && s.framework.trim() ? s.framework.trim() : "Playwright",
+      outputRoots: Array.isArray(s.outputRoots) && s.outputRoots.length
+        ? s.outputRoots.map((r: unknown) => String(r).trim()).filter(Boolean).slice(0, 12)
+        : ["pages/", "tests/", "fixtures/", "utils/"],
       // Dry run: artifacts only — the runner must never install deps or execute tests.
       dryRun: dry_run !== undefined ? dry_run !== false : s.dryRun !== false,
+      skipStubs: s.skipStubs === true,
     };
     if (!cfg.smoke && !cfg.regression) {
       return j({ error: "Select at least one test type (smoke or regression)." }, 400);
