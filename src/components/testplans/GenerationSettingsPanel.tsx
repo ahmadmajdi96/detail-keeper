@@ -31,13 +31,20 @@ export interface GenerationSettings {
   negativeTests: boolean;
   boundaryCases: boolean;
   duplicateDetection: boolean;
-  language: "typescript" | "javascript" | "java";
+  language: "typescript" | "javascript" | "java" | "python";
+  /** Automation framework sent to Repo Reader (`settings.automation.framework`). */
+  framework: string;
+  /** Output root folders requested from Repo Reader (`settings.automation.output_roots`). */
+  outputRoots: string[];
   /** Generate artifacts only — never install dependencies or execute tests. */
   dryRun: boolean;
   /** Emit Playwright skeletons with `test.skip(...)` stubs for inspection only. */
   skipStubs: boolean;
 
 }
+
+export const FRAMEWORKS = ["Playwright", "Cypress", "Selenium", "Puppeteer", "Pytest"] as const;
+export const DEFAULT_OUTPUT_ROOTS = ["pages/", "tests/", "fixtures/", "utils/"];
 
 export const DEFAULT_SETTINGS: GenerationSettings = {
   smoke: true,
@@ -49,6 +56,8 @@ export const DEFAULT_SETTINGS: GenerationSettings = {
   boundaryCases: true,
   duplicateDetection: true,
   language: "typescript",
+  framework: "Playwright",
+  outputRoots: DEFAULT_OUTPUT_ROOTS,
   dryRun: true,
   skipStubs: false,
 };
