@@ -62,6 +62,29 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
     } finally { setCancelling(false); }
   };
 
+  const [downloading, setDownloading] = useState(false);
+  const downloadArtifacts = async () => {
+    setDownloading(true);
+    const t = toast.loading("Fetching execution artifacts…");
+    try {
+      const { data, error } = await supabase.functions.invoke("tp-rr-download", {
+        body: { plan_test_run_id: planRunId },
+      });
+      if (error) throw error;
+      const blob = data instanceof Blob ? data : new Blob([data as any], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `playwright-execution-artifacts.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Artifacts downloaded", { id: t });
+    } catch (e: any) {
+      toast.error(e.message || "Download failed", { id: t });
+    } finally { setDownloading(false); }
+  };
+
+
   const pct = useMemo(() => {
     if (!run) return 0;
     const total = run.total_tests || 0;
