@@ -136,7 +136,7 @@ export default function TestPlanDetailPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("test_plan_test_cases")
-        .select("id, test_case:test_cases!test_plan_test_cases_test_case_id_fkey(id, title, description, priority, status, ai_generated, coverage_tags, created_at)")
+        .select("id, test_case:test_cases!test_plan_test_cases_test_case_id_fkey(id, title, description, priority, priority_score, status, test_type, suite_id, ai_generated, coverage_tags, created_at)")
         .eq("test_plan_id", id!)
         .order("created_at", { ascending: false });
       return data || [];
