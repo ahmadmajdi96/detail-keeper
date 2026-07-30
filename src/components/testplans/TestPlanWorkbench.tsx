@@ -26,7 +26,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronRight, FolderOpen, FlaskConical, FileSearch } from "lucide-react";
+import { ChevronRight, FolderOpen, FlaskConical, FileSearch, Search } from "lucide-react";
+import { resolveTestType } from "./PlanTestCasesPanel";
 import { CoverageSummary } from "./CoverageSummary";
 import { GenerationSettingsPanel, useGenerationSettings, limitLabel } from "./GenerationSettingsPanel";
 import { GenerationStatusStrip } from "./GenerationStatusStrip";
