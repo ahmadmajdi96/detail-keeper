@@ -92,10 +92,16 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
     return total > 0 ? Math.round((done / total) * 100) : (ACTIVE.has(run.status) ? 5 : 100);
   }, [run]);
 
+  const logRef = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [run?.log_tail]);
+
   if (!run) return null;
   const isActive = ACTIVE.has(run.status);
   const events: any[] = Array.isArray(run.events) ? run.events.slice(-30) : [];
-  const artifacts: any[] = Array.isArray(run.artifacts) ? run.artifacts : [];
+
 
   const statusCls =
     run.status === "cancelled" ? "text-muted-foreground border-muted-foreground/40" :
