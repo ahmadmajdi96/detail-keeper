@@ -171,6 +171,31 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   });
   const cases = caseRows.map(r => r.test_case).filter(Boolean);
 
+  const [caseQuery, setCaseQuery] = useState("");
+  const TYPE_CLASS: Record<string, string> = {
+    smoke: "text-emerald-400", regression: "text-cyan-400", integration: "text-violet-400",
+    e2e: "text-fuchsia-400", api: "text-sky-400", ui: "text-amber-400",
+    performance: "text-orange-400", security: "text-rose-400", other: "text-muted-foreground",
+  };
+  const caseTypeGroups = useMemo(() => {
+    const needle = caseQuery.trim().toLowerCase();
+    const visible = needle ? cases.filter(c => c.title?.toLowerCase().includes(needle)) : cases;
+    const map = new Map<string, typeof visible>();
+    visible.forEach(c => {
+      const t = resolveTestType(c);
+      if (!map.has(t)) map.set(t, [] as any);
+      (map.get(t) as any).push(c);
+    });
+    return [...map.entries()]
+      .map(([type, list]) => ({
+        type,
+        label: type.charAt(0).toUpperCase() + type.slice(1),
+        cls: TYPE_CLASS[type] ?? "text-muted-foreground",
+        list: [...list].sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0) || (a.priority ?? 9) - (b.priority ?? 9)),
+      }))
+      .sort((a, b) => b.list.length - a.list.length);
+  }, [cases, caseQuery]);
+
   const { data: suites = [] } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ["tp-wb-suites", projectId],
     queryFn: async () => {
