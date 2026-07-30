@@ -22,7 +22,7 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
       const { data } = await supabase.from("plan_test_runs" as any).select("*").eq("id", planRunId).maybeSingle();
       return data;
     },
-    refetchInterval: (q) => ACTIVE.has((q.state.data as any)?.status) ? 3000 : false,
+    refetchInterval: (q) => ACTIVE.has((q.state.data as any)?.status) ? 2000 : false,
   });
 
   // Poll Forge for live updates while running.
@@ -37,7 +37,7 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
       } catch { /* ignore */ }
     };
     tick();
-    const id = setInterval(tick, 5000);
+    const id = setInterval(tick, 3000);
     return () => { stop = true; clearInterval(id); };
   }, [run?.status, planRunId, qc]);
 
