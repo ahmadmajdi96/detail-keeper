@@ -103,6 +103,8 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
     run.status === "passed" ? "text-emerald-300 border-emerald-500/40" :
     "text-cyan-300 border-cyan-500/40";
 
+  const liveReady = !!run.live_view_url && (run.live_view_status ?? "ready") === "ready" && isActive;
+
   return (
     <div className={`border-t border-border/50 ${compact ? "" : "bg-muted/10"} p-3 space-y-2`}>
       <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
@@ -110,13 +112,22 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
           {isActive
             ? <Radio className="h-3.5 w-3.5 text-red-400 animate-pulse" />
             : <Rocket className="h-3.5 w-3.5 text-accent" />}
-          Forge Run · <span className="font-mono opacity-70">{run.base_url}</span>
+          Live Playwright execution · <span className="font-mono opacity-70">{run.base_url}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Badge variant="outline" className={statusCls}>{run.status}</Badge>
+          {run.execution_phase && (
+            <Badge variant="outline" className="text-violet-300 border-violet-500/30">{run.execution_phase}</Badge>
+          )}
           <Badge variant="outline" className="text-emerald-300 border-emerald-500/30">✓ {run.passed_tests ?? 0}</Badge>
           {(run.failed_tests ?? 0) > 0 && <Badge variant="outline" className="text-red-300 border-red-500/30">✗ {run.failed_tests}</Badge>}
           {run.total_tests > 0 && <span className="text-muted-foreground">{(run.passed_tests || 0) + (run.failed_tests || 0)}/{run.total_tests}</span>}
+          {!isActive && (
+            <Button size="sm" variant="ghost" className="h-6 px-2" disabled={downloading} onClick={downloadArtifacts}>
+              {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
+              Artifacts
+            </Button>
+          )}
           {isActive && (
             <Button size="sm" variant="ghost" className="h-6 px-2 text-red-300 hover:text-red-200 hover:bg-red-500/10"
               disabled={cancelling} onClick={cancelRun}>
@@ -130,39 +141,60 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
       <Progress value={pct} className={`h-1.5 ${run.status === "cancelled" ? "opacity-60" : ""}`} />
       {run.progress_message && <p className="text-[11px] text-muted-foreground">{run.progress_message}</p>}
 
+      {/* Remote browser live view */}
+      <div className="rounded border border-border/40 bg-background/40 overflow-hidden">
+        <div className="px-2 py-1 text-[11px] font-semibold border-b border-border/40 flex items-center gap-1">
+          <Monitor className="h-3 w-3 text-cyan-400" /> Live browser
+          {liveReady && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />}
+          {liveReady && (
+            <a href={run.live_view_url} target="_blank" rel="noreferrer"
+              className="ml-auto inline-flex items-center gap-1 text-accent hover:underline">
+              <Maximize2 className="h-3 w-3" /> open in new tab
+            </a>
+          )}
+        </div>
+        {liveReady ? (
+          <iframe
+            src={run.live_view_url}
+            title="Live Playwright execution"
+            className="w-full border-0 bg-black"
+            style={{ height: compact ? 420 : 640 }}
+            allow="clipboard-read; clipboard-write"
+          />
+        ) : (
+          <p className="p-3 text-[11px] text-muted-foreground">
+            {isActive
+              ? "Waiting for the remote browser to start — the live view appears as soon as Repo Reader reports it ready."
+              : "The live view is only available while the execution is running."}
+          </p>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div className="rounded border border-border/40 bg-background/40">
           <div className="px-2 py-1 text-[11px] font-semibold border-b border-border/40 flex items-center gap-1">
-            <Radio className="h-3 w-3 text-red-400" /> Live events
+            <TerminalSquare className="h-3 w-3 text-emerald-400" /> Terminal logs
           </div>
-          <div className="max-h-[220px] overflow-auto p-2 space-y-1 font-mono text-[10px]">
-            {events.length === 0 && <p className="text-muted-foreground">Waiting for Forge events…</p>}
+          <pre ref={logRef}
+            className="max-h-[260px] overflow-auto p-2 font-mono text-[10px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
+            {run.log_tail || (isActive ? "Waiting for runner output…" : "No logs captured.")}
+          </pre>
+        </div>
+        <div className="rounded border border-border/40 bg-background/40">
+          <div className="px-2 py-1 text-[11px] font-semibold border-b border-border/40 flex items-center gap-1">
+            <Radio className="h-3 w-3 text-red-400" /> Execution events
+          </div>
+          <div className="max-h-[260px] overflow-auto p-2 space-y-1 font-mono text-[10px]">
+            {events.length === 0 && <p className="text-muted-foreground">Waiting for execution events…</p>}
             {events.map((e, i) => (
               <EventLine key={i} e={e} />
             ))}
           </div>
         </div>
-        <div className="rounded border border-border/40 bg-background/40">
-          <div className="px-2 py-1 text-[11px] font-semibold border-b border-border/40 flex items-center gap-1">
-            <Download className="h-3 w-3" /> Artifacts {artifacts.length > 0 && <span className="opacity-60">({artifacts.length})</span>}
-          </div>
-          <div className="max-h-[220px] overflow-auto p-2 space-y-1 text-[11px]">
-            {artifacts.length === 0 && <p className="text-muted-foreground font-mono text-[10px]">{isActive ? "Artifacts appear on completion." : "No artifacts."}</p>}
-            {artifacts.map((a: any, i: number) => {
-              const name = a?.path || a?.name || a?.filename || String(a);
-              const href = a?.url || a?.href;
-              return (
-                <div key={i} className="flex items-center gap-1.5 truncate">
-                  <span className="truncate">{name}</span>
-                  {href && <a href={href} target="_blank" rel="noreferrer" className="ml-auto text-accent hover:underline shrink-0">open</a>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
     </div>
   );
+
 }
 
 function EventLine({ e }: { e: any }) {
