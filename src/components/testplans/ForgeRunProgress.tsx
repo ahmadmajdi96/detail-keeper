@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, Rocket, StopCircle, Radio, X, Download } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Rocket, StopCircle, Radio, X, Download, Monitor, TerminalSquare, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props { planRunId: string; onClose?: () => void; compact?: boolean }
 
 const ACTIVE = new Set(["queued", "running"]);
+
 
 export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
   const qc = useQueryClient();
