@@ -1,18 +1,17 @@
-// Polls TestCase Forge for the status of a plan_test_run and syncs
-// counters + streaming events + terminal state back into the DB.
+// Poll Repo Reader for a live Playwright execution and sync state, live-view
+// URL, terminal logs and counters back into plan_test_runs.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const FORGE_BASE = "https://testgenerator.qualixa.cortanexai.com";
-const TERMINAL = new Set(["passed", "failed", "cancelled", "timeout", "error", "completed", "succeeded"]);
+const BASE = (Deno.env.get("REPO_READER_BASE_URL_V1") || "https://reporeader.qualixa.cortanexai.com").replace(/\/+$/, "");
+const API_KEY = Deno.env.get("REPO_READER_API_KEY_V1") || "qualixa-repo-reader-key";
+const TERMINAL = new Set(["succeeded", "failed", "canceled", "cancelled", "timeout", "error", "completed"]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return j({ error: "Unauthorized" }, 401);
-    const apiKey = Deno.env.get("TESTGEN_API_KEY");
-    if (!apiKey) return j({ error: "TESTGEN_API_KEY is not configured" }, 500);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -22,7 +21,7 @@ Deno.serve(async (req) => {
     const { data: claims } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
 
-    const { plan_test_run_id } = await req.json();
+    const { plan_test_run_id, tail } = await req.json();
     if (!plan_test_run_id) return j({ error: "plan_test_run_id required" }, 400);
 
     const admin = createClient(
@@ -32,83 +31,77 @@ Deno.serve(async (req) => {
 
     const { data: row } = await admin.from("plan_test_runs").select("*").eq("id", plan_test_run_id).maybeSingle();
     if (!row) return j({ error: "Not found" }, 404);
-    if (!(row as any).forge_run_id) return j({ status: (row as any).status });
+    const jobId = (row as any).forge_run_id as string | null;
+    if (!jobId) return j({ status: (row as any).status });
 
-    // Fetch status
-    const statusResp = await fetch(`${FORGE_BASE}/v1/test-runs/${(row as any).forge_run_id}`, {
-      headers: { authorization: `Bearer ${apiKey}` },
+    const resp = await fetch(`${BASE}/v1/jobs/${encodeURIComponent(jobId)}/execution`, {
+      headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json" },
     });
-    if (!statusResp.ok) {
-      const text = await statusResp.text();
-      return j({ error: `Forge status failed (${statusResp.status}): ${text.slice(0, 300)}` }, 502);
+    if (!resp.ok) {
+      const text = await resp.text();
+      return j({ error: `Repo Reader execution status failed (${resp.status}): ${text.slice(0, 300)}` }, 502);
     }
-    const s = await statusResp.json().catch(() => ({} as any));
+    const s = await resp.json().catch(() => ({} as any));
 
-    // Extract counters (flexible — Forge shape varies by field name)
-    const total = pickN(s, ["totalTests", "total", "counts.total"]);
-    const passed = pickN(s, ["passedTests", "passed", "counts.passed"]);
-    const failed = pickN(s, ["failedTests", "failed", "counts.failed"]);
-    const running = pickN(s, ["runningTests", "running", "counts.running"]);
-    const remoteStatus = String(s?.status || s?.state || "").toLowerCase();
+    const remoteStatus = String(s?.status || "").toLowerCase();
+    const state = s?.execution_state ?? {};
+    const summary = s?.summary ?? state?.summary ?? {};
     const isTerminal = TERMINAL.has(remoteStatus);
+
+    const total = pickN(summary, ["total", "total_tests", "tests"]) || pickN(state, ["total", "total_tests"]);
+    const passed = pickN(summary, ["passed", "passed_tests"]) || pickN(state, ["passed", "passed_tests"]);
+    const failed = pickN(summary, ["failed", "failed_tests"]) || pickN(state, ["failed", "failed_tests"]);
+
     let newStatus = (row as any).status as string;
     if (isTerminal) {
-      newStatus = (remoteStatus === "cancelled") ? "cancelled"
-        : (failed > 0 || ["failed", "error", "timeout"].includes(remoteStatus)) ? "failed"
-        : "passed";
+      newStatus = (remoteStatus === "canceled" || remoteStatus === "cancelled")
+        ? "cancelled"
+        : (remoteStatus === "succeeded" || remoteStatus === "completed") && failed === 0
+          ? "passed"
+          : "failed";
+    } else if (remoteStatus === "queued") {
+      newStatus = "queued";
     } else if (remoteStatus) {
       newStatus = "running";
     }
 
-    // Pull recent events (append-only, dedupe by id/ts+type)
-    const existingEvents: any[] = Array.isArray((row as any).events) ? (row as any).events : [];
-    let merged = existingEvents;
+    // Live terminal log tail
+    let logTail = (row as any).log_tail as string | null;
     try {
-      const evResp = await fetch(`${FORGE_BASE}/v1/test-runs/${(row as any).forge_run_id}/events`, {
-        headers: { authorization: `Bearer ${apiKey}`, accept: "application/json" },
-      });
-      if (evResp.ok) {
-        const text = await evResp.text();
-        const parsed = parseEvents(text);
-        if (parsed.length) {
-          const seen = new Set(existingEvents.map((e) => e?.id ?? `${e?.ts}|${e?.type}|${e?.testId ?? ""}`));
-          const additions = parsed.filter((e) => {
-            const key = e?.id ?? `${e?.ts}|${e?.type}|${e?.testId ?? ""}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
-          merged = existingEvents.concat(additions).slice(-500);
-        }
+      const n = Number.isFinite(Number(tail)) ? Math.max(50, Math.min(2000, Number(tail))) : 500;
+      const logResp = await fetch(
+        `${BASE}/v1/jobs/${encodeURIComponent(jobId)}/execution/logs?tail=${n}`,
+        { headers: { Authorization: `Bearer ${API_KEY}` } },
+      );
+      if (logResp.ok) {
+        const text = await logResp.text();
+        if (text) logTail = text.slice(-60_000);
       }
-    } catch (_) { /* ignore event fetch errors */ }
+    } catch (_) { /* logs are best-effort */ }
 
-    // Artifacts on terminal
-    let artifacts: any[] = Array.isArray((row as any).artifacts) ? (row as any).artifacts : [];
-    if (isTerminal && artifacts.length === 0) {
-      try {
-        const artResp = await fetch(`${FORGE_BASE}/v1/test-runs/${(row as any).forge_run_id}/artifacts`, {
-          headers: { authorization: `Bearer ${apiKey}` },
-        });
-        if (artResp.ok) {
-          const arr = await artResp.json().catch(() => []);
-          if (Array.isArray(arr)) artifacts = arr;
-          else if (arr?.files) artifacts = arr.files;
-        }
-      } catch (_) { /* ignore */ }
+    // Append a phase event when the phase changes.
+    const events: any[] = Array.isArray((row as any).events) ? (row as any).events : [];
+    const phase = String(state?.phase || remoteStatus || "");
+    const now = new Date().toISOString();
+    if (phase && phase !== (row as any).execution_phase) {
+      events.push({ ts: now, type: "phase", status: remoteStatus, testName: phase });
     }
 
-    const now = new Date().toISOString();
-    const patch: any = {
+    const liveUrl = isTerminal ? null : (s?.live_view_url ?? null);
+
+    const patch: Record<string, unknown> = {
       status: newStatus,
+      execution_phase: phase || (row as any).execution_phase,
+      live_view_url: liveUrl,
+      live_view_status: isTerminal ? "unavailable" : (s?.live_view_status ?? state?.remote_browser?.status ?? null),
+      download_url: s?.download_url ?? (isTerminal ? `/v1/jobs/${jobId}/download.zip` : null),
+      log_tail: logTail,
       total_tests: total || (row as any).total_tests,
       passed_tests: passed || (row as any).passed_tests,
       failed_tests: failed || (row as any).failed_tests,
-      running_tests: running || 0,
-      progress_message: s?.message || s?.progressMessage || (row as any).progress_message,
-      exit_code: typeof s?.exitCode === "number" ? s.exitCode : (row as any).exit_code,
-      events: merged,
-      artifacts,
+      running_tests: isTerminal ? 0 : (row as any).running_tests ?? 0,
+      progress_message: s?.message || state?.message || phase || (row as any).progress_message,
+      events: events.slice(-500),
       result: s,
       last_polled_at: now,
     };
@@ -116,7 +109,14 @@ Deno.serve(async (req) => {
 
     await admin.from("plan_test_runs").update(patch).eq("id", plan_test_run_id);
 
-    return j({ status: newStatus, isTerminal, counts: { total, passed, failed, running }, events: merged.length });
+    return j({
+      status: newStatus,
+      isTerminal,
+      phase,
+      live_view_url: liveUrl,
+      live_view_status: patch.live_view_status,
+      counts: { total, passed, failed },
+    });
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
@@ -128,22 +128,6 @@ function pickN(obj: any, keys: string[]): number {
     if (typeof v === "number") return v;
   }
   return 0;
-}
-
-function parseEvents(text: string): any[] {
-  const trimmed = text.trim();
-  if (!trimmed) return [];
-  if (trimmed.startsWith("[")) { try { const a = JSON.parse(trimmed); return Array.isArray(a) ? a : []; } catch { return []; } }
-  // NDJSON or SSE `data:` frames
-  const out: any[] = [];
-  for (const line of trimmed.split(/\r?\n/)) {
-    const l = line.trim();
-    if (!l || l.startsWith(":") || l.startsWith("event:") || l.startsWith("id:")) continue;
-    const payload = l.startsWith("data:") ? l.slice(5).trim() : l;
-    if (!payload || payload === "[DONE]") continue;
-    try { out.push(JSON.parse(payload)); } catch { /* skip */ }
-  }
-  return out;
 }
 
 function j(body: unknown, status = 200) {

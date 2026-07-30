@@ -3298,13 +3298,18 @@ export type Database = {
           codegen_job_ref: string | null
           created_at: string
           created_by: string | null
+          download_url: string | null
           events: Json
+          execution_phase: string | null
           exit_code: number | null
           failed_tests: number
           finished_at: string | null
           forge_run_id: string | null
           id: string
           last_polled_at: string | null
+          live_view_status: string | null
+          live_view_url: string | null
+          log_tail: string | null
           passed_tests: number
           progress_message: string | null
           project_id: string | null
@@ -3323,13 +3328,18 @@ export type Database = {
           codegen_job_ref?: string | null
           created_at?: string
           created_by?: string | null
+          download_url?: string | null
           events?: Json
+          execution_phase?: string | null
           exit_code?: number | null
           failed_tests?: number
           finished_at?: string | null
           forge_run_id?: string | null
           id?: string
           last_polled_at?: string | null
+          live_view_status?: string | null
+          live_view_url?: string | null
+          log_tail?: string | null
           passed_tests?: number
           progress_message?: string | null
           project_id?: string | null
@@ -3348,13 +3358,18 @@ export type Database = {
           codegen_job_ref?: string | null
           created_at?: string
           created_by?: string | null
+          download_url?: string | null
           events?: Json
+          execution_phase?: string | null
           exit_code?: number | null
           failed_tests?: number
           finished_at?: string | null
           forge_run_id?: string | null
           id?: string
           last_polled_at?: string | null
+          live_view_status?: string | null
+          live_view_url?: string | null
+          log_tail?: string | null
           passed_tests?: number
           progress_message?: string | null
           project_id?: string | null

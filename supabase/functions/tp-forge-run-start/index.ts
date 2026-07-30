@@ -1,20 +1,16 @@
-// Dispatch a Playwright suite execution to TestCase Forge (/v1/test-runs).
-// Requires the plan already has a completed codegen job (codegen_job_ref).
-// Env values are passed to Forge in-memory (never stored/logged here — we
-// only persist NAMES via events for observability).
+// Start a live Playwright execution on Repo Reader.
+// POST /v1/jobs/<playwright_code_job_id>/playwright-execution
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const FORGE_BASE = "https://testgenerator.qualixa.cortanexai.com";
+const BASE = (Deno.env.get("REPO_READER_BASE_URL_V1") || "https://reporeader.qualixa.cortanexai.com").replace(/\/+$/, "");
+const API_KEY = Deno.env.get("REPO_READER_API_KEY_V1") || "qualixa-repo-reader-key";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return j({ error: "Unauthorized" }, 401);
-
-    const apiKey = Deno.env.get("TESTGEN_API_KEY");
-    if (!apiKey) return j({ error: "TESTGEN_API_KEY is not configured" }, 500);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -25,9 +21,9 @@ Deno.serve(async (req) => {
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
     const userId = claims.claims.sub as string;
 
-    const { test_plan_id, base_url, env, timeout_ms } = await req.json();
+    const body = await req.json();
+    const { test_plan_id, base_url, env, timeout_seconds } = body ?? {};
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
-    if (!base_url || typeof base_url !== "string") return j({ error: "base_url required" }, 400);
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -40,10 +36,13 @@ Deno.serve(async (req) => {
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
-    const codegenJobId = (plan as any).codegen_job_ref as string | null;
-    if (!codegenJobId) return j({ error: "Generate Playwright code first — no codegen job on this plan." }, 400);
 
-    // Build env: merge caller-provided values with defaults from variable sets.
+    const codegenJobId = (plan as any).codegen_job_ref as string | null;
+    if (!codegenJobId) {
+      return j({ error: "Generate Playwright code first — no code-generation job on this plan." }, 400);
+    }
+
+    // Merge env values coming from the plan's variable sets with caller overrides.
     const runtimeEnv: Record<string, string> = {};
     const sets = Array.isArray((plan as any).variables) ? (plan as any).variables : [];
     for (const s of sets) {
@@ -56,32 +55,50 @@ Deno.serve(async (req) => {
     }
     if (env && typeof env === "object") {
       for (const [k, v] of Object.entries(env)) {
-        if (/^[A-Z][A-Z0-9_]{0,63}$/.test(k)) runtimeEnv[k] = String(v ?? "");
+        if (/^[A-Z][A-Z0-9_]{0,63}$/.test(k) && v) runtimeEnv[k] = String(v);
       }
     }
 
-    const options: Record<string, unknown> = {
-      baseUrl: base_url,
-      env: runtimeEnv,
-    };
-    const timeoutMs = Number(timeout_ms);
-    if (Number.isFinite(timeoutMs)) {
-      options.timeoutMs = Math.max(30_000, Math.min(3_600_000, Math.trunc(timeoutMs)));
-    }
+    const baseUrl = String(base_url || runtimeEnv.PLAYWRIGHT_BASE_URL || "").trim();
+    if (!baseUrl) return j({ error: "base_url required (set PLAYWRIGHT_BASE_URL in the plan variables)" }, 400);
+    const apiBaseUrl = runtimeEnv.API_BASE_URL || "";
+    const authToken = runtimeEnv.E2E_AUTH_TOKEN || "";
 
-    const forgeBody = { codegenJobId, options };
-    const submit = await fetch(`${FORGE_BASE}/v1/test-runs`, {
+    const settings: Record<string, unknown> = {
+      live_view: body?.live_view !== false,
+      base_url: baseUrl,
+      install_dependencies: body?.install_dependencies !== false,
+      install_browsers: body?.install_browsers === true,
+      headed: body?.headed !== false,
+      use_live_api: body?.use_live_api !== false,
+      workers: Number.isFinite(Number(body?.workers)) ? Math.max(1, Math.min(8, Number(body.workers))) : 1,
+      trace: typeof body?.trace === "string" ? body.trace : "retain-on-failure",
+      timeout_seconds: Number.isFinite(Number(timeout_seconds))
+        ? Math.max(60, Math.min(7200, Math.trunc(Number(timeout_seconds))))
+        : 900,
+    };
+    if (apiBaseUrl) settings.api_base_url = apiBaseUrl;
+    if (authToken) settings.auth_token = authToken;
+
+    const submit = await fetch(`${BASE}/v1/jobs/${encodeURIComponent(codegenJobId)}/playwright-execution`, {
       method: "POST",
-      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify(forgeBody),
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        metadata: { requested_by: "qualixa-frontend", purpose: "live-playwright-execution", test_plan_id },
+        settings,
+      }),
     });
     if (!submit.ok) {
       const t = await submit.text();
-      return j({ error: `Forge test-run submit failed (${submit.status}): ${t.slice(0, 500)}` }, 502);
+      return j({ error: `Repo Reader execution submit failed (${submit.status}): ${t.slice(0, 500)}` }, 502);
     }
-    const submitBody = await submit.json().catch(() => ({}));
-    const forgeRunId: string | undefined = submitBody?.id || submitBody?.runId || submitBody?.jobId;
-    if (!forgeRunId) return j({ error: "Forge did not return a run id", raw: submitBody }, 502);
+    const submitBody = await submit.json().catch(() => ({} as any));
+    const execJobId: string | undefined = submitBody?.id || submitBody?.job_id;
+    if (!execJobId) return j({ error: "Repo Reader did not return an execution job id", raw: submitBody }, 502);
 
     const now = new Date().toISOString();
     const { data: row, error: insErr } = await admin.from("plan_test_runs").insert({
@@ -89,17 +106,18 @@ Deno.serve(async (req) => {
       project_id: (plan as any).project_id,
       workspace_id: (plan as any).workspace_id,
       codegen_job_ref: codegenJobId,
-      forge_run_id: forgeRunId,
-      base_url,
-      status: "running",
-      progress_message: "Queued at Forge",
+      forge_run_id: execJobId,
+      base_url: baseUrl,
+      status: "queued",
+      execution_phase: "queued",
+      progress_message: "Queued at Repo Reader",
       started_at: now,
       created_by: userId,
-      events: [{ ts: now, type: "run_submitted", envKeys: Object.keys(runtimeEnv), baseUrl: base_url }],
-    }).select("*").single();
+      events: [{ ts: now, type: "execution_submitted", envKeys: Object.keys(runtimeEnv), baseUrl }],
+    }).select("id").single();
     if (insErr) return j({ error: insErr.message }, 500);
 
-    return j({ status: "accepted", plan_test_run_id: row.id, forge_run_id: forgeRunId }, 202);
+    return j({ status: "accepted", plan_test_run_id: row.id, execution_job_id: execJobId }, 202);
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
