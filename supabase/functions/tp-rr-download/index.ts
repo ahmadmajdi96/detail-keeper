@@ -26,9 +26,45 @@ Deno.serve(async (req) => {
     const { data: claims } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
 
-    const { test_plan_id, kind = "cases" } = await req.json();
+    const { test_plan_id, kind = "cases", plan_test_run_id } = await req.json();
+
+    const admin0 = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Live-execution artifacts: resolve the Repo Reader execution job directly.
+    if (plan_test_run_id) {
+      const { data: runVisible } = await supabase
+        .from("plan_test_runs").select("id").eq("id", plan_test_run_id).maybeSingle();
+      if (!runVisible) return j({ error: "Run not found" }, 404);
+      const { data: runRow } = await admin0.from("plan_test_runs")
+        .select("forge_run_id").eq("id", plan_test_run_id).maybeSingle();
+      const execJob = (runRow as any)?.forge_run_id;
+      if (!execJob) return j({ error: "This run has no Repo Reader execution job." }, 409);
+      const res = await fetch(`${BASE}/v1/jobs/${execJob}/download.zip`, {
+        headers: { Authorization: `Bearer ${API_KEY}` },
+        redirect: "follow",
+      });
+      if (!res.ok) {
+        const detail = (await res.text()).slice(0, 300);
+        return j({ error: `Repo Reader ${res.status}: ${detail || "download failed"}` }, res.status === 404 ? 404 : 503);
+      }
+      const buf = await res.arrayBuffer();
+      const name = `playwright-execution-${execJob}.zip`;
+      return new Response(buf, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="${name}"`,
+          "X-Filename": name,
+        },
+      });
+    }
+
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
     const refCol = REF[kind] ?? REF.cases;
+
 
     // RLS-scoped: caller must be able to see the plan.
     const { data: visible } = await supabase
