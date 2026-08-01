@@ -134,8 +134,12 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const [headless, setHeadless] = useState<boolean>(initialCfg.headless ?? true);
   const [retries, setRetries] = useState<number>(initialCfg.retries ?? 0);
   const [baseUrl, setBaseUrl] = useState<string>(initialCfg.baseUrl || "");
+  // Suite scoping: "all" generates code for every test case, otherwise only
+  // the selected suite's cases are sent to Repo Reader.
+  const [codegenSuite, setCodegenSuite] = useState<string>(initialCfg.codegenSuite || "all");
+  const [runSuiteId, setRunSuiteId] = useState<string>(initialCfg.runSuiteId || "all");
   const [activePlanRunId, setActivePlanRunId] = useState<string | null>(null);
-  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries, baseUrl })); }, [cfgKey, browser, headless, retries, baseUrl]);
+  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries, baseUrl, codegenSuite, runSuiteId })); }, [cfgKey, browser, headless, retries, baseUrl, codegenSuite, runSuiteId]);
 
   const { data: docs = [] } = useQuery<Doc[]>({
     queryKey: ["tp-docs", testPlanId],
