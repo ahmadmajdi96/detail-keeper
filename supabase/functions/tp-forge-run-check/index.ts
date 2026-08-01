@@ -46,11 +46,17 @@ Deno.serve(async (req) => {
     const remoteStatus = String(s?.status || "").toLowerCase();
     const state = s?.execution_state ?? {};
     const summary = s?.summary ?? state?.summary ?? {};
+    const tce = state?.test_case_execution ?? {};
     const isTerminal = TERMINAL.has(remoteStatus);
 
-    const total = pickN(summary, ["total", "total_tests", "tests"]) || pickN(state, ["total", "total_tests"]);
-    const passed = pickN(summary, ["passed", "passed_tests"]) || pickN(state, ["passed", "passed_tests"]);
-    const failed = pickN(summary, ["failed", "failed_tests"]) || pickN(state, ["failed", "failed_tests"]);
+    const hasTce = tce && typeof tce === "object" && Number(tce.total) > 0;
+    const total = hasTce ? Number(tce.total)
+      : pickN(summary, ["total", "total_tests", "tests"]) || pickN(state, ["total", "total_tests"]);
+    const passed = hasTce ? Number(tce.passed || 0)
+      : pickN(summary, ["passed", "passed_tests"]) || pickN(state, ["passed", "passed_tests"]);
+    const failed = hasTce ? Number(tce.failed || 0)
+      : pickN(summary, ["failed", "failed_tests"]) || pickN(state, ["failed", "failed_tests"]);
+    const running = hasTce ? Number(tce.running || 0) : 0;
 
     let newStatus = (row as any).status as string;
     if (isTerminal) {
