@@ -486,22 +486,35 @@ export default function TestCasesPage() {
                                 <History className="mr-2 h-4 w-4" />
                                 Version History
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/test-cases/${tc.id}/edit`)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
+                              {!(tc as any).owner_id && (
+                                <DropdownMenuItem onClick={() => assignToMeMutation.mutate(tc.id)}>
+                                  <UserPlus className="mr-2 h-4 w-4" />
+                                  Assign to me
+                                </DropdownMenuItem>
+                              )}
+                              {(isManager || tc.created_by === user?.id) && (
+                                <DropdownMenuItem onClick={() => navigate(`/test-cases/${tc.id}/edit`)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem>
                                 <Copy className="mr-2 h-4 w-4" />
                                 Duplicate
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => deleteMutation.mutate(tc.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
+                              {(isManager || tc.created_by === user?.id) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => deleteMutation.mutate(tc.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
