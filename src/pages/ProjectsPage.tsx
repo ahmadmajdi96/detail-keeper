@@ -227,7 +227,7 @@ export default function ProjectsPage() {
               <p className="text-sm text-muted-foreground">
                 {search || filter !== "all" ? "No projects match your filters" : "No projects yet"}
               </p>
-              {!search && filter === "all" && (
+              {!search && filter === "all" && canManageProjects && (
                 <Button variant="outline" size="sm" onClick={() => setWizardOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" /> Create first project
                 </Button>
