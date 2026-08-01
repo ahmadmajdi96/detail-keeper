@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
       project_id: (plan as any).project_id,
       workspace_id: (plan as any).workspace_id,
       codegen_job_ref: codegenJobId,
+      suite_id: suiteId ?? codegenSuiteId,
       forge_run_id: execJobId,
       base_url: baseUrl,
       status: "queued",
