@@ -200,8 +200,11 @@ Deno.serve(async (req) => {
       codegen_skip_stubs: skipStubs,
       codegen_dry_run: dry_run !== false,
       codegen_job_ref: codegenJobId,
+      codegen_suite_id: suiteId,
       codegen_progress: 0,
-      codegen_progress_message: "Playwright code job queued on Repo Reader",
+      codegen_progress_message: suiteId
+        ? `Playwright code job queued for suite "${suiteName}"`
+        : "Playwright code job queued on Repo Reader",
       codegen_progress_updated_at: now,
       codegen_last_run_at: now,
     }).eq("id", test_plan_id);
@@ -213,16 +216,20 @@ Deno.serve(async (req) => {
       dry_run: dry_run !== false,
       install_skipped: dry_run !== false,
       execution_skipped: dry_run !== false,
-      message: `Playwright code job ${codegenJobId} created from test-case job ${sourceJobId}`,
+      message: suiteId
+        ? `Playwright code job ${codegenJobId} created for suite "${suiteName}" (${(payload as any).test_cases?.length ?? 0} test cases)`
+        : `Playwright code job ${codegenJobId} created from test-case job ${sourceJobId}`,
       meta: {
         job_ref: codegenJobId,
         source_job_id: sourceJobId,
+        suite_id: suiteId,
+        suite_name: suiteName,
         skip_stubs: skipStubs,
         env: { base_url_env: "PLAYWRIGHT_BASE_URL", api_base_url_env: "API_BASE_URL", auth_token_env: "E2E_AUTH_TOKEN" },
       },
     });
 
-    return j({ status: "accepted", codegenJobId, source_job_id: sourceJobId }, 202);
+    return j({ status: "accepted", codegenJobId, source_job_id: sourceJobId, suite_id: suiteId }, 202);
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
