@@ -528,6 +528,25 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             <PopoverContent align="end" className="w-80 space-y-3">
               <div className="text-xs font-semibold flex items-center gap-1"><Settings2 className="h-3 w-3" /> Forge run configuration</div>
               <div className="space-y-1.5">
+                <Label className="text-xs">Test suite to execute</Label>
+                <Select value={runSuiteId} onValueChange={setRunSuiteId}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Generated code (all specs)</SelectItem>
+                    {suites.map(s => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} ({cases.filter(c => c.suite_id === s.id).length})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  {runSuiteId !== "all" && planProgress?.codegen_suite_id !== runSuiteId
+                    ? "⚠ The latest Playwright code wasn't generated for this suite — generate code for it first."
+                    : "Executes the Playwright project generated for this scope."}
+                </p>
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-xs">Base URL <span className="text-red-400">*</span></Label>
                 <Input placeholder="https://staging.myapp.com" value={baseUrl}
                   className="h-8 font-mono text-xs"
