@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, Rocket, StopCircle, Radio, X, Download, Monitor, TerminalSquare, Maximize2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Rocket, StopCircle, Radio, X, Download, Monitor, TerminalSquare, Maximize2, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props { planRunId: string; onClose?: () => void; compact?: boolean }
@@ -272,4 +272,16 @@ function EventLine({ e }: { e: any }) {
       {t.includes("finished") && status === "failed" && <XCircle className="h-3 w-3 shrink-0" />}
     </div>
   );
+}
+
+function StateDot({ state }: { state?: string }) {
+  const s = String(state || "pending").toLowerCase();
+  const cls =
+    s === "passed" ? "bg-emerald-400" :
+    s === "failed" ? "bg-red-400" :
+    s === "running" ? "bg-cyan-400 animate-pulse" :
+    s === "skipped" ? "bg-muted-foreground" :
+    s === "timed_out" ? "bg-amber-400" :
+    "bg-muted-foreground/40";
+  return <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${cls}`} title={s} />;
 }
