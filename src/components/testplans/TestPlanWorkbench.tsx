@@ -515,13 +515,19 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
 
 
 
+          {(() => {
+          const runCaseCount = runSuiteId === "all"
+            ? cases.length
+            : cases.filter(c => c.suite_id === runSuiteId).length;
+          const runSuiteName = suites.find(s => s.id === runSuiteId)?.name ?? "all test cases";
+          return (
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" disabled={busy !== null || specs.length === 0}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
-                title={specs.length === 0 ? "Generate Playwright code first" : "Execute suite via TestCase Forge"}>
+                title={specs.length === 0 ? "Generate Playwright code first" : `Execute ${runSuiteName} — ${runCaseCount} test case${runCaseCount === 1 ? "" : "s"}`}>
                 {busy === "suite" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1" />}
-                Run Suite ({specs.length})
+                Run Suite ({runCaseCount})
                 <Settings2 className="h-3 w-3 ml-1.5 opacity-70" />
               </Button>
             </PopoverTrigger>
@@ -578,6 +584,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
               </Button>
             </PopoverContent>
           </Popover>
+          );
+          })()}
         </div>
       </div>
 
