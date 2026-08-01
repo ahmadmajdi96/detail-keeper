@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
     const userId = claims.claims.sub as string;
 
-    const { test_plan_id, language, dry_run, skip_stubs, settings: rawSettings } = await req.json();
+    const { test_plan_id, suite_id, language, dry_run, skip_stubs, settings: rawSettings } = await req.json();
     const s = rawSettings ?? {};
     const skipStubs = skip_stubs === true || s.skipStubs === true;
     const lang = typeof (language ?? s.language) === "string" && String(language ?? s.language).trim()
