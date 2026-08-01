@@ -584,6 +584,8 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
               </Button>
             </PopoverContent>
           </Popover>
+          );
+          })()}
         </div>
       </div>
 
