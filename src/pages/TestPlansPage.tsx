@@ -351,7 +351,7 @@ export default function TestPlansPage() {
                           Mark Complete
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        {hasPermission(["admin", "qa_manager"]) && (
+                        {(hasPermission("qa_manager") || plan.created_by === user?.id) && (
                           <DropdownMenuItem 
                             className="text-destructive"
                             onClick={() => deleteMutation.mutate(plan.id)}
