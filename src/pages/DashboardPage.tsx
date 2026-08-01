@@ -349,6 +349,7 @@ export default function DashboardPage() {
 
       {/* AI Insights + Quick Actions */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        {isManager && (
         <Card className="border-border/50 lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -394,8 +395,9 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        <Card className="border-border/50">
+        <Card className={`border-border/50${isManager ? "" : " lg:col-span-3"}`}>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-accent" /> Quick Actions
@@ -408,8 +410,9 @@ export default function DashboardPage() {
               { l: "Run execution", icon: Play, to: "/executions" },
               { l: "AI agent", icon: Bot, to: "/automation" },
               { l: "Upload docs", icon: FileText, to: "/documents" },
-              { l: "New project", icon: Plus, to: "/projects?new=1" },
+              ...(isManager ? [{ l: "New project", icon: Plus, to: "/projects?new=1" }] : []),
             ].map((a) => {
+
               const Icon = a.icon;
               return (
                 <Button
