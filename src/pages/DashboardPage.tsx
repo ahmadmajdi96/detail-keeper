@@ -62,7 +62,9 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { projectId, scopeKey } = useProjectScope();
   const { currentProject, currentWorkspace, workspaces, loading: wsLoading } = useWorkspace();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isManager = hasPermission("qa_manager");
+
 
   // Onboarding gate: first-run users (no workspaces + never completed onboarding) → /onboarding
   const { data: onboardingCheck } = useQuery({
