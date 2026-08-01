@@ -38,7 +38,10 @@ export default function ProjectsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
+  const { hasPermission } = useAuth();
+  const canManageProjects = hasPermission("qa_manager");
   const { currentWorkspace, setCurrentProjectId, refresh } = useWorkspace();
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | string>("all");
   const [view, setView] = useState<"grid" | "list">("grid");
