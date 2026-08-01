@@ -353,6 +353,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
+
 
       {/* AI Insights + Quick Actions */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
