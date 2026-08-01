@@ -35,7 +35,7 @@ const statusConfig: Record<ExecutionStatus, { color: string; icon: React.ReactNo
 };
 
 export default function ExecutionsPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
   const { activePlanId, activePlan, activeCaseIds } = useActiveTestPlan();
