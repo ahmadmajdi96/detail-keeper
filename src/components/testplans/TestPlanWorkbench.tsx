@@ -350,9 +350,14 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     setBusy("suite");
     try {
       const { data, error } = await supabase.functions.invoke("tp-forge-run-start", {
-        body: { test_plan_id: testPlanId, base_url: baseUrl.trim() },
+        body: {
+          test_plan_id: testPlanId,
+          base_url: baseUrl.trim(),
+          ...(runSuiteId !== "all" ? { suite_id: runSuiteId } : {}),
+        },
       });
       if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
       const id = (data as any)?.plan_test_run_id as string | undefined;
       if (!id) throw new Error("Forge did not return a run id");
       setActivePlanRunId(id);
