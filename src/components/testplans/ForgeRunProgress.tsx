@@ -153,6 +153,48 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
       <Progress value={pct} className={`h-1.5 ${run.status === "cancelled" ? "opacity-60" : ""}`} />
       {run.progress_message && <p className="text-[11px] text-muted-foreground">{run.progress_message}</p>}
 
+      {/* Per-test-case execution progress */}
+      {tcTotal > 0 && (
+        <div className="rounded border border-border/40 bg-background/40">
+          <div className="px-2 py-1 text-[11px] font-semibold border-b border-border/40 flex items-center gap-2 flex-wrap">
+            <FlaskConical className="h-3 w-3 text-cyan-400" /> Test cases
+            <span className="font-mono text-muted-foreground">{tcp.completed ?? 0}/{tcTotal} · {pct}%</span>
+            <span className="ml-auto flex items-center gap-1.5">
+              <Badge variant="outline" className="text-emerald-300 border-emerald-500/30">✓ {tcp.passed ?? 0}</Badge>
+              <Badge variant="outline" className="text-red-300 border-red-500/30">✗ {tcp.failed ?? 0}</Badge>
+              {(tcp.skipped ?? 0) > 0 && <Badge variant="outline" className="text-muted-foreground">↷ {tcp.skipped}</Badge>}
+              {(tcp.timed_out ?? 0) > 0 && <Badge variant="outline" className="text-amber-300 border-amber-500/30">⏱ {tcp.timed_out}</Badge>}
+              {(tcp.pending ?? 0) > 0 && <span className="text-muted-foreground">{tcp.pending} pending</span>}
+            </span>
+          </div>
+          {tcp.current_test_case && (
+            <div className="px-2 py-1.5 border-b border-border/40 flex items-center gap-2 text-[11px] bg-cyan-500/5">
+              <Loader2 className="h-3 w-3 animate-spin text-cyan-400 shrink-0" />
+              <span className="truncate">
+                <span className="font-mono opacity-70">{tcp.current_test_case.id}</span> · {tcp.current_test_case.title}
+              </span>
+              {tcp.current_test_case.priority && (
+                <Badge variant="outline" className="ml-auto text-[9px] shrink-0">{tcp.current_test_case.priority}</Badge>
+              )}
+            </div>
+          )}
+          <div className="max-h-[220px] overflow-auto divide-y divide-border/30">
+            {(Array.isArray(tcp.test_cases) ? tcp.test_cases : []).map((tc: any, i: number) => (
+              <div key={tc.id || i} className="flex items-center gap-2 px-2 py-1 text-[10px]">
+                <StateDot state={tc.state || tc.result} />
+                <span className="font-mono opacity-60 shrink-0">{tc.id}</span>
+                <span className="truncate flex-1">{tc.title}</span>
+                {typeof tc.duration_ms === "number" && (
+                  <span className="font-mono text-muted-foreground shrink-0">{Math.round(tc.duration_ms)}ms</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
+
       {/* Remote browser live view */}
       <div className="rounded border border-border/40 bg-background/40 overflow-hidden">
         <div className="px-2 py-1 text-[11px] font-semibold border-b border-border/40 flex items-center gap-1">
