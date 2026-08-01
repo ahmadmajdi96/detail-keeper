@@ -85,12 +85,18 @@ export function ForgeRunProgress({ planRunId, onClose, compact }: Props) {
   };
 
 
+  const tcp = (run?.test_case_progress ?? {}) as any;
+  const tcTotal = Number(tcp.total || 0);
+
   const pct = useMemo(() => {
     if (!run) return 0;
+    if (tcTotal > 0) {
+      return Math.round(Number(tcp.completion_percent) || (Number(tcp.completed || 0) / tcTotal) * 100);
+    }
     const total = run.total_tests || 0;
     const done = (run.passed_tests || 0) + (run.failed_tests || 0);
     return total > 0 ? Math.round((done / total) * 100) : (ACTIVE.has(run.status) ? 5 : 100);
-  }, [run]);
+  }, [run, tcTotal, tcp.completion_percent, tcp.completed]);
 
   const logRef = useRef<HTMLPreElement>(null);
   useEffect(() => {
