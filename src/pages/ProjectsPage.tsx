@@ -354,13 +354,16 @@ export default function ProjectsPage() {
                               <RefreshCw className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          <Button
-                            size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => { if (confirm(`Delete "${p.name}"?`)) del.mutate(p.id); }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {canManageProjects && (
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => { if (confirm(`Delete "${p.name}"?`)) del.mutate(p.id); }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+
                         </div>
                       </div>
                     </CardContent>
