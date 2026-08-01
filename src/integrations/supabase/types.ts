@@ -3317,6 +3317,8 @@ export type Database = {
           running_tests: number
           started_at: string | null
           status: string
+          suite_id: string | null
+          test_case_progress: Json
           test_plan_id: string
           total_tests: number
           updated_at: string
@@ -3347,6 +3349,8 @@ export type Database = {
           running_tests?: number
           started_at?: string | null
           status?: string
+          suite_id?: string | null
+          test_case_progress?: Json
           test_plan_id: string
           total_tests?: number
           updated_at?: string
@@ -3377,6 +3381,8 @@ export type Database = {
           running_tests?: number
           started_at?: string | null
           status?: string
+          suite_id?: string | null
+          test_case_progress?: Json
           test_plan_id?: string
           total_tests?: number
           updated_at?: string
@@ -3388,6 +3394,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_test_runs_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "test_suites"
             referencedColumns: ["id"]
           },
           {
@@ -6120,6 +6133,7 @@ export type Database = {
           codegen_progress_updated_at: string | null
           codegen_skip_stubs: boolean
           codegen_status: string | null
+          codegen_suite_id: string | null
           coverage_source: Json | null
           coverage_summary: Json | null
           created_at: string
@@ -6166,6 +6180,7 @@ export type Database = {
           codegen_progress_updated_at?: string | null
           codegen_skip_stubs?: boolean
           codegen_status?: string | null
+          codegen_suite_id?: string | null
           coverage_source?: Json | null
           coverage_summary?: Json | null
           created_at?: string
@@ -6212,6 +6227,7 @@ export type Database = {
           codegen_progress_updated_at?: string | null
           codegen_skip_stubs?: boolean
           codegen_status?: string | null
+          codegen_suite_id?: string | null
           coverage_source?: Json | null
           coverage_summary?: Json | null
           created_at?: string
@@ -6241,6 +6257,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "test_plans_codegen_suite_id_fkey"
+            columns: ["codegen_suite_id"]
+            isOneToOne: false
+            referencedRelation: "test_suites"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "test_plans_created_by_fkey"
             columns: ["created_by"]
