@@ -279,13 +279,15 @@ export default function WorkspacesPage() {
                         <Button size="sm" className="flex-1" onClick={() => open(ws.id)}>
                           <Eye className="h-3.5 w-3.5 mr-1.5" /> Open
                         </Button>
-                        <Button
-                          variant="outline" size="sm"
-                          onClick={() => navigate(`/workspaces/${ws.id}?tab=settings`)}
-                        >
-                          <Settings className="h-3.5 w-3.5" />
-                        </Button>
-                        {hasPermission("admin") && (
+                        {hasPermission("qa_manager") && (
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => navigate(`/workspaces/${ws.id}?tab=settings`)}
+                          >
+                            <Settings className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {hasPermission("qa_manager") && (
                           <Button
                             variant="outline" size="sm"
                             className="text-destructive hover:bg-destructive/10 hover:border-destructive/40"
@@ -296,6 +298,7 @@ export default function WorkspacesPage() {
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
+
                       </div>
                     </CardContent>
                   </Card>

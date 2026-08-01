@@ -68,8 +68,8 @@ const mainNavItems: NavItem[] = [
   { title: "Defects", href: "/defects", icon: Bug, roles: ["qa_engineer", "qa_manager", "admin"] },
   // Releases, Runners, Quality Gates managed within Test Plans now.
   // AI Automation hidden from sidebar (route still available at /automation)
-  { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true, roles: ["qa_engineer", "qa_manager", "admin"] },
-  { title: "Suite Report", href: "/reporting/suites", icon: FolderTree, roles: ["qa_engineer", "qa_manager", "admin"] },
+  { title: "Reports", href: "/reporting", icon: BarChart3, isAI: true, roles: ["qa_manager", "admin"] },
+  { title: "Suite Report", href: "/reporting/suites", icon: FolderTree, roles: ["qa_manager", "admin"] },
 
 ];
 

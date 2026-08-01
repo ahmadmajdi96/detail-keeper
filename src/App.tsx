@@ -238,12 +238,12 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/reporting/suites" element={
-                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                <ProtectedRoute allowedRoles={["qa_manager", "admin"]}>
                   <SuiteExecutionReportPage />
                 </ProtectedRoute>
               } />
               <Route path="/reporting" element={
-                <ProtectedRoute allowedRoles={["qa_engineer", "qa_manager", "admin"]}>
+                <ProtectedRoute allowedRoles={["qa_manager", "admin"]}>
                   <ReportingPage />
                 </ProtectedRoute>
               } />

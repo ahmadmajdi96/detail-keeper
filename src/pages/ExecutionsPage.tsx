@@ -35,7 +35,7 @@ const statusConfig: Record<ExecutionStatus, { color: string; icon: React.ReactNo
 };
 
 export default function ExecutionsPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
   const { activePlanId, activePlan, activeCaseIds } = useActiveTestPlan();
@@ -76,15 +76,39 @@ export default function ExecutionsPage() {
     },
   });
 
+  // QA Engineers may only execute test cases belonging to plans they are assigned to.
+  const isManager = hasPermission("qa_manager");
+  const { data: assignedCaseIds = null } = useQuery({
+    queryKey: ["my-assigned-plan-cases", user?.id, isManager],
+    enabled: !!user?.id && !isManager,
+    queryFn: async () => {
+      const { data: assignments } = await supabase
+        .from("test_plan_assignees").select("test_plan_id").eq("user_id", user!.id);
+      const planIds = (assignments ?? []).map((a: any) => a.test_plan_id);
+      if (planIds.length === 0) return [] as string[];
+      const { data: links } = await supabase
+        .from("test_plan_test_cases").select("test_case_id").in("test_plan_id", planIds);
+      return (links ?? []).map((l: any) => l.test_case_id) as string[];
+    },
+  });
+
   const { data: testCases = [] } = useQuery({
-    queryKey: ["test-cases-for-execution", ...scopeKey, activePlanId, activeCaseIds.join(",")],
+    queryKey: ["test-cases-for-execution", ...scopeKey, activePlanId, activeCaseIds.join(","), (assignedCaseIds ?? []).length, isManager],
+    enabled: isManager || assignedCaseIds !== null,
     queryFn: async () => {
       // When an active plan is set, only its linked test cases are runnable.
       if (activePlanId && activeCaseIds.length === 0) return [] as TestCase[];
+      let scoped = activePlanId && activeCaseIds.length > 0 ? activeCaseIds : null;
+      if (!isManager) {
+        const allowed = assignedCaseIds ?? [];
+        if (allowed.length === 0) return [] as TestCase[];
+        scoped = scoped ? scoped.filter((id) => allowed.includes(id)) : allowed;
+        if (scoped.length === 0) return [] as TestCase[];
+      }
       let q = supabase.from("test_cases").select("*");
       if (projectId) q = q.eq("project_id", projectId);
-      if (activePlanId && activeCaseIds.length > 0) {
-        q = q.in("id", activeCaseIds);
+      if (scoped) {
+        q = q.in("id", scoped);
       } else {
         q = q.in("status", ["active", "draft"]);
       }
@@ -93,6 +117,7 @@ export default function ExecutionsPage() {
       return data as TestCase[];
     },
   });
+
 
   const startExecutionMutation = useMutation({
     mutationFn: async (testCaseId: string) => {

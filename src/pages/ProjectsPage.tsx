@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -38,7 +39,10 @@ export default function ProjectsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
+  const { hasPermission } = useAuth();
+  const canManageProjects = hasPermission("qa_manager");
   const { currentWorkspace, setCurrentProjectId, refresh } = useWorkspace();
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | string>("all");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -147,11 +151,14 @@ export default function ProjectsPage() {
             <Button variant="outline" onClick={() => navigate("/workspaces")}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Back
             </Button>
-            <Button onClick={() => setWizardOpen(true)} className="ai-gradient text-white">
-              <Plus className="h-4 w-4 mr-2" /> New project
-            </Button>
+            {canManageProjects && (
+              <Button onClick={() => setWizardOpen(true)} className="ai-gradient text-white">
+                <Plus className="h-4 w-4 mr-2" /> New project
+              </Button>
+            )}
           </div>
         }
+
       />
 
 
@@ -220,7 +227,7 @@ export default function ProjectsPage() {
               <p className="text-sm text-muted-foreground">
                 {search || filter !== "all" ? "No projects match your filters" : "No projects yet"}
               </p>
-              {!search && filter === "all" && (
+              {!search && filter === "all" && canManageProjects && (
                 <Button variant="outline" size="sm" onClick={() => setWizardOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" /> Create first project
                 </Button>
@@ -354,13 +361,16 @@ export default function ProjectsPage() {
                               <RefreshCw className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          <Button
-                            size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => { if (confirm(`Delete "${p.name}"?`)) del.mutate(p.id); }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {canManageProjects && (
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => { if (confirm(`Delete "${p.name}"?`)) del.mutate(p.id); }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+
                         </div>
                       </div>
                     </CardContent>

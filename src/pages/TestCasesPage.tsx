@@ -60,6 +60,7 @@ import {
   Loader2,
   Edit,
   Trash2,
+  UserPlus,
   Copy,
   Eye,
   FileText,
@@ -89,7 +90,8 @@ const statusIcons: Record<TestCaseStatus, React.ReactNode> = {
 
 export default function TestCasesPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isManager = hasPermission("qa_manager");
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
   const { activePlanId, activePlan, activeCaseIds } = useActiveTestPlan();
@@ -207,6 +209,21 @@ export default function TestCasesPage() {
       toast.error("Failed to delete: " + error.message);
     },
   });
+
+  // Claim an unassigned test case
+  const assignToMeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("test_cases").update({ owner_id: user?.id }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["test-cases"] });
+      toast.success("Assigned to you");
+    },
+    onError: (error) => toast.error("Failed to assign: " + error.message),
+  });
+
+
 
   const resetForm = () => {
     setNewTitle("");
@@ -471,22 +488,35 @@ export default function TestCasesPage() {
                                 <History className="mr-2 h-4 w-4" />
                                 Version History
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/test-cases/${tc.id}/edit`)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
+                              {!(tc as any).owner_id && (
+                                <DropdownMenuItem onClick={() => assignToMeMutation.mutate(tc.id)}>
+                                  <UserPlus className="mr-2 h-4 w-4" />
+                                  Assign to me
+                                </DropdownMenuItem>
+                              )}
+                              {(isManager || tc.created_by === user?.id) && (
+                                <DropdownMenuItem onClick={() => navigate(`/test-cases/${tc.id}/edit`)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem>
                                 <Copy className="mr-2 h-4 w-4" />
                                 Duplicate
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => deleteMutation.mutate(tc.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
+                              {(isManager || tc.created_by === user?.id) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => deleteMutation.mutate(tc.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

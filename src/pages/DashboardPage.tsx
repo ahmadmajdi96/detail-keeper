@@ -62,7 +62,9 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { projectId, scopeKey } = useProjectScope();
   const { currentProject, currentWorkspace, workspaces, loading: wsLoading } = useWorkspace();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isManager = hasPermission("qa_manager");
+
 
   // Onboarding gate: first-run users (no workspaces + never completed onboarding) → /onboarding
   const { data: onboardingCheck } = useQuery({
@@ -281,20 +283,25 @@ export default function DashboardPage() {
 
       {/* Charts row */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <ExecutionTrendsChart data={trendData} />
-        <DefectMetricsChart data={defectChartData} />
+        {isManager && <ExecutionTrendsChart data={trendData} />}
+        {isManager && <DefectMetricsChart data={defectChartData} />}
         <AssignedToMeCard />
       </div>
 
 
       {/* Extended heatmap */}
-      <div className="mt-6">
-        <ExtendedHeatmap executions={executions as any} days={14} />
-      </div>
+      {isManager && (
+        <div className="mt-6">
+          <ExtendedHeatmap executions={executions as any} days={14} />
+        </div>
+      )}
 
       {/* Test case status + recent + quick actions */}
+      {isManager && (
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <TestCaseStatusChart data={tcStatusData} />
+
+
 
         <Card className="border-border/50 lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -346,9 +353,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
+
 
       {/* AI Insights + Quick Actions */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        {isManager && (
         <Card className="border-border/50 lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -394,8 +404,9 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        <Card className="border-border/50">
+        <Card className={`border-border/50${isManager ? "" : " lg:col-span-3"}`}>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-accent" /> Quick Actions
@@ -408,8 +419,9 @@ export default function DashboardPage() {
               { l: "Run execution", icon: Play, to: "/executions" },
               { l: "AI agent", icon: Bot, to: "/automation" },
               { l: "Upload docs", icon: FileText, to: "/documents" },
-              { l: "New project", icon: Plus, to: "/projects?new=1" },
+              ...(isManager ? [{ l: "New project", icon: Plus, to: "/projects?new=1" }] : []),
             ].map((a) => {
+
               const Icon = a.icon;
               return (
                 <Button
