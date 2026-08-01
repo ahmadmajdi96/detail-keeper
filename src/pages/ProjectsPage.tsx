@@ -147,11 +147,14 @@ export default function ProjectsPage() {
             <Button variant="outline" onClick={() => navigate("/workspaces")}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Back
             </Button>
-            <Button onClick={() => setWizardOpen(true)} className="ai-gradient text-white">
-              <Plus className="h-4 w-4 mr-2" /> New project
-            </Button>
+            {canManageProjects && (
+              <Button onClick={() => setWizardOpen(true)} className="ai-gradient text-white">
+                <Plus className="h-4 w-4 mr-2" /> New project
+              </Button>
+            )}
           </div>
         }
+
       />
 
 
