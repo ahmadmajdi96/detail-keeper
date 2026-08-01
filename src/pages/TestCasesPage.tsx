@@ -60,6 +60,7 @@ import {
   Loader2,
   Edit,
   Trash2,
+  UserPlus,
   Copy,
   Eye,
   FileText,
@@ -89,7 +90,8 @@ const statusIcons: Record<TestCaseStatus, React.ReactNode> = {
 
 export default function TestCasesPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isManager = hasPermission("qa_manager");
   const queryClient = useQueryClient();
   const { projectId, workspaceId, scopeKey } = useProjectScope();
   const { activePlanId, activePlan, activeCaseIds } = useActiveTestPlan();
