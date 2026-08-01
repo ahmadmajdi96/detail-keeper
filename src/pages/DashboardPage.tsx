@@ -283,20 +283,25 @@ export default function DashboardPage() {
 
       {/* Charts row */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <ExecutionTrendsChart data={trendData} />
-        <DefectMetricsChart data={defectChartData} />
+        {isManager && <ExecutionTrendsChart data={trendData} />}
+        {isManager && <DefectMetricsChart data={defectChartData} />}
         <AssignedToMeCard />
       </div>
 
 
       {/* Extended heatmap */}
-      <div className="mt-6">
-        <ExtendedHeatmap executions={executions as any} days={14} />
-      </div>
+      {isManager && (
+        <div className="mt-6">
+          <ExtendedHeatmap executions={executions as any} days={14} />
+        </div>
+      )}
 
       {/* Test case status + recent + quick actions */}
+      {isManager && (
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <TestCaseStatusChart data={tcStatusData} />
+
+
 
         <Card className="border-border/50 lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
