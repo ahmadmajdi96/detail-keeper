@@ -208,6 +208,21 @@ export default function TestCasesPage() {
     },
   });
 
+  // Claim an unassigned test case
+  const assignToMeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("test_cases").update({ owner_id: user?.id }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["test-cases"] });
+      toast.success("Assigned to you");
+    },
+    onError: (error) => toast.error("Failed to assign: " + error.message),
+  });
+
+
+
   const resetForm = () => {
     setNewTitle("");
     setNewDescription("");
