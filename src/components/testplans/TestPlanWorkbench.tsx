@@ -465,18 +465,50 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             confirmLabel="Start generation"
             onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings, dry_run: settings.dryRun }, "Generation started")}
           />
-          <ConfirmButton
-            size="sm" variant="outline" disabled={anyRunning || cases.length === 0}
-            icon={codeRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
-            label="2. Generate Playwright Code"
-            title={cases.length === 0 ? "Generate test cases first" : "Sends test cases + env-var names to the code generator"}
-            confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
-            confirmDescription={specs.length > 0
-              ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new ${settings.language} job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
-              : `Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}
-            confirmLabel="Start codegen"
-            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language, dry_run: settings.dryRun, skip_stubs: settings.skipStubs }, "Codegen started")}
-          />
+          {(() => {
+            const suiteCount = codegenSuite === "all"
+              ? cases.length
+              : cases.filter(c => c.suite_id === codegenSuite).length;
+            const suiteName = suites.find(s => s.id === codegenSuite)?.name ?? "All test cases";
+            return (
+              <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-background/50 pl-2">
+                <FolderTree className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                <Select value={codegenSuite} onValueChange={setCodegenSuite} disabled={anyRunning}>
+                  <SelectTrigger className="h-7 w-[168px] border-0 bg-transparent px-1 text-xs focus:ring-0">
+                    <SelectValue placeholder="Select suite" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All test cases ({cases.length})</SelectItem>
+                    {suites.map(s => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} ({cases.filter(c => c.suite_id === s.id).length})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <ConfirmButton
+                  size="sm" variant="outline" disabled={anyRunning || suiteCount === 0}
+                  icon={codeRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
+                  label="2. Generate Playwright Code"
+                  title={suiteCount === 0
+                    ? "The selected suite has no test cases in this plan"
+                    : `Generates Playwright code for ${suiteName} (${suiteCount} cases)`}
+                  confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
+                  confirmDescription={`Scope: ${suiteName} — ${suiteCount} test case${suiteCount === 1 ? "" : "s"}. ${specs.length > 0
+                    ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen submits a new ${settings.language} job and overwrites files with matching names.`
+                    : `Codegen submits the selected test cases together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}`}
+                  confirmLabel="Start codegen"
+                  onConfirm={() => runStep("code", "tp-forge-codegen", {
+                    test_plan_id: testPlanId,
+                    ...(codegenSuite !== "all" ? { suite_id: codegenSuite } : {}),
+                    language: settings.language,
+                    dry_run: settings.dryRun,
+                    skip_stubs: settings.skipStubs,
+                  }, "Codegen started")}
+                />
+              </div>
+            );
+          })()}
           </>;
           })()}
 
