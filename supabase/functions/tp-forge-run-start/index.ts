@@ -22,8 +22,9 @@ Deno.serve(async (req) => {
     const userId = claims.claims.sub as string;
 
     const body = await req.json();
-    const { test_plan_id, base_url, env, timeout_seconds } = body ?? {};
+    const { test_plan_id, suite_id, base_url, env, timeout_seconds } = body ?? {};
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
+    const suiteId = typeof suite_id === "string" && suite_id.trim() ? suite_id.trim() : null;
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
 
     const { data: plan } = await admin
       .from("test_plans")
-      .select("id, project_id, workspace_id, codegen_job_ref, codegen_status, variables")
+      .select("id, project_id, workspace_id, codegen_job_ref, codegen_status, codegen_suite_id, variables")
       .eq("id", test_plan_id)
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
@@ -40,6 +41,13 @@ Deno.serve(async (req) => {
     const codegenJobId = (plan as any).codegen_job_ref as string | null;
     if (!codegenJobId) {
       return j({ error: "Generate Playwright code first — no code-generation job on this plan." }, 400);
+    }
+    const codegenSuiteId = (plan as any).codegen_suite_id as string | null;
+    if (suiteId && codegenSuiteId !== suiteId) {
+      const { data: suite } = await admin.from("test_suites").select("name").eq("id", suiteId).maybeSingle();
+      return j({
+        error: `The latest Playwright code was not generated for "${(suite as any)?.name ?? "this suite"}". Generate Playwright code for that suite first, then run it.`,
+      }, 409);
     }
 
     // Merge env values coming from the plan's variable sets with caller overrides.
