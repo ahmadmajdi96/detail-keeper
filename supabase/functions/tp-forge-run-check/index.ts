@@ -46,11 +46,17 @@ Deno.serve(async (req) => {
     const remoteStatus = String(s?.status || "").toLowerCase();
     const state = s?.execution_state ?? {};
     const summary = s?.summary ?? state?.summary ?? {};
+    const tce = state?.test_case_execution ?? {};
     const isTerminal = TERMINAL.has(remoteStatus);
 
-    const total = pickN(summary, ["total", "total_tests", "tests"]) || pickN(state, ["total", "total_tests"]);
-    const passed = pickN(summary, ["passed", "passed_tests"]) || pickN(state, ["passed", "passed_tests"]);
-    const failed = pickN(summary, ["failed", "failed_tests"]) || pickN(state, ["failed", "failed_tests"]);
+    const hasTce = tce && typeof tce === "object" && Number(tce.total) > 0;
+    const total = hasTce ? Number(tce.total)
+      : pickN(summary, ["total", "total_tests", "tests"]) || pickN(state, ["total", "total_tests"]);
+    const passed = hasTce ? Number(tce.passed || 0)
+      : pickN(summary, ["passed", "passed_tests"]) || pickN(state, ["passed", "passed_tests"]);
+    const failed = hasTce ? Number(tce.failed || 0)
+      : pickN(summary, ["failed", "failed_tests"]) || pickN(state, ["failed", "failed_tests"]);
+    const running = hasTce ? Number(tce.running || 0) : 0;
 
     let newStatus = (row as any).status as string;
     if (isTerminal) {
@@ -87,7 +93,31 @@ Deno.serve(async (req) => {
       events.push({ ts: now, type: "phase", status: remoteStatus, testName: phase });
     }
 
+    // Emit an event when the currently-running test case changes.
+    const current = tce?.current_test_case ?? null;
+    const prevCurrentId = (row as any).test_case_progress?.current_test_case?.id ?? null;
+    if (current?.id && current.id !== prevCurrentId) {
+      events.push({ ts: now, type: "test_started", status: "running", testName: current.title || current.id });
+    }
+
     const liveUrl = isTerminal ? null : (s?.live_view_url ?? null);
+
+    const testCaseProgress = hasTce || current
+      ? {
+        status: tce?.status ?? null,
+        total: Number(tce?.total || 0),
+        completed: Number(tce?.completed || 0),
+        completion_percent: Number(tce?.completion_percent || 0),
+        pending: Number(tce?.pending || 0),
+        running: Number(tce?.running || 0),
+        passed: Number(tce?.passed || 0),
+        failed: Number(tce?.failed || 0),
+        skipped: Number(tce?.skipped || 0),
+        timed_out: Number(tce?.timed_out || 0),
+        current_test_case: isTerminal ? null : current,
+        test_cases: Array.isArray(tce?.test_cases) ? tce.test_cases.slice(0, 1000) : [],
+      }
+      : ((row as any).test_case_progress ?? {});
 
     const patch: Record<string, unknown> = {
       status: newStatus,
@@ -99,7 +129,8 @@ Deno.serve(async (req) => {
       total_tests: total || (row as any).total_tests,
       passed_tests: passed || (row as any).passed_tests,
       failed_tests: failed || (row as any).failed_tests,
-      running_tests: isTerminal ? 0 : (row as any).running_tests ?? 0,
+      running_tests: isTerminal ? 0 : running,
+      test_case_progress: testCaseProgress,
       progress_message: s?.message || state?.message || phase || (row as any).progress_message,
       events: events.slice(-500),
       result: s,

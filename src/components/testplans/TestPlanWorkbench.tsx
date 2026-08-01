@@ -134,8 +134,12 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   const [headless, setHeadless] = useState<boolean>(initialCfg.headless ?? true);
   const [retries, setRetries] = useState<number>(initialCfg.retries ?? 0);
   const [baseUrl, setBaseUrl] = useState<string>(initialCfg.baseUrl || "");
+  // Suite scoping: "all" generates code for every test case, otherwise only
+  // the selected suite's cases are sent to Repo Reader.
+  const [codegenSuite, setCodegenSuite] = useState<string>(initialCfg.codegenSuite || "all");
+  const [runSuiteId, setRunSuiteId] = useState<string>(initialCfg.runSuiteId || "all");
   const [activePlanRunId, setActivePlanRunId] = useState<string | null>(null);
-  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries, baseUrl })); }, [cfgKey, browser, headless, retries, baseUrl]);
+  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries, baseUrl, codegenSuite, runSuiteId })); }, [cfgKey, browser, headless, retries, baseUrl, codegenSuite, runSuiteId]);
 
   const { data: docs = [] } = useQuery<Doc[]>({
     queryKey: ["tp-docs", testPlanId],
@@ -218,7 +222,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("test_plans")
-        .select("docs_status, docs_progress, docs_progress_message, ai_status, ai_progress, ai_progress_message, codegen_status, codegen_progress, codegen_progress_message")
+        .select("docs_status, docs_progress, docs_progress_message, ai_status, ai_progress, ai_progress_message, codegen_status, codegen_progress, codegen_progress_message, codegen_suite_id")
         .eq("id", testPlanId)
         .maybeSingle();
       return data as any;
@@ -346,9 +350,14 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     setBusy("suite");
     try {
       const { data, error } = await supabase.functions.invoke("tp-forge-run-start", {
-        body: { test_plan_id: testPlanId, base_url: baseUrl.trim() },
+        body: {
+          test_plan_id: testPlanId,
+          base_url: baseUrl.trim(),
+          ...(runSuiteId !== "all" ? { suite_id: runSuiteId } : {}),
+        },
       });
       if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
       const id = (data as any)?.plan_test_run_id as string | undefined;
       if (!id) throw new Error("Forge did not return a run id");
       setActivePlanRunId(id);
@@ -456,18 +465,50 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             confirmLabel="Start generation"
             onConfirm={() => runStep("cases", "tp-forge-generate", { test_plan_id: testPlanId, settings, dry_run: settings.dryRun }, "Generation started")}
           />
-          <ConfirmButton
-            size="sm" variant="outline" disabled={anyRunning || cases.length === 0}
-            icon={codeRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
-            label="2. Generate Playwright Code"
-            title={cases.length === 0 ? "Generate test cases first" : "Sends test cases + env-var names to the code generator"}
-            confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
-            confirmDescription={specs.length > 0
-              ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen will submit a new ${settings.language} job and overwrite any files with matching names. Only env-var NAMES (not values) from the Overview variable sets are sent.`
-              : `Codegen submits the completed test-generation job together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}
-            confirmLabel="Start codegen"
-            onConfirm={() => runStep("code", "tp-forge-codegen", { test_plan_id: testPlanId, language: settings.language, dry_run: settings.dryRun, skip_stubs: settings.skipStubs }, "Codegen started")}
-          />
+          {(() => {
+            const suiteCount = codegenSuite === "all"
+              ? cases.length
+              : cases.filter(c => c.suite_id === codegenSuite).length;
+            const suiteName = suites.find(s => s.id === codegenSuite)?.name ?? "All test cases";
+            return (
+              <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-background/50 pl-2">
+                <FolderTree className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                <Select value={codegenSuite} onValueChange={setCodegenSuite} disabled={anyRunning}>
+                  <SelectTrigger className="h-7 w-[168px] border-0 bg-transparent px-1 text-xs focus:ring-0">
+                    <SelectValue placeholder="Select suite" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All test cases ({cases.length})</SelectItem>
+                    {suites.map(s => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} ({cases.filter(c => c.suite_id === s.id).length})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <ConfirmButton
+                  size="sm" variant="outline" disabled={anyRunning || suiteCount === 0}
+                  icon={codeRunning ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <FileCode2 className="h-3.5 w-3.5 mr-1" />}
+                  label="2. Generate Playwright Code"
+                  title={suiteCount === 0
+                    ? "The selected suite has no test cases in this plan"
+                    : `Generates Playwright code for ${suiteName} (${suiteCount} cases)`}
+                  confirmTitle={specs.length > 0 ? "Regenerate Playwright code?" : "Generate Playwright code?"}
+                  confirmDescription={`Scope: ${suiteName} — ${suiteCount} test case${suiteCount === 1 ? "" : "s"}. ${specs.length > 0
+                    ? `This plan already has ${specs.length} spec file${specs.length === 1 ? "" : "s"}. Codegen submits a new ${settings.language} job and overwrites files with matching names.`
+                    : `Codegen submits the selected test cases together with the env-var NAMES from your variable sets (values are never sent) and returns Playwright ${settings.language} spec files.`}`}
+                  confirmLabel="Start codegen"
+                  onConfirm={() => runStep("code", "tp-forge-codegen", {
+                    test_plan_id: testPlanId,
+                    ...(codegenSuite !== "all" ? { suite_id: codegenSuite } : {}),
+                    language: settings.language,
+                    dry_run: settings.dryRun,
+                    skip_stubs: settings.skipStubs,
+                  }, "Codegen started")}
+                />
+              </div>
+            );
+          })()}
           </>;
           })()}
 
@@ -486,6 +527,25 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-80 space-y-3">
               <div className="text-xs font-semibold flex items-center gap-1"><Settings2 className="h-3 w-3" /> Forge run configuration</div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Test suite to execute</Label>
+                <Select value={runSuiteId} onValueChange={setRunSuiteId}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Generated code (all specs)</SelectItem>
+                    {suites.map(s => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} ({cases.filter(c => c.suite_id === s.id).length})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  {runSuiteId !== "all" && planProgress?.codegen_suite_id !== runSuiteId
+                    ? "⚠ The latest Playwright code wasn't generated for this suite — generate code for it first."
+                    : "Executes the Playwright project generated for this scope."}
+                </p>
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Base URL <span className="text-red-400">*</span></Label>
                 <Input placeholder="https://staging.myapp.com" value={baseUrl}

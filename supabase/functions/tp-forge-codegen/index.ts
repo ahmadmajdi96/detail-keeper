@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     if (!claims?.claims) return j({ error: "Unauthorized" }, 401);
     const userId = claims.claims.sub as string;
 
-    const { test_plan_id, language, dry_run, skip_stubs, settings: rawSettings } = await req.json();
+    const { test_plan_id, suite_id, language, dry_run, skip_stubs, settings: rawSettings } = await req.json();
     const s = rawSettings ?? {};
     const skipStubs = skip_stubs === true || s.skipStubs === true;
     const lang = typeof (language ?? s.language) === "string" && String(language ?? s.language).trim()
@@ -50,9 +50,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!plan) return j({ error: "Test plan not found" }, 404);
 
+    const suiteId = typeof suite_id === "string" && suite_id.trim() ? suite_id.trim() : null;
     const sourceJobId = (plan as any).ai_job_ref as string | null;
-    if (!sourceJobId) return j({ error: "Generate test cases first — this plan has no test-case job." }, 400);
-    if ((plan as any).ai_status !== "ready") return j({ error: "Test case generation must finish before codegen." }, 400);
+    if (!suiteId) {
+      if (!sourceJobId) return j({ error: "Generate test cases first — this plan has no test-case job." }, 400);
+      if ((plan as any).ai_status !== "ready") return j({ error: "Test case generation must finish before codegen." }, 400);
+    }
 
     // ---- Mandatory environment variables ------------------------------
     const env = flattenVars((plan as any).variables);
@@ -64,31 +67,110 @@ Deno.serve(async (req) => {
       }, 400);
     }
 
-    const payload = {
-      model: null,
-      metadata: {
-        requested_by: "test-management-ui",
-        user_id: userId,
-        test_plan_id,
-        project_id: (plan as any).project_id,
-      },
-      settings: {
-        language: lang,
-        framework: "Playwright",
-        base_url_env: "PLAYWRIGHT_BASE_URL",
-        api_base_url_env: "API_BASE_URL",
-        auth_token_env: "E2E_AUTH_TOKEN",
-        test_dir: str(s.testDir, "tests"),
-        pages_dir: str(s.pagesDir, "pages"),
-        fixtures_dir: str(s.fixturesDir, "fixtures"),
-        utils_dir: str(s.utilsDir, "utils"),
-        use_skip_stubs: skipStubs || dry_run !== false,
-        include_api_mocks: s.includeApiMocks !== false,
-      },
-      forward_to_test_doc: false,
+    const commonSettings = {
+      language: lang,
+      framework: "Playwright",
+      base_url_env: "PLAYWRIGHT_BASE_URL",
+      api_base_url_env: "API_BASE_URL",
+      auth_token_env: "E2E_AUTH_TOKEN",
+      test_dir: str(s.testDir, "tests"),
+      pages_dir: str(s.pagesDir, "pages"),
+      fixtures_dir: str(s.fixturesDir, "fixtures"),
+      utils_dir: str(s.utilsDir, "utils"),
+      use_skip_stubs: skipStubs || dry_run !== false,
+      include_api_mocks: s.includeApiMocks !== false,
     };
 
-    const res = await fetch(`${BASE}/v1/jobs/${sourceJobId}/playwright-code`, {
+    let endpoint: string;
+    let payload: Record<string, unknown>;
+    let suiteName: string | null = null;
+
+    if (suiteId) {
+      // ---- Suite-scoped codegen: send only this suite's test cases -----
+      const { data: suite } = await admin
+        .from("test_suites")
+        .select("id, name, project_id")
+        .eq("id", suiteId)
+        .maybeSingle();
+      if (!suite) return j({ error: "Test suite not found" }, 404);
+      suiteName = (suite as any).name as string;
+
+      const { data: planCaseRows } = await admin
+        .from("test_plan_test_cases")
+        .select("test_case_id")
+        .eq("test_plan_id", test_plan_id);
+      const planCaseIds = new Set((planCaseRows ?? []).map((r: any) => r.test_case_id));
+
+      const { data: caseRows } = await admin
+        .from("test_cases")
+        .select("id, title, priority, test_type, coverage_tags, source, automation_path, suite_order")
+        .eq("suite_id", suiteId)
+        .order("suite_order", { ascending: true });
+
+      const suiteCases = (caseRows ?? []).filter((c: any) => planCaseIds.size === 0 || planCaseIds.has(c.id));
+      if (!suiteCases.length) {
+        return j({ error: `The suite "${suiteName}" has no test cases in this plan.` }, 400);
+      }
+
+      const { data: stepRows } = await admin
+        .from("test_case_steps")
+        .select("test_case_id, step_number, action, expected_result")
+        .in("test_case_id", suiteCases.map((c: any) => c.id))
+        .order("step_number", { ascending: true });
+      const stepsByCase = new Map<string, any[]>();
+      for (const st of stepRows ?? []) {
+        const list = stepsByCase.get((st as any).test_case_id) ?? [];
+        list.push({ action: (st as any).action ?? "", expected_result: (st as any).expected_result ?? "" });
+        stepsByCase.set((st as any).test_case_id, list);
+      }
+
+      const { data: project } = await admin
+        .from("projects").select("id, name").eq("id", (plan as any).project_id).maybeSingle();
+
+      payload = {
+        suite_id: suiteId,
+        suite_name: suiteName,
+        repo_name: (project as any)?.name || "project",
+        test_cases: suiteCases.map((c: any) => ({
+          id: `TC-${String(c.id).slice(0, 8).toUpperCase()}`,
+          test_type: c.test_type || "Regression Testing",
+          title: c.title,
+          priority: `P${Math.max(1, Math.min(4, Number(c.priority) || 3))}`,
+          coverage_tags: Array.isArray(c.coverage_tags) ? c.coverage_tags : [],
+          steps: stepsByCase.get(c.id) ?? [],
+          source: {
+            surface_type: c.source || "ui",
+            route: c.automation_path || "/",
+          },
+        })),
+        settings: {
+          ...commonSettings,
+          use_skip_stubs: commonSettings.use_skip_stubs,
+        },
+        metadata: {
+          requested_by: "test-management-ui",
+          user_id: userId,
+          test_plan_id,
+          project_id: (plan as any).project_id,
+        },
+      };
+      endpoint = `${BASE}/v1/test-suites/playwright-code`;
+    } else {
+      payload = {
+        model: null,
+        metadata: {
+          requested_by: "test-management-ui",
+          user_id: userId,
+          test_plan_id,
+          project_id: (plan as any).project_id,
+        },
+        settings: commonSettings,
+        forward_to_test_doc: false,
+      };
+      endpoint = `${BASE}/v1/jobs/${sourceJobId}/playwright-code`;
+    }
+
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${API_KEY}`,
@@ -118,8 +200,11 @@ Deno.serve(async (req) => {
       codegen_skip_stubs: skipStubs,
       codegen_dry_run: dry_run !== false,
       codegen_job_ref: codegenJobId,
+      codegen_suite_id: suiteId,
       codegen_progress: 0,
-      codegen_progress_message: "Playwright code job queued on Repo Reader",
+      codegen_progress_message: suiteId
+        ? `Playwright code job queued for suite "${suiteName}"`
+        : "Playwright code job queued on Repo Reader",
       codegen_progress_updated_at: now,
       codegen_last_run_at: now,
     }).eq("id", test_plan_id);
@@ -131,16 +216,20 @@ Deno.serve(async (req) => {
       dry_run: dry_run !== false,
       install_skipped: dry_run !== false,
       execution_skipped: dry_run !== false,
-      message: `Playwright code job ${codegenJobId} created from test-case job ${sourceJobId}`,
+      message: suiteId
+        ? `Playwright code job ${codegenJobId} created for suite "${suiteName}" (${(payload as any).test_cases?.length ?? 0} test cases)`
+        : `Playwright code job ${codegenJobId} created from test-case job ${sourceJobId}`,
       meta: {
         job_ref: codegenJobId,
         source_job_id: sourceJobId,
+        suite_id: suiteId,
+        suite_name: suiteName,
         skip_stubs: skipStubs,
         env: { base_url_env: "PLAYWRIGHT_BASE_URL", api_base_url_env: "API_BASE_URL", auth_token_env: "E2E_AUTH_TOKEN" },
       },
     });
 
-    return j({ status: "accepted", codegenJobId, source_job_id: sourceJobId }, 202);
+    return j({ status: "accepted", codegenJobId, source_job_id: sourceJobId, suite_id: suiteId }, 202);
   } catch (e) {
     return j({ error: (e as Error).message }, 500);
   }
