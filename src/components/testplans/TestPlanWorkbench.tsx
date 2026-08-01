@@ -222,7 +222,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("test_plans")
-        .select("docs_status, docs_progress, docs_progress_message, ai_status, ai_progress, ai_progress_message, codegen_status, codegen_progress, codegen_progress_message")
+        .select("docs_status, docs_progress, docs_progress_message, ai_status, ai_progress, ai_progress_message, codegen_status, codegen_progress, codegen_progress_message, codegen_suite_id")
         .eq("id", testPlanId)
         .maybeSingle();
       return data as any;
