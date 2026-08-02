@@ -34,6 +34,7 @@ import {
   AlertCircle,
   Tag,
   X,
+  Lock,
 } from "lucide-react";
 import type { TestCase, TestCaseStep, TestCaseStatus } from "@/types";
 
