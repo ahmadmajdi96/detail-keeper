@@ -827,21 +827,22 @@ export default function TestPlanDetailPage() {
               <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
                 <CardContent className="pt-0 space-y-4">
                   <div className="flex flex-wrap gap-2 justify-end">
-                    <Button variant="outline" size="sm" onClick={() => setImportOpen((v) => !v)} className="gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => setImportOpen((v) => !v)} className="gap-1.5" disabled={!canEditPlan}>
                       <Download className="h-4 w-4" /> Import
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5"
+                    <Button variant="outline" size="sm" className="gap-1.5" disabled={!canEditPlan}
                       onClick={() => setVarSets((p) => [...p, {
                         id: crypto?.randomUUID?.() ?? String(Math.random()),
                         name: `Set ${p.length + 1}`, description: "", variables: [],
                       }])}>
                       <Plus className="h-4 w-4" /> Add Set
                     </Button>
-                    <Button size="sm" onClick={() => saveVars.mutate()} disabled={saveVars.isPending} className="gap-1.5">
+                    <Button size="sm" onClick={() => saveVars.mutate()} disabled={saveVars.isPending || !canEditPlan} className="gap-1.5">
                       {saveVars.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       Save
                     </Button>
                   </div>
+
 
                   {/* Mandatory environment variables for Playwright codegen */}
                   <div className={`rounded-lg border p-4 space-y-3 transition-colors ${missingEnv.length ? "border-destructive/50 bg-destructive/5" : "border-accent/40 bg-accent/5"}`}>
