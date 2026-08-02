@@ -253,6 +253,31 @@ export default function TestCaseEditorPage() {
     );
   }
 
+  // Reporter-only editing: managers/admins can edit anything, engineers only
+  // the cases they reported. Mirrors the RLS policy on public.test_cases.
+  const canEdit =
+    !isEditing ||
+    hasPermission("qa_manager") ||
+    !testCase?.created_by ||
+    testCase.created_by === user?.id;
+
+  if (isEditing && !canEdit) {
+    return (
+      <AppLayout>
+        <div className="max-w-lg mx-auto mt-20 text-center space-y-4">
+          <Lock className="h-10 w-10 mx-auto text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Read-only test case</h2>
+          <p className="text-sm text-muted-foreground">
+            Only the reporter of this test case or a QA Manager can edit it.
+          </p>
+          <Button variant="outline" onClick={() => navigate(backHref)}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> {backLabel}
+          </Button>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -280,6 +305,7 @@ export default function TestCaseEditorPage() {
             </div>
           }
         />
+
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
