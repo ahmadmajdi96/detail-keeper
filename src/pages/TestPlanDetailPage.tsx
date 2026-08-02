@@ -993,6 +993,7 @@ export default function TestPlanDetailPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={!canEditPlan}
                       className="gap-1.5"
                       onClick={(e) => {
                         e.stopPropagation();
