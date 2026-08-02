@@ -51,7 +51,7 @@ const sourceIcon = { documentation: FileText, zip: FileArchive, github: Github }
 export default function WorkspaceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { refresh, setCurrentWorkspaceId, setCurrentProjectId } = useWorkspace();
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
