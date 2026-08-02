@@ -75,13 +75,15 @@ export function can(action: Action, ctx: CapabilityContext = {}): boolean {
       return wsAdmin(workspaceRole);
 
     case "plan.edit":
+      // Assignees execute the plan but do not edit it — mirrors
+      // public.can_edit_test_plan in the database.
       return (
         wsWriter(workspaceRole) ||
         projectRole === "lead" ||
         projectRole === "contributor" ||
-        planRole === "owner" ||
-        planRole === "assignee"
+        planRole === "owner"
       );
+
     case "plan.signoff":
       return wsAdmin(workspaceRole) || planRole === "owner" || planRole === "reviewer";
     case "plan.manage_assignees":
