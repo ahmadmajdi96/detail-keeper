@@ -1241,7 +1241,7 @@ export default function TestPlanDetailPage() {
                       </div>
                     )}
 
-                    <Button className="ai-gradient text-white w-full" onClick={() => generate.mutate()} disabled={generate.isPending || plan.ai_status === "running"}>
+                    <Button className="ai-gradient text-white w-full" onClick={() => generate.mutate()} disabled={generate.isPending || plan.ai_status === "running" || !canEditPlan}>
                       {generate.isPending || plan.ai_status === "running" ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running…</>
                       ) : (
