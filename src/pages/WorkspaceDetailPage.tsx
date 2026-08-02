@@ -51,7 +51,7 @@ const sourceIcon = { documentation: FileText, zip: FileArchive, github: Github }
 export default function WorkspaceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { refresh, setCurrentWorkspaceId, setCurrentProjectId } = useWorkspace();
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -110,7 +110,9 @@ export default function WorkspaceDetailPage() {
   });
 
   const myRole = (members.find((m: any) => m.user_id === user?.id)?.role || (workspace?.owner_id === user?.id ? "owner" : "viewer")) as WsRole;
-  const canManage = myRole === "owner" || myRole === "admin";
+  // Workspace role AND account role must both allow management, so the UI
+  // never shows an action that the database policies would reject.
+  const canManage = (myRole === "owner" || myRole === "admin") && hasPermission("qa_manager");
 
   // mutations
   const updateWs = useMutation({

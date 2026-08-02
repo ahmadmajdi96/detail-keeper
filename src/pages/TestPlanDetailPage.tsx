@@ -51,7 +51,7 @@ export default function TestPlanDetailPage() {
   const { job: genJob } = useLatestJobForPlan(id || null);
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { workspaceId, projectId } = useProjectScope();
   const [tab, setTab] = useState("overview");
   const [caseDialogOpen, setCaseDialogOpen] = useState(false);
@@ -118,6 +118,21 @@ export default function TestPlanDetailPage() {
       return data || [];
     },
   });
+
+  // Mirrors public.can_edit_test_plan / can_delete_test_plan in the database:
+  // managers and admins can always edit, everyone else needs to be the creator
+  // or an owner/assignee on the plan.
+  const myPlanRole = (assignees as any[]).find((a) => a.user?.id === user?.id)?.role as
+    | "owner" | "assignee" | "reviewer" | "viewer" | undefined;
+  const canEditPlan =
+    hasPermission("qa_manager") ||
+    plan?.created_by === user?.id ||
+    myPlanRole === "owner" ||
+    myPlanRole === "assignee";
+  const canManagePlan =
+    hasPermission("qa_manager") || plan?.created_by === user?.id || myPlanRole === "owner";
+
+
 
   const { data: documents = [] } = useQuery({
     queryKey: ["test-plan-documents", id],
@@ -812,21 +827,22 @@ export default function TestPlanDetailPage() {
               <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
                 <CardContent className="pt-0 space-y-4">
                   <div className="flex flex-wrap gap-2 justify-end">
-                    <Button variant="outline" size="sm" onClick={() => setImportOpen((v) => !v)} className="gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => setImportOpen((v) => !v)} className="gap-1.5" disabled={!canEditPlan}>
                       <Download className="h-4 w-4" /> Import
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5"
+                    <Button variant="outline" size="sm" className="gap-1.5" disabled={!canEditPlan}
                       onClick={() => setVarSets((p) => [...p, {
                         id: crypto?.randomUUID?.() ?? String(Math.random()),
                         name: `Set ${p.length + 1}`, description: "", variables: [],
                       }])}>
                       <Plus className="h-4 w-4" /> Add Set
                     </Button>
-                    <Button size="sm" onClick={() => saveVars.mutate()} disabled={saveVars.isPending} className="gap-1.5">
+                    <Button size="sm" onClick={() => saveVars.mutate()} disabled={saveVars.isPending || !canEditPlan} className="gap-1.5">
                       {saveVars.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       Save
                     </Button>
                   </div>
+
 
                   {/* Mandatory environment variables for Playwright codegen */}
                   <div className={`rounded-lg border p-4 space-y-3 transition-colors ${missingEnv.length ? "border-destructive/50 bg-destructive/5" : "border-accent/40 bg-accent/5"}`}>
@@ -977,6 +993,7 @@ export default function TestPlanDetailPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={!canEditPlan}
                       className="gap-1.5"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1021,6 +1038,7 @@ export default function TestPlanDetailPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-9 w-9"
+                                disabled={!canManagePlan}
                                 onClick={() => updatePlanDocs((prev) => prev.filter((x) => x.id !== d.id))}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -1223,7 +1241,7 @@ export default function TestPlanDetailPage() {
                       </div>
                     )}
 
-                    <Button className="ai-gradient text-white w-full" onClick={() => generate.mutate()} disabled={generate.isPending || plan.ai_status === "running"}>
+                    <Button className="ai-gradient text-white w-full" onClick={() => generate.mutate()} disabled={generate.isPending || plan.ai_status === "running" || !canEditPlan}>
                       {generate.isPending || plan.ai_status === "running" ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running…</>
                       ) : (
@@ -1374,7 +1392,7 @@ export default function TestPlanDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCaseDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => saveCase.mutate()} disabled={saveCase.isPending}>
+            <Button onClick={() => saveCase.mutate()} disabled={saveCase.isPending || !canEditPlan}>
               {saveCase.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {editingCase ? "Save Changes" : "Create"}
             </Button>

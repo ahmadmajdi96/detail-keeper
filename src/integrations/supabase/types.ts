@@ -6781,6 +6781,9 @@ export type Database = {
     }
     Functions: {
       can_access_project: { Args: { _project_id: string }; Returns: boolean }
+      can_delete_test_plan: { Args: { _plan_id: string }; Returns: boolean }
+      can_edit_test_plan: { Args: { _plan_id: string }; Returns: boolean }
+      can_execute_test_plan: { Args: { _plan_id: string }; Returns: boolean }
       can_manage_plan_assignees: {
         Args: { _plan_id: string }
         Returns: boolean
@@ -6858,6 +6861,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      current_app_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
       current_user_org_ids: { Args: never; Returns: string[] }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -6880,6 +6887,7 @@ export type Database = {
       gen_test_plan_uid: { Args: never; Returns: string }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
       is_project_member: { Args: { _project_id: string }; Returns: boolean }
+      is_qa_manager: { Args: never; Returns: boolean }
       is_workspace_member: {
         Args: { _user: string; _workspace: string }
         Returns: boolean
