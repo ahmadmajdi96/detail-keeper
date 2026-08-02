@@ -1392,7 +1392,7 @@ export default function TestPlanDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCaseDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => saveCase.mutate()} disabled={saveCase.isPending}>
+            <Button onClick={() => saveCase.mutate()} disabled={saveCase.isPending || !canEditPlan}>
               {saveCase.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {editingCase ? "Save Changes" : "Create"}
             </Button>
