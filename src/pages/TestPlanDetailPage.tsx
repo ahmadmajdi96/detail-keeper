@@ -119,6 +119,21 @@ export default function TestPlanDetailPage() {
     },
   });
 
+  // Mirrors public.can_edit_test_plan / can_delete_test_plan in the database:
+  // managers and admins can always edit, everyone else needs to be the creator
+  // or an owner/assignee on the plan.
+  const myPlanRole = (assignees as any[]).find((a) => a.user?.id === user?.id)?.role as
+    | "owner" | "assignee" | "reviewer" | "viewer" | undefined;
+  const canEditPlan =
+    hasPermission("qa_manager") ||
+    plan?.created_by === user?.id ||
+    myPlanRole === "owner" ||
+    myPlanRole === "assignee";
+  const canManagePlan =
+    hasPermission("qa_manager") || plan?.created_by === user?.id || myPlanRole === "owner";
+
+
+
   const { data: documents = [] } = useQuery({
     queryKey: ["test-plan-documents", id],
     enabled: !!id,
