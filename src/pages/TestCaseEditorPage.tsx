@@ -49,7 +49,7 @@ interface StepFormData {
 export default function TestCaseEditorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const isEditing = !!id;
   // Optional return-to-plan context (passed by Test Plan detail page)
