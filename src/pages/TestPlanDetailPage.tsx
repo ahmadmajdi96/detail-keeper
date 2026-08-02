@@ -51,7 +51,7 @@ export default function TestPlanDetailPage() {
   const { job: genJob } = useLatestJobForPlan(id || null);
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { workspaceId, projectId } = useProjectScope();
   const [tab, setTab] = useState("overview");
   const [caseDialogOpen, setCaseDialogOpen] = useState(false);
