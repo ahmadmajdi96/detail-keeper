@@ -1038,6 +1038,7 @@ export default function TestPlanDetailPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-9 w-9"
+                                disabled={!canManagePlan}
                                 onClick={() => updatePlanDocs((prev) => prev.filter((x) => x.id !== d.id))}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
