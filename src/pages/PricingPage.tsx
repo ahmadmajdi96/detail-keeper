@@ -40,14 +40,17 @@ export default function PricingPage() {
         <p className="text-white/60 max-w-xl mx-auto mb-8">
           Start free with a 14-day Pro trial. No credit card required. Cancel anytime.
         </p>
-        <div className="flex items-center justify-center gap-3">
-          <span className={`text-sm ${!yearly ? "text-white" : "text-white/40"}`}>Monthly</span>
-          <Switch checked={yearly} onCheckedChange={setYearly} />
-          <span className={`text-sm ${yearly ? "text-white" : "text-white/40"}`}>
-            Yearly <span className="text-[hsl(187,92%,50%)]">(Save 20%)</span>
-          </span>
-        </div>
+        {hasYearly && (
+          <div className="flex items-center justify-center gap-3">
+            <span className={`text-sm ${!yearly ? "text-white" : "text-white/40"}`}>Monthly</span>
+            <Switch checked={yearly} onCheckedChange={setYearly} />
+            <span className={`text-sm ${yearly ? "text-white" : "text-white/40"}`}>
+              Yearly <span className="text-[hsl(187,92%,50%)]">(Save 20%)</span>
+            </span>
+          </div>
+        )}
       </div>
+
 
       {isLoading ? (
         <div className="text-center text-white/50 py-16">Loading pricing…</div>
