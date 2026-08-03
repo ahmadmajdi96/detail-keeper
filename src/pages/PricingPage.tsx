@@ -61,7 +61,8 @@ export default function PricingPage() {
           {plans.map((p: any) => {
             const ent = p.entitlements || {};
             const cents = yearly ? p.yearly_price_cents : p.monthly_price_cents;
-            const isPopular = p.key === "pro";
+            const isPopular = p.key === "individual_pro";
+
             return (
               <div
                 key={p.key}
