@@ -29,6 +29,8 @@ export default function PricingPage() {
     },
   });
 
+  const hasYearly = plans.some((p: any) => (p.yearly_price_cents ?? 0) > 0);
+
   return (
     <PublicShell>
       <div className="text-center mb-12">
