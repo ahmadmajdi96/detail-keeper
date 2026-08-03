@@ -107,6 +107,24 @@ export default function PricingPage() {
           })}
         </div>
       )}
+
+      <div className="mt-14 text-center text-sm text-white/50 max-w-2xl mx-auto space-y-3">
+        <p>
+          All prices are in USD and exclude any applicable sales tax or VAT, which is calculated at
+          checkout. Paid plans renew automatically until cancelled; you can cancel at any time.
+        </p>
+        <p>
+          Our order process is conducted by our online reseller <strong className="text-white/80">Paddle.com</strong>.
+          Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer
+          service inquiries and handles returns.
+        </p>
+        <p>
+          See our <a href="/terms" className="underline hover:text-white">Terms &amp; Conditions</a>,{" "}
+          <a href="/refunds" className="underline hover:text-white">Refund Policy</a> and{" "}
+          <a href="/privacy" className="underline hover:text-white">Privacy Notice</a>.
+        </p>
+      </div>
+
     </PublicShell>
   );
 }
