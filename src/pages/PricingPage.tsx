@@ -29,6 +29,8 @@ export default function PricingPage() {
     },
   });
 
+  const hasYearly = plans.some((p: any) => (p.yearly_price_cents ?? 0) > 0);
+
   return (
     <PublicShell>
       <div className="text-center mb-12">
@@ -40,14 +42,17 @@ export default function PricingPage() {
         <p className="text-white/60 max-w-xl mx-auto mb-8">
           Start free with a 14-day Pro trial. No credit card required. Cancel anytime.
         </p>
-        <div className="flex items-center justify-center gap-3">
-          <span className={`text-sm ${!yearly ? "text-white" : "text-white/40"}`}>Monthly</span>
-          <Switch checked={yearly} onCheckedChange={setYearly} />
-          <span className={`text-sm ${yearly ? "text-white" : "text-white/40"}`}>
-            Yearly <span className="text-[hsl(187,92%,50%)]">(Save 20%)</span>
-          </span>
-        </div>
+        {hasYearly && (
+          <div className="flex items-center justify-center gap-3">
+            <span className={`text-sm ${!yearly ? "text-white" : "text-white/40"}`}>Monthly</span>
+            <Switch checked={yearly} onCheckedChange={setYearly} />
+            <span className={`text-sm ${yearly ? "text-white" : "text-white/40"}`}>
+              Yearly <span className="text-[hsl(187,92%,50%)]">(Save 20%)</span>
+            </span>
+          </div>
+        )}
       </div>
+
 
       {isLoading ? (
         <div className="text-center text-white/50 py-16">Loading pricing…</div>
@@ -56,7 +61,8 @@ export default function PricingPage() {
           {plans.map((p: any) => {
             const ent = p.entitlements || {};
             const cents = yearly ? p.yearly_price_cents : p.monthly_price_cents;
-            const isPopular = p.key === "pro";
+            const isPopular = p.key === "individual_pro";
+
             return (
               <div
                 key={p.key}
@@ -101,6 +107,24 @@ export default function PricingPage() {
           })}
         </div>
       )}
+
+      <div className="mt-14 text-center text-sm text-white/50 max-w-2xl mx-auto space-y-3">
+        <p>
+          All prices are in USD and exclude any applicable sales tax or VAT, which is calculated at
+          checkout. Paid plans renew automatically until cancelled; you can cancel at any time.
+        </p>
+        <p>
+          Our order process is conducted by our online reseller <strong className="text-white/80">Paddle.com</strong>.
+          Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer
+          service inquiries and handles returns.
+        </p>
+        <p>
+          See our <a href="/terms" className="underline hover:text-white">Terms &amp; Conditions</a>,{" "}
+          <a href="/refunds" className="underline hover:text-white">Refund Policy</a> and{" "}
+          <a href="/privacy" className="underline hover:text-white">Privacy Notice</a>.
+        </p>
+      </div>
+
     </PublicShell>
   );
 }
