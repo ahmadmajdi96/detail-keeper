@@ -313,6 +313,20 @@ export default function ReportingPage() {
               </Card>
             </TabsContent>
 
+            <TabsContent value="execution" className="mt-4">
+              <ExecutionDashboard
+                projectId={projectId}
+                workspaceId={workspaceId}
+                scopeKey={scopeKey}
+                rangeDays={RANGE_DAYS[range]}
+                totalCases={cases.length}
+                automatedCases={metrics.automated}
+                defectCount={defects.length}
+              />
+            </TabsContent>
+
+
+
             <TabsContent value="quality" className="grid gap-4 md:grid-cols-2 mt-4">
               <Card>
                 <CardHeader><CardTitle className="text-base">Pass / fail over time</CardTitle></CardHeader>
