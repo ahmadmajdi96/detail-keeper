@@ -690,8 +690,10 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         <aside className="col-span-3 border-r border-border/50 bg-muted/10">
           <ScrollArea className="h-[600px]">
             <div className="p-2 space-y-1">
-              <WBFolder icon={<FileSearch className="h-3.5 w-3.5 text-accent" />} label="Analysis" count={null} defaultOpen>
-                <CoverageSummary projectId={projectId} testPlanId={testPlanId} />
+              <WBFolder icon={<FileSearch className="h-3.5 w-3.5 text-accent" />} label="Analysis" count={null}>
+                <div className="max-h-[280px] overflow-y-auto pr-1">
+                  <CoverageSummary projectId={projectId} testPlanId={testPlanId} />
+                </div>
               </WBFolder>
 
               <WBFolder icon={<FileText className="h-3.5 w-3.5 text-violet-400" />} label="Documentation" count={docs.length}>
