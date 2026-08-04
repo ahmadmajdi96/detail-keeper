@@ -23,11 +23,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
-  CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
+  CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw, ClipboardList,
   Plus, Edit3, Trash2, Layers, Variable, Download, Save, BookOpen,
   ChevronDown, ExternalLink, FolderOpen, Settings2, Zap, Gauge,
 } from "lucide-react";
 import { useLatestJobForPlan } from "@/hooks/useJob";
+import { ManualRunnerPanel } from "@/components/testplans/ManualRunnerPanel";
+import { ExecutionHistoryPanel } from "@/components/testplans/ExecutionHistoryPanel";
 import { format } from "date-fns";
 import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
 import { PlanTestCasesPanel } from "@/components/testplans/PlanTestCasesPanel";
@@ -1328,10 +1330,20 @@ export default function TestPlanDetailPage() {
         <TabsContent value="operations" className="animate-fade-in">
           <Tabs value={opsSub} onValueChange={setOpsSub}>
             <TabsList className="mb-4 bg-secondary/40 backdrop-blur-sm border border-border/50">
+              <TabsTrigger value="manual" className="gap-2"><ClipboardList className="h-4 w-4" />Manual Execution</TabsTrigger>
+              <TabsTrigger value="history" className="gap-2"><History className="h-4 w-4" />Execution History</TabsTrigger>
               <TabsTrigger value="defects" className="gap-2"><Bug className="h-4 w-4" />Defects</TabsTrigger>
               <TabsTrigger value="gates" className="gap-2"><ShieldCheck className="h-4 w-4" />Quality Gates</TabsTrigger>
               <TabsTrigger value="live" className="gap-2"><Radio className="h-4 w-4" />Live</TabsTrigger>
             </TabsList>
+            <TabsContent value="manual" className="animate-fade-in">
+              {id && plan?.project_id && (
+                <ManualRunnerPanel testPlanId={id} projectId={plan.project_id} workspaceId={plan.workspace_id} />
+              )}
+            </TabsContent>
+            <TabsContent value="history" className="animate-fade-in">
+              {id && <ExecutionHistoryPanel testPlanId={id} />}
+            </TabsContent>
             <TabsContent value="defects" className="animate-fade-in">
               {id && <PlanDefectsPanel testPlanId={id} projectId={plan.project_id} workspaceId={plan.workspace_id} />}
             </TabsContent>

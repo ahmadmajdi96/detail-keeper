@@ -2310,6 +2310,8 @@ export type Database = {
           file_type: string
           file_url: string
           id: string
+          manual_item_id: string | null
+          manual_session_id: string | null
           project_id: string | null
           size_bytes: number | null
           step_result_id: string | null
@@ -2329,6 +2331,8 @@ export type Database = {
           file_type: string
           file_url: string
           id?: string
+          manual_item_id?: string | null
+          manual_session_id?: string | null
           project_id?: string | null
           size_bytes?: number | null
           step_result_id?: string | null
@@ -2348,6 +2352,8 @@ export type Database = {
           file_type?: string
           file_url?: string
           id?: string
+          manual_item_id?: string | null
+          manual_session_id?: string | null
           project_id?: string | null
           size_bytes?: number | null
           step_result_id?: string | null
@@ -2389,6 +2395,20 @@ export type Database = {
             columns: ["execution_id"]
             isOneToOne: false
             referencedRelation: "test_executions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_manual_item_id_fkey"
+            columns: ["manual_item_id"]
+            isOneToOne: false
+            referencedRelation: "manual_execution_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_manual_session_id_fkey"
+            columns: ["manual_session_id"]
+            isOneToOne: false
+            referencedRelation: "manual_execution_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -3095,6 +3115,234 @@ export type Database = {
           },
         ]
       }
+      locator_analyses: {
+        Row: {
+          applied_count: number
+          base_url: string | null
+          created_at: string
+          created_by: string | null
+          error: string | null
+          findings: Json
+          health_score: number | null
+          id: string
+          project_id: string
+          status: string
+          suite_id: string | null
+          test_plan_id: string
+          totals: Json
+          updated_at: string
+          verdict: string | null
+        }
+        Insert: {
+          applied_count?: number
+          base_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          findings?: Json
+          health_score?: number | null
+          id?: string
+          project_id: string
+          status?: string
+          suite_id?: string | null
+          test_plan_id: string
+          totals?: Json
+          updated_at?: string
+          verdict?: string | null
+        }
+        Update: {
+          applied_count?: number
+          base_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          findings?: Json
+          health_score?: number | null
+          id?: string
+          project_id?: string
+          status?: string
+          suite_id?: string | null
+          test_plan_id?: string
+          totals?: Json
+          updated_at?: string
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locator_analyses_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_execution_items: {
+        Row: {
+          actual_result: string | null
+          created_at: string
+          defect_id: string | null
+          duration_seconds: number | null
+          executed_at: string | null
+          executed_by: string | null
+          id: string
+          notes: string | null
+          project_id: string
+          session_id: string
+          sort_order: number
+          status: Database["public"]["Enums"]["execution_status"]
+          step_results: Json
+          suite_id: string | null
+          test_case_id: string
+          updated_at: string
+        }
+        Insert: {
+          actual_result?: string | null
+          created_at?: string
+          defect_id?: string | null
+          duration_seconds?: number | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          notes?: string | null
+          project_id: string
+          session_id: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["execution_status"]
+          step_results?: Json
+          suite_id?: string | null
+          test_case_id: string
+          updated_at?: string
+        }
+        Update: {
+          actual_result?: string | null
+          created_at?: string
+          defect_id?: string | null
+          duration_seconds?: number | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          notes?: string | null
+          project_id?: string
+          session_id?: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["execution_status"]
+          step_results?: Json
+          suite_id?: string | null
+          test_case_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_execution_items_defect_id_fkey"
+            columns: ["defect_id"]
+            isOneToOne: false
+            referencedRelation: "defects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_execution_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "manual_execution_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_execution_items_test_case_id_fkey"
+            columns: ["test_case_id"]
+            isOneToOne: false
+            referencedRelation: "test_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_execution_sessions: {
+        Row: {
+          base_url: string | null
+          browser: string | null
+          build_version: string | null
+          created_at: string
+          created_by: string | null
+          device: string | null
+          environment: string | null
+          finished_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          project_id: string
+          scope: Json
+          started_at: string
+          status: string
+          summary: Json
+          tags: string[]
+          test_plan_id: string
+          tester_id: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          base_url?: string | null
+          browser?: string | null
+          build_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          device?: string | null
+          environment?: string | null
+          finished_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          project_id: string
+          scope?: Json
+          started_at?: string
+          status?: string
+          summary?: Json
+          tags?: string[]
+          test_plan_id: string
+          tester_id?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          base_url?: string | null
+          browser?: string | null
+          build_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          device?: string | null
+          environment?: string | null
+          finished_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          project_id?: string
+          scope?: Json
+          started_at?: string
+          status?: string
+          summary?: Json
+          tags?: string[]
+          test_plan_id?: string
+          tester_id?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_execution_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_execution_sessions_test_plan_id_fkey"
+            columns: ["test_plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mfa_recovery_codes: {
         Row: {
           code_hash: string
@@ -3293,12 +3541,18 @@ export type Database = {
       }
       plan_test_runs: {
         Row: {
+          ai_analysis: Json | null
+          ai_analysis_status: string | null
           artifacts: Json
           base_url: string | null
+          browser: string | null
+          build_version: string | null
           codegen_job_ref: string | null
           created_at: string
           created_by: string | null
+          device: string | null
           download_url: string | null
+          environment: string | null
           events: Json
           execution_phase: string | null
           exit_code: number | null
@@ -3309,15 +3563,19 @@ export type Database = {
           last_polled_at: string | null
           live_view_status: string | null
           live_view_url: string | null
+          locator_analysis_id: string | null
           log_tail: string | null
           passed_tests: number
           progress_message: string | null
           project_id: string | null
           result: Json | null
           running_tests: number
+          settings: Json
+          skipped_tests: number
           started_at: string | null
           status: string
           suite_id: string | null
+          tags: string[]
           test_case_progress: Json
           test_plan_id: string
           total_tests: number
@@ -3325,12 +3583,18 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          ai_analysis?: Json | null
+          ai_analysis_status?: string | null
           artifacts?: Json
           base_url?: string | null
+          browser?: string | null
+          build_version?: string | null
           codegen_job_ref?: string | null
           created_at?: string
           created_by?: string | null
+          device?: string | null
           download_url?: string | null
+          environment?: string | null
           events?: Json
           execution_phase?: string | null
           exit_code?: number | null
@@ -3341,15 +3605,19 @@ export type Database = {
           last_polled_at?: string | null
           live_view_status?: string | null
           live_view_url?: string | null
+          locator_analysis_id?: string | null
           log_tail?: string | null
           passed_tests?: number
           progress_message?: string | null
           project_id?: string | null
           result?: Json | null
           running_tests?: number
+          settings?: Json
+          skipped_tests?: number
           started_at?: string | null
           status?: string
           suite_id?: string | null
+          tags?: string[]
           test_case_progress?: Json
           test_plan_id: string
           total_tests?: number
@@ -3357,12 +3625,18 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          ai_analysis?: Json | null
+          ai_analysis_status?: string | null
           artifacts?: Json
           base_url?: string | null
+          browser?: string | null
+          build_version?: string | null
           codegen_job_ref?: string | null
           created_at?: string
           created_by?: string | null
+          device?: string | null
           download_url?: string | null
+          environment?: string | null
           events?: Json
           execution_phase?: string | null
           exit_code?: number | null
@@ -3373,15 +3647,19 @@ export type Database = {
           last_polled_at?: string | null
           live_view_status?: string | null
           live_view_url?: string | null
+          locator_analysis_id?: string | null
           log_tail?: string | null
           passed_tests?: number
           progress_message?: string | null
           project_id?: string | null
           result?: Json | null
           running_tests?: number
+          settings?: Json
+          skipped_tests?: number
           started_at?: string | null
           status?: string
           suite_id?: string | null
+          tags?: string[]
           test_case_progress?: Json
           test_plan_id?: string
           total_tests?: number
@@ -3389,6 +3667,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "plan_test_runs_locator_analysis_id_fkey"
+            columns: ["locator_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "locator_analyses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "plan_test_runs_project_id_fkey"
             columns: ["project_id"]
