@@ -731,7 +731,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                   })}
               </WBFolder>
 
-              <WBFolder icon={<FlaskConical className="h-3.5 w-3.5 text-emerald-400" />} label="Test Cases" count={cases.length} defaultOpen>
+              <WBFolder icon={<FlaskConical className="h-3.5 w-3.5 text-emerald-400" />} label="Test Cases" count={cases.length}>
                 {cases.length === 0 && <p className="text-[11px] text-muted-foreground px-1">Run step 1 to generate test cases.</p>}
                 {cases.length > 0 && (
                   <div className="relative px-1 pb-1">
