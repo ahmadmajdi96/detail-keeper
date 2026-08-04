@@ -22,7 +22,11 @@ Deno.serve(async (req) => {
     const userId = claims.claims.sub as string;
 
     const body = await req.json();
-    const { test_plan_id, suite_id, base_url, env, timeout_seconds } = body ?? {};
+    const {
+      test_plan_id, suite_id, base_url, env, timeout_seconds,
+      environment, browser, device, build_version, tags, retries,
+      locator_analysis_id, test_case_ids,
+    } = body ?? {};
     if (!test_plan_id) return j({ error: "test_plan_id required" }, 400);
     const suiteId = typeof suite_id === "string" && suite_id.trim() ? suite_id.trim() : null;
 
@@ -85,6 +89,11 @@ Deno.serve(async (req) => {
         ? Math.max(60, Math.min(7200, Math.trunc(Number(timeout_seconds))))
         : 900,
     };
+    if (Number.isFinite(Number(retries))) settings.retries = Math.max(0, Math.min(5, Math.trunc(Number(retries))));
+    if (typeof browser === "string" && browser) settings.browser = browser;
+    if (typeof device === "string" && device && device !== "desktop") settings.device = device;
+    if (Array.isArray(test_case_ids) && test_case_ids.length) settings.test_case_ids = test_case_ids.slice(0, 500);
+    if (Array.isArray(tags) && tags.length) settings.grep = tags.join("|");
     if (apiBaseUrl) settings.api_base_url = apiBaseUrl;
     if (authToken) settings.auth_token = authToken;
 
@@ -122,6 +131,13 @@ Deno.serve(async (req) => {
       progress_message: "Queued at Repo Reader",
       started_at: now,
       created_by: userId,
+      settings,
+      environment: typeof environment === "string" ? environment : null,
+      browser: typeof browser === "string" ? browser : "chromium",
+      device: typeof device === "string" ? device : "desktop",
+      build_version: typeof build_version === "string" ? build_version : null,
+      tags: Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === "string").slice(0, 20) : [],
+      locator_analysis_id: typeof locator_analysis_id === "string" ? locator_analysis_id : null,
       events: [{ ts: now, type: "execution_submitted", envKeys: Object.keys(runtimeEnv), baseUrl }],
     }).select("id").single();
     if (insErr) return j({ error: insErr.message }, 500);

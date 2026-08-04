@@ -130,6 +130,7 @@ Deno.serve(async (req) => {
       passed_tests: passed || (row as any).passed_tests,
       failed_tests: failed || (row as any).failed_tests,
       running_tests: isTerminal ? 0 : running,
+      skipped_tests: hasTce ? Number(tce.skipped || 0) : ((row as any).skipped_tests ?? 0),
       test_case_progress: testCaseProgress,
       progress_message: s?.message || state?.message || phase || (row as any).progress_message,
       events: events.slice(-500),

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { SpecRunPanel } from "./SpecRunPanel";
 import { ForgeRunProgress } from "./ForgeRunProgress";
+import { LocatorIntelligencePanel } from "./LocatorIntelligencePanel";
 import { ArtifactViewer } from "./ArtifactViewer";
 import { FileIcon, fileLanguage } from "@/lib/fileIcons";
 import { exportWorkflowBundle } from "@/lib/exportWorkflowBundle";
@@ -138,8 +139,19 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
   // the selected suite's cases are sent to Repo Reader.
   const [codegenSuite, setCodegenSuite] = useState<string>(initialCfg.codegenSuite || "all");
   const [runSuiteId, setRunSuiteId] = useState<string>(initialCfg.runSuiteId || "all");
+  const [device, setDevice] = useState<string>(initialCfg.device || "desktop");
+  const [environment, setEnvironment] = useState<string>(initialCfg.environment || "staging");
+  const [buildVersion, setBuildVersion] = useState<string>(initialCfg.buildVersion || "");
+  const [tagsInput, setTagsInput] = useState<string>(initialCfg.tagsInput || "");
+  const [locatorVerdict, setLocatorVerdict] = useState<"ready" | "warning" | "blocked" | null>(null);
+  const [locatorAnalysisId, setLocatorAnalysisId] = useState<string | null>(null);
   const [activePlanRunId, setActivePlanRunId] = useState<string | null>(null);
-  useEffect(() => { localStorage.setItem(cfgKey, JSON.stringify({ browser, headless, retries, baseUrl, codegenSuite, runSuiteId })); }, [cfgKey, browser, headless, retries, baseUrl, codegenSuite, runSuiteId]);
+  useEffect(() => {
+    localStorage.setItem(cfgKey, JSON.stringify({
+      browser, headless, retries, baseUrl, codegenSuite, runSuiteId,
+      device, environment, buildVersion, tagsInput,
+    }));
+  }, [cfgKey, browser, headless, retries, baseUrl, codegenSuite, runSuiteId, device, environment, buildVersion, tagsInput]);
 
   const { data: docs = [] } = useQuery<Doc[]>({
     queryKey: ["tp-docs", testPlanId],
@@ -347,6 +359,10 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
 
   const runSuite = async () => {
     if (!baseUrl.trim()) { toast.error("Set a Base URL first (target app under test)"); return; }
+    if (locatorVerdict === "blocked") {
+      toast.error("Execution blocked — broken locators detected. Apply the AI fixes or re-analyse first.");
+      return;
+    }
     setBusy("suite");
     try {
       const { data, error } = await supabase.functions.invoke("tp-forge-run-start", {
@@ -354,6 +370,14 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
           test_plan_id: testPlanId,
           base_url: baseUrl.trim(),
           ...(runSuiteId !== "all" ? { suite_id: runSuiteId } : {}),
+          headed: !headless,
+          retries,
+          browser,
+          device,
+          environment: environment || null,
+          build_version: buildVersion.trim() || null,
+          tags: tagsInput.split(",").map(t => t.trim()).filter(Boolean),
+          locator_analysis_id: locatorAnalysisId,
         },
       });
       if (error) throw error;
@@ -559,27 +583,74 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                   onChange={(e) => setBaseUrl(e.target.value)} />
                 <p className="text-[10px] text-muted-foreground">Target app the Playwright suite will hit. Env variable values from your variable sets are sent to Forge in-memory (never stored).</p>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Environment</Label>
+                  <Select value={environment} onValueChange={setEnvironment}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dev">Dev</SelectItem>
+                      <SelectItem value="qa">QA</SelectItem>
+                      <SelectItem value="staging">Staging</SelectItem>
+                      <SelectItem value="uat">UAT</SelectItem>
+                      <SelectItem value="production">Production</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Browser</Label>
+                  <Select value={browser} onValueChange={setBrowser}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chromium">Chromium</SelectItem>
+                      <SelectItem value="firefox">Firefox</SelectItem>
+                      <SelectItem value="webkit">WebKit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Device</Label>
+                  <Select value={device} onValueChange={setDevice}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="desktop">Desktop</SelectItem>
+                      <SelectItem value="Pixel 7">Pixel 7</SelectItem>
+                      <SelectItem value="iPhone 14">iPhone 14</SelectItem>
+                      <SelectItem value="iPad Pro 11">iPad Pro 11</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Build version</Label>
+                  <Input placeholder="1.4.0" value={buildVersion} className="h-8 text-xs"
+                    onChange={(e) => setBuildVersion(e.target.value)} />
+                </div>
+              </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Browser</Label>
-                <Select value={browser} onValueChange={setBrowser}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="chromium">Chromium</SelectItem>
-                    <SelectItem value="firefox">Firefox</SelectItem>
-                    <SelectItem value="webkit">WebKit</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Tags / grep (comma separated)</Label>
+                <Input placeholder="smoke, checkout" value={tagsInput} className="h-8 text-xs"
+                  onChange={(e) => setTagsInput(e.target.value)} />
               </div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="hl" className="text-xs">Headless</Label>
                 <Switch id="hl" checked={headless} onCheckedChange={setHeadless} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Retries</Label>
+                <Label className="text-xs">Retry failed tests</Label>
                 <Input type="number" min={0} max={5} value={retries} className="h-8"
                   onChange={(e) => setRetries(Math.max(0, Math.min(5, parseInt(e.target.value) || 0)))} />
               </div>
-              <Button size="sm" className="w-full" onClick={runSuite} disabled={busy !== null || !baseUrl.trim()}>
+              <div className="rounded-md border border-border/50 p-2">
+                <LocatorIntelligencePanel
+                  testPlanId={testPlanId}
+                  suiteId={runSuiteId !== "all" ? runSuiteId : null}
+                  baseUrl={baseUrl}
+                  specCount={specs.length}
+                  onVerdict={(v, id) => { setLocatorVerdict(v); setLocatorAnalysisId(id); }}
+                />
+              </div>
+              <Button size="sm" className="w-full" onClick={runSuite}
+                disabled={busy !== null || !baseUrl.trim() || locatorVerdict === "blocked"}>
                 <Rocket className="h-3.5 w-3.5 mr-1" /> Dispatch to Forge
               </Button>
             </PopoverContent>
