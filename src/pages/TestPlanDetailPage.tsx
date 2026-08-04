@@ -23,7 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Users, GitBranch, Play,
-  CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw,
+  CheckCircle2, ListChecks, Clock, Target, History, Activity, RefreshCw, ClipboardList,
   Plus, Edit3, Trash2, Layers, Variable, Download, Save, BookOpen,
   ChevronDown, ExternalLink, FolderOpen, Settings2, Zap, Gauge,
 } from "lucide-react";
