@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays, startOfDay } from "date-fns";
+import { ExecutionDashboard } from "@/components/reporting/ExecutionDashboard";
+
 
 type Range = "7d" | "30d" | "90d";
 const RANGE_DAYS: Record<Range, number> = { "7d": 7, "30d": 30, "90d": 90 };
