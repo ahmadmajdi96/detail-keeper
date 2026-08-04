@@ -690,8 +690,10 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
         <aside className="col-span-3 border-r border-border/50 bg-muted/10">
           <ScrollArea className="h-[600px]">
             <div className="p-2 space-y-1">
-              <WBFolder icon={<FileSearch className="h-3.5 w-3.5 text-accent" />} label="Analysis" count={null} defaultOpen>
-                <CoverageSummary projectId={projectId} testPlanId={testPlanId} />
+              <WBFolder icon={<FileSearch className="h-3.5 w-3.5 text-accent" />} label="Analysis" count={null}>
+                <div className="max-h-[280px] overflow-y-auto pr-1">
+                  <CoverageSummary projectId={projectId} testPlanId={testPlanId} />
+                </div>
               </WBFolder>
 
               <WBFolder icon={<FileText className="h-3.5 w-3.5 text-violet-400" />} label="Documentation" count={docs.length}>
@@ -729,7 +731,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                   })}
               </WBFolder>
 
-              <WBFolder icon={<FlaskConical className="h-3.5 w-3.5 text-emerald-400" />} label="Test Cases" count={cases.length} defaultOpen>
+              <WBFolder icon={<FlaskConical className="h-3.5 w-3.5 text-emerald-400" />} label="Test Cases" count={cases.length}>
                 {cases.length === 0 && <p className="text-[11px] text-muted-foreground px-1">Run step 1 to generate test cases.</p>}
                 {cases.length > 0 && (
                   <div className="relative px-1 pb-1">
@@ -739,7 +741,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                   </div>
                 )}
                 {caseTypeGroups.map(({ type, label, cls, list }) => (
-                  <WBSubGroup key={type} label={label} count={list.length} className={cls} defaultOpen={caseTypeGroups.length <= 2}>
+                  <WBSubGroup key={type} label={label} count={list.length} className={cls}>
                       {list.map(c => {
                         const caseSpecs = specsByCase.get(c.id) || [];
                         if (caseSpecs.length === 0) {
