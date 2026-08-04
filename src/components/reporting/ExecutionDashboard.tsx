@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   projectId?: string | null;
   workspaceId?: string | null;
-  scopeKey: string;
+  scopeKey: readonly string[] | string;
   rangeDays: number;
   /** total test cases in scope, used for automation coverage + defect density */
   totalCases: number;
