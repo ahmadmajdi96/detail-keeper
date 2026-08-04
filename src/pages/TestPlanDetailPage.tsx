@@ -28,6 +28,8 @@ import {
   ChevronDown, ExternalLink, FolderOpen, Settings2, Zap, Gauge,
 } from "lucide-react";
 import { useLatestJobForPlan } from "@/hooks/useJob";
+import { ManualRunnerPanel } from "@/components/testplans/ManualRunnerPanel";
+import { ExecutionHistoryPanel } from "@/components/testplans/ExecutionHistoryPanel";
 import { format } from "date-fns";
 import { TestPlanWorkbench } from "@/components/testplans/TestPlanWorkbench";
 import { PlanTestCasesPanel } from "@/components/testplans/PlanTestCasesPanel";
