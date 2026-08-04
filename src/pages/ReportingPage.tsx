@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays, startOfDay } from "date-fns";
+import { ExecutionDashboard } from "@/components/reporting/ExecutionDashboard";
+
 
 type Range = "7d" | "30d" | "90d";
 const RANGE_DAYS: Record<Range, number> = { "7d": 7, "30d": 30, "90d": 90 };
@@ -244,10 +246,12 @@ export default function ReportingPage() {
       <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="execution">Execution</TabsTrigger>
           <TabsTrigger value="quality">Quality</TabsTrigger>
           <TabsTrigger value="defects">Defects</TabsTrigger>
           <TabsTrigger value="automation">Automation</TabsTrigger>
         </TabsList>
+
 
         {loading && (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -308,6 +312,20 @@ export default function ReportingPage() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            <TabsContent value="execution" className="mt-4">
+              <ExecutionDashboard
+                projectId={projectId}
+                workspaceId={workspaceId}
+                scopeKey={scopeKey}
+                rangeDays={RANGE_DAYS[range]}
+                totalCases={cases.length}
+                automatedCases={metrics.automated}
+                defectCount={defects.length}
+              />
+            </TabsContent>
+
+
 
             <TabsContent value="quality" className="grid gap-4 md:grid-cols-2 mt-4">
               <Card>
