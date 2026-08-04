@@ -741,7 +741,7 @@ export function TestPlanWorkbench({ testPlanId, projectId }: Props) {
                   </div>
                 )}
                 {caseTypeGroups.map(({ type, label, cls, list }) => (
-                  <WBSubGroup key={type} label={label} count={list.length} className={cls} defaultOpen={caseTypeGroups.length <= 2}>
+                  <WBSubGroup key={type} label={label} count={list.length} className={cls}>
                       {list.map(c => {
                         const caseSpecs = specsByCase.get(c.id) || [];
                         if (caseSpecs.length === 0) {
