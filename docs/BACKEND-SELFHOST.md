@@ -612,23 +612,20 @@ Cut-over: point `VITE_SUPABASE_URL`/key at your gateway, or replace
 Generated from the applied migrations: every table with its column definitions
 (type, nullability, default, foreign keys).
 
-
 ### `teams`
 
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 name VARCHAR(100) NOT NULL
 description TEXT
 manager_id UUID
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `profiles`
 
-```
 ```sql
--- columns
 id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY
 email TEXT NOT NULL
 name TEXT NOT NULL
@@ -639,12 +636,11 @@ avatar TEXT
 last_login TIMESTAMP WITH TIME ZONE
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `test_cases`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 title TEXT NOT NULL
 description TEXT
@@ -661,24 +657,22 @@ workspace_id UUID
 version INTEGER NOT NULL DEFAULT 1
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `test_case_steps`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 test_case_id UUID NOT NULL REFERENCES public.test_cases(id) ON DELETE CASCADE
 step_number INTEGER NOT NULL
 action TEXT NOT NULL
 expected_result TEXT
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `test_case_versions`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 test_case_id UUID NOT NULL REFERENCES public.test_cases(id) ON DELETE CASCADE
 version INTEGER NOT NULL
@@ -687,12 +681,11 @@ description TEXT
 changes_summary TEXT
 modified_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `test_executions`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 test_case_id UUID NOT NULL REFERENCES public.test_cases(id) ON DELETE CASCADE
 test_run_id UUID
@@ -704,12 +697,11 @@ notes TEXT
 environment TEXT
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `execution_step_results`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 execution_id UUID NOT NULL REFERENCES public.test_executions(id) ON DELETE CASCADE
 step_id UUID NOT NULL REFERENCES public.test_case_steps(id) ON DELETE CASCADE
@@ -717,12 +709,11 @@ status public.execution_status NOT NULL DEFAULT 'pending'
 actual_result TEXT
 notes TEXT
 executed_at TIMESTAMP WITH TIME ZONE
+```
 
 ### `defects`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 title TEXT NOT NULL
 description TEXT
@@ -735,12 +726,11 @@ reported_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
 assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `evidence`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 execution_id UUID REFERENCES public.test_executions(id) ON DELETE CASCADE
 defect_id UUID REFERENCES public.defects(id) ON DELETE CASCADE
@@ -750,12 +740,11 @@ file_url TEXT NOT NULL
 file_type TEXT NOT NULL
 description TEXT
 captured_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `ai_agents`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 name TEXT NOT NULL
 description TEXT
@@ -769,12 +758,11 @@ configuration JSONB NOT NULL DEFAULT '{}'
 created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `agent_learning_sessions`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 agent_id UUID NOT NULL REFERENCES public.ai_agents(id) ON DELETE CASCADE
 session_type TEXT NOT NULL
@@ -783,12 +771,11 @@ status TEXT NOT NULL DEFAULT 'in_progress'
 patterns_learned INTEGER NOT NULL DEFAULT 0
 started_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 completed_at TIMESTAMP WITH TIME ZONE
+```
 
 ### `agent_execution_logs`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 agent_id UUID NOT NULL REFERENCES public.ai_agents(id) ON DELETE CASCADE
 execution_id UUID REFERENCES public.test_executions(id) ON DELETE SET NULL
@@ -797,12 +784,11 @@ result TEXT
 confidence DECIMAL(3,2)
 duration_ms INTEGER
 executed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `workspaces`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 name TEXT NOT NULL
 description TEXT
@@ -814,12 +800,11 @@ projects_count INTEGER DEFAULT 0
 members_count INTEGER DEFAULT 1
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `documents`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 filename TEXT NOT NULL
 file_size INTEGER NOT NULL DEFAULT 0
@@ -830,12 +815,11 @@ workspace_id UUID REFERENCES public.workspaces(id) ON DELETE CASCADE
 requirements_count INTEGER DEFAULT 0
 processed_at TIMESTAMP WITH TIME ZONE
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `test_plans`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 name TEXT NOT NULL
 description TEXT
@@ -847,12 +831,11 @@ runs_count INTEGER DEFAULT 0
 progress INTEGER DEFAULT 0
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `notifications`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE
 type TEXT NOT NULL
@@ -861,12 +844,11 @@ message TEXT NOT NULL
 data JSONB DEFAULT '{}'
 read BOOLEAN DEFAULT FALSE
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `api_endpoints`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE
 method TEXT NOT NULL
@@ -881,12 +863,11 @@ authentication TEXT
 tags TEXT[]
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `endpoint_prds`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 endpoint_id UUID NOT NULL REFERENCES public.api_endpoints(id) ON DELETE CASCADE
 title TEXT NOT NULL
@@ -900,12 +881,11 @@ risks JSONB DEFAULT '[]'::jsonb
 full_content TEXT
 generated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `endpoint_test_plans`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 endpoint_id UUID NOT NULL REFERENCES public.api_endpoints(id) ON DELETE CASCADE
 name TEXT NOT NULL
@@ -918,12 +898,11 @@ status TEXT NOT NULL DEFAULT 'draft'
 generated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `api_test_executions`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 endpoint_id UUID NOT NULL REFERENCES public.api_endpoints(id) ON DELETE CASCADE
 test_plan_id UUID REFERENCES public.endpoint_test_plans(id) ON DELETE SET NULL
@@ -942,12 +921,11 @@ assertion_results JSONB DEFAULT '[]'::jsonb
 notes TEXT
 executed_at TIMESTAMP WITH TIME ZONE
 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+```
 
 ### `workspace_members`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
 user_id uuid NOT NULL
@@ -955,12 +933,11 @@ role public.workspace_role NOT NULL DEFAULT 'editor'
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (workspace_id, user_id)
+```
 
 ### `workspace_invitations`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
 email text NOT NULL
@@ -972,12 +949,11 @@ expires_at timestamptz NOT NULL DEFAULT (now() + interval '14 days')
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (workspace_id, email)
+```
 
 ### `projects`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1000,12 +976,11 @@ process_error text
 created_by uuid
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `test_plan_assignees`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 user_id uuid NOT NULL
@@ -1013,35 +988,32 @@ role text NOT NULL DEFAULT 'tester'
 assigned_by uuid
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE(test_plan_id, user_id)
+```
 
 ### `test_plan_documents`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 document_id uuid NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE(test_plan_id, document_id)
+```
 
 ### `test_plan_test_cases`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 test_case_id uuid NOT NULL REFERENCES public.test_cases(id) ON DELETE CASCADE
 added_by uuid
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE(test_plan_id, test_case_id)
+```
 
 ### `test_plan_versions`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 version int NOT NULL
@@ -1050,12 +1022,11 @@ change_summary text
 created_by uuid
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE(test_plan_id, version)
+```
 
 ### `releases`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1069,12 +1040,11 @@ created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `environments`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1087,12 +1057,11 @@ created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (project_id, name)
+```
 
 ### `builds`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 release_id uuid REFERENCES public.releases(id) ON DELETE SET NULL
@@ -1109,12 +1078,11 @@ created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `deployments`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 build_id uuid NOT NULL REFERENCES public.builds(id) ON DELETE CASCADE
 environment_id uuid NOT NULL REFERENCES public.environments(id) ON DELETE CASCADE
@@ -1127,12 +1095,11 @@ notes text
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `test_suites`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 parent_id uuid REFERENCES public.test_suites(id) ON DELETE CASCADE
@@ -1142,12 +1109,11 @@ tags text[] NOT NULL DEFAULT '{}'
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `suite_test_cases`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 suite_id uuid NOT NULL REFERENCES public.test_suites(id) ON DELETE CASCADE
 test_case_id uuid NOT NULL REFERENCES public.test_cases(id) ON DELETE CASCADE
@@ -1155,12 +1121,11 @@ added_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 position integer
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (suite_id, test_case_id)
+```
 
 ### `test_cycles`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 release_id uuid REFERENCES public.releases(id) ON DELETE SET NULL
@@ -1178,12 +1143,11 @@ created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `cycle_runs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 cycle_id uuid NOT NULL REFERENCES public.test_cycles(id) ON DELETE CASCADE
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1195,12 +1159,11 @@ finished_at timestamptz
 notes text
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `cycle_run_items`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 run_id uuid NOT NULL REFERENCES public.cycle_runs(id) ON DELETE CASCADE
 cycle_id uuid NOT NULL REFERENCES public.test_cycles(id) ON DELETE CASCADE
@@ -1216,12 +1179,11 @@ notes text
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (run_id, test_case_id)
+```
 
 ### `cycle_attempts`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 run_item_id uuid NOT NULL REFERENCES public.cycle_run_items(id) ON DELETE CASCADE
 attempt_no integer NOT NULL
@@ -1236,12 +1198,11 @@ evidence jsonb NOT NULL DEFAULT '[]'::jsonb
 notes text
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (run_item_id, attempt_no)
+```
 
 ### `jobs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid
 project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1263,12 +1224,11 @@ checkpoint jsonb
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `job_attempts`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 job_id uuid NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE
 attempt_no int NOT NULL
@@ -1277,24 +1237,22 @@ finished_at timestamptz
 status public.job_status NOT NULL DEFAULT 'running'
 error jsonb
 logs text
+```
 
 ### `job_artifacts`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 job_id uuid NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE
 kind text NOT NULL
 ref text NOT NULL
 meta jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `ci_integrations`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 provider text NOT NULL
@@ -1307,12 +1265,11 @@ is_active boolean NOT NULL DEFAULT true
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `ci_runs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 integration_id uuid REFERENCES public.ci_integrations(id) ON DELETE SET NULL
@@ -1327,24 +1284,22 @@ started_at timestamptz
 finished_at timestamptz
 raw jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `automation_mappings`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 test_case_id uuid REFERENCES public.test_cases(id) ON DELETE CASCADE
 framework text NOT NULL
 test_id_pattern text NOT NULL
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `requirements`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 key text
@@ -1357,23 +1312,21 @@ tags text[]
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `acceptance_criteria`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 requirement_id uuid NOT NULL REFERENCES public.requirements(id) ON DELETE CASCADE
 text text NOT NULL
 order_index int NOT NULL DEFAULT 0
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `requirement_links`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 requirement_id uuid NOT NULL REFERENCES public.requirements(id) ON DELETE CASCADE
 linked_type text NOT NULL
@@ -1381,12 +1334,11 @@ linked_id uuid NOT NULL
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE(requirement_id, linked_type, linked_id)
+```
 
 ### `quality_gates`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
@@ -1400,12 +1352,11 @@ environment_id uuid REFERENCES public.environments(id) ON DELETE SET NULL
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `gate_evaluations`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 gate_id uuid NOT NULL REFERENCES public.quality_gates(id) ON DELETE CASCADE
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1419,12 +1370,11 @@ metrics jsonb NOT NULL DEFAULT '{}'::jsonb
 rule_results jsonb NOT NULL DEFAULT '[]'::jsonb
 evaluated_at timestamptz NOT NULL DEFAULT now()
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `release_evaluations`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
@@ -1444,12 +1394,11 @@ feedback_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `runners`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1465,12 +1414,11 @@ current_job_id uuid
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `runner_jobs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1496,12 +1444,11 @@ finished_at timestamptz
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `test_plan_documents_v2`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1514,12 +1461,11 @@ created_by uuid REFERENCES auth.users(id)
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (test_plan_id, slug)
+```
 
 ### `test_plan_specs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1531,12 +1477,11 @@ created_by uuid REFERENCES auth.users(id)
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (test_plan_id, filename)
+```
 
 ### `spec_runs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 spec_id uuid NOT NULL REFERENCES public.test_plan_specs(id) ON DELETE CASCADE
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
@@ -1551,12 +1496,11 @@ finished_at timestamptz
 created_by uuid REFERENCES auth.users(id)
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `suite_runs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1573,12 +1517,11 @@ created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 finished_at timestamptz
+```
 
 ### `organizations`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 name text NOT NULL
 slug text UNIQUE
@@ -1587,24 +1530,22 @@ description text
 settings jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `project_members`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
 role text NOT NULL DEFAULT 'member'
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (project_id, user_id)
+```
 
 ### `repositories`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 provider text NOT NULL DEFAULT 'github'
@@ -1614,12 +1555,11 @@ external_id text
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `repository_branches`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 repository_id uuid NOT NULL REFERENCES public.repositories(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1629,12 +1569,11 @@ protected boolean NOT NULL DEFAULT false
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (repository_id, name)
+```
 
 ### `pull_requests`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 repository_id uuid NOT NULL REFERENCES public.repositories(id) ON DELETE CASCADE
 number integer NOT NULL
@@ -1651,12 +1590,11 @@ metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (repository_id, number)
+```
 
 ### `commits`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 repository_id uuid NOT NULL REFERENCES public.repositories(id) ON DELETE CASCADE
 sha text NOT NULL
@@ -1669,12 +1607,11 @@ url text
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (repository_id, sha)
+```
 
 ### `requirement_versions`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 requirement_id uuid NOT NULL REFERENCES public.requirements(id) ON DELETE CASCADE
 version integer NOT NULL
@@ -1683,12 +1620,11 @@ change_note text
 changed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (requirement_id, version)
+```
 
 ### `test_parameters`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_case_id uuid NOT NULL REFERENCES public.test_cases(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1697,12 +1633,11 @@ default_value text
 description text
 required boolean NOT NULL DEFAULT false
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `test_data_sets`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 test_case_id uuid REFERENCES public.test_cases(id) ON DELETE CASCADE
@@ -1712,12 +1647,11 @@ rows jsonb NOT NULL DEFAULT '[]'::jsonb
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `test_case_links`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_case_id uuid NOT NULL REFERENCES public.test_cases(id) ON DELETE CASCADE
 link_type text NOT NULL
@@ -1726,12 +1660,11 @@ target_id uuid NOT NULL
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `milestones`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 release_id uuid REFERENCES public.releases(id) ON DELETE SET NULL
@@ -1742,12 +1675,11 @@ status text NOT NULL DEFAULT 'planned'
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `automation_assets`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1761,12 +1693,11 @@ metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `runner_groups`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1774,12 +1705,11 @@ description text
 labels text[] NOT NULL DEFAULT '{}'
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `schedules`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1794,12 +1724,11 @@ payload jsonb NOT NULL DEFAULT '{}'::jsonb
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `defect_comments`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 defect_id uuid NOT NULL REFERENCES public.defects(id) ON DELETE CASCADE
 author_id uuid REFERENCES auth.users(id) ON DELETE SET NULL
@@ -1807,12 +1736,11 @@ body text NOT NULL
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `defect_links`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 defect_id uuid NOT NULL REFERENCES public.defects(id) ON DELETE CASCADE
 link_type text NOT NULL
@@ -1821,12 +1749,11 @@ target_id uuid NOT NULL
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `defect_history`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 defect_id uuid NOT NULL REFERENCES public.defects(id) ON DELETE CASCADE
 changed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
@@ -1834,12 +1761,11 @@ field_name text NOT NULL
 old_value jsonb
 new_value jsonb
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `defect_slas`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 name text NOT NULL
@@ -1849,12 +1775,11 @@ resolution_hours integer
 enabled boolean NOT NULL DEFAULT true
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `root_cause_records`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 defect_id uuid NOT NULL REFERENCES public.defects(id) ON DELETE CASCADE
 category text
@@ -1865,12 +1790,11 @@ identified_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 identified_at timestamptz NOT NULL DEFAULT now()
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `approvals`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 subject_kind text NOT NULL
@@ -1883,12 +1807,11 @@ decided_at timestamptz
 notes text
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `waivers`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 subject_kind text NOT NULL
@@ -1901,12 +1824,11 @@ revoked_at timestamptz
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `integrations`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 slug text UNIQUE NOT NULL
 name text NOT NULL
@@ -1916,12 +1838,11 @@ config_schema jsonb NOT NULL DEFAULT '{}'::jsonb
 enabled boolean NOT NULL DEFAULT true
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `integration_connections`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
 project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1934,12 +1855,11 @@ last_sync_at timestamptz
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `webhook_events`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE
 project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1953,12 +1873,11 @@ processed_at timestamptz
 status text NOT NULL DEFAULT 'received'
 error text
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `sync_logs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 connection_id uuid REFERENCES public.integration_connections(id) ON DELETE CASCADE
 workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE
@@ -1970,12 +1889,11 @@ records_processed integer NOT NULL DEFAULT 0
 details jsonb NOT NULL DEFAULT '{}'::jsonb
 error text
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `ai_jobs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE
 project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE
@@ -1993,12 +1911,11 @@ error text
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `ai_outputs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 ai_job_id uuid NOT NULL REFERENCES public.ai_jobs(id) ON DELETE CASCADE
 output_kind text NOT NULL
@@ -2006,12 +1923,11 @@ target_kind text
 target_id uuid
 content jsonb NOT NULL
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `ai_evaluations`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 ai_output_id uuid REFERENCES public.ai_outputs(id) ON DELETE CASCADE
 evaluator text NOT NULL
@@ -2020,12 +1936,11 @@ verdict text
 metrics jsonb NOT NULL DEFAULT '{}'::jsonb
 notes text
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `ai_feedback`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 ai_output_id uuid REFERENCES public.ai_outputs(id) ON DELETE CASCADE
 user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
@@ -2034,12 +1949,11 @@ thumbs text
 comment text
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `ai_audit_events`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE
 ai_job_id uuid REFERENCES public.ai_jobs(id) ON DELETE SET NULL
@@ -2047,12 +1961,11 @@ actor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL
 action text NOT NULL
 details jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `audit_logs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE
 project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE
@@ -2065,12 +1978,11 @@ after_state jsonb
 ip_address text
 user_agent text
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `activity_events`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE
 project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE
@@ -2081,12 +1993,11 @@ object_id uuid
 summary text
 metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `jira_project_mappings`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -2098,12 +2009,11 @@ created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (project_id, jira_project_key)
+```
 
 ### `github_repo_mappings`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -2115,12 +2025,11 @@ created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (project_id, owner, repo)
+```
 
 ### `integration_activity_log`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE
 provider text NOT NULL
@@ -2130,12 +2039,11 @@ message text
 counts jsonb
 user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL
 occurred_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `organization_members`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 org_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE
 user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
@@ -2143,12 +2051,11 @@ role public.org_role NOT NULL DEFAULT 'member'
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (org_id, user_id)
+```
 
 ### `plans`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 key text UNIQUE NOT NULL
 name text NOT NULL
@@ -2158,12 +2065,11 @@ entitlements jsonb NOT NULL DEFAULT '{}'::jsonb
 is_active boolean NOT NULL DEFAULT true
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `subscriptions`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 org_id uuid NOT NULL UNIQUE REFERENCES public.organizations(id) ON DELETE CASCADE
 plan_key text NOT NULL REFERENCES public.plans(key)
@@ -2176,12 +2082,11 @@ stripe_customer_id text
 stripe_subscription_id text
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `usage_events`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 org_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE
 kind text NOT NULL
@@ -2189,23 +2094,21 @@ quantity numeric NOT NULL DEFAULT 1
 occurred_at timestamptz NOT NULL DEFAULT now()
 ref jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `mfa_recovery_codes`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
 code_hash text NOT NULL
 used_at timestamptz
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `sso_connections`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 org_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE
 provider text NOT NULL CHECK (provider IN ('saml','oidc'))
@@ -2217,12 +2120,11 @@ supabase_provider_id text
 created_by uuid REFERENCES auth.users(id)
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `deletion_requests`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 kind text NOT NULL CHECK (kind IN ('organization','account'))
 org_id uuid REFERENCES public.organizations(id) ON DELETE CASCADE
@@ -2232,12 +2134,11 @@ status text NOT NULL DEFAULT 'requested' CHECK (status IN ('requested','complete
 reason text
 completed_at timestamptz
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `api_keys`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 org_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE
 workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE
@@ -2250,12 +2151,11 @@ last_used_at timestamptz
 revoked_at timestamptz
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `webhook_endpoints`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 org_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE
 workspace_id uuid REFERENCES public.workspaces(id) ON DELETE CASCADE
@@ -2267,12 +2167,11 @@ enabled boolean NOT NULL DEFAULT true
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `webhook_deliveries`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 endpoint_id uuid NOT NULL REFERENCES public.webhook_endpoints(id) ON DELETE CASCADE
 event_type text NOT NULL
@@ -2284,12 +2183,11 @@ attempts integer NOT NULL DEFAULT 0
 last_attempt_at timestamptz
 next_retry_at timestamptz
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `share_links`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 org_id uuid
 workspace_id uuid
@@ -2304,12 +2202,11 @@ view_count integer NOT NULL DEFAULT 0
 last_viewed_at timestamptz
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `share_link_views`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 share_link_id uuid REFERENCES public.share_links(id) ON DELETE SET NULL
 token text NOT NULL
@@ -2319,12 +2216,11 @@ granted boolean NOT NULL DEFAULT false
 reason text
 user_agent text
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `email_send_log`
 
-```
 ```sql
--- columns
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 message_id TEXT
 template_name TEXT NOT NULL
@@ -2333,12 +2229,11 @@ status TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'suppressed', 'failed'
 error_message TEXT
 metadata JSONB
 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+```
 
 ### `email_send_state`
 
-```
 ```sql
--- columns
 id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1)
 retry_after_until TIMESTAMPTZ
 batch_size INTEGER NOT NULL DEFAULT 10
@@ -2346,35 +2241,32 @@ send_delay_ms INTEGER NOT NULL DEFAULT 200
 auth_email_ttl_minutes INTEGER NOT NULL DEFAULT 15
 transactional_email_ttl_minutes INTEGER NOT NULL DEFAULT 60
 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+```
 
 ### `suppressed_emails`
 
-```
 ```sql
--- columns
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 email TEXT NOT NULL
 reason TEXT NOT NULL CHECK (reason IN ('unsubscribe', 'bounce', 'complaint'))
 metadata JSONB
 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 UNIQUE(email)
+```
 
 ### `email_unsubscribe_tokens`
 
-```
 ```sql
--- columns
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 token TEXT NOT NULL UNIQUE
 email TEXT NOT NULL UNIQUE
 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 used_at TIMESTAMPTZ
+```
 
 ### `project_generated_docs`
 
-```
 ```sql
--- columns
 id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY
 project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 job_id TEXT NOT NULL
@@ -2389,12 +2281,11 @@ edited_by UUID REFERENCES auth.users(id)
 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 UNIQUE(project_id, slug)
+```
 
 ### `plan_test_runs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 project_id uuid REFERENCES public.projects(id) ON DELETE SET NULL
@@ -2418,12 +2309,11 @@ finished_at timestamptz
 created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `test_plan_document_versions`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 document_id uuid NOT NULL REFERENCES public.test_plan_documents_v2(id) ON DELETE CASCADE
 test_plan_id uuid NOT NULL
@@ -2436,12 +2326,11 @@ content text
 change_note text
 created_by uuid
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `generation_stage_logs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 kind text NOT NULL
@@ -2452,12 +2341,11 @@ install_skipped boolean NOT NULL DEFAULT false
 execution_skipped boolean NOT NULL DEFAULT false
 meta jsonb NOT NULL DEFAULT '{}'::jsonb
 created_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `suite_grouping_versions`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 workspace_id uuid
@@ -2469,12 +2357,11 @@ is_current boolean NOT NULL DEFAULT false
 created_by uuid
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `doc_diff_comments`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 document_id uuid NOT NULL REFERENCES public.test_plan_documents_v2(id) ON DELETE CASCADE
 project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE
@@ -2491,12 +2378,11 @@ resolved_at timestamptz
 author_id uuid NOT NULL DEFAULT auth.uid()
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `ingest_jobs`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
 workspace_id uuid
@@ -2515,12 +2401,11 @@ document_id uuid
 created_by uuid
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `manual_execution_sessions`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE
@@ -2542,12 +2427,11 @@ finished_at timestamptz
 created_by uuid
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
+```
 
 ### `manual_execution_items`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 session_id uuid NOT NULL REFERENCES public.manual_execution_sessions(id) ON DELETE CASCADE
 test_case_id uuid NOT NULL REFERENCES public.test_cases(id) ON DELETE CASCADE
@@ -2565,12 +2449,11 @@ executed_at timestamptz
 created_at timestamptz NOT NULL DEFAULT now()
 updated_at timestamptz NOT NULL DEFAULT now()
 UNIQUE (session_id, test_case_id)
+```
 
 ### `locator_analyses`
 
-```
 ```sql
--- columns
 id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 test_plan_id uuid NOT NULL REFERENCES public.test_plans(id) ON DELETE CASCADE
 project_id uuid NOT NULL
