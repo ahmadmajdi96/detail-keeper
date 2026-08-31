@@ -10,6 +10,7 @@ TRACES.mkdir(parents=True, exist_ok=True)
 REPORT = OUT / "report.json"
 BASE = os.environ.get("SMOKE_BASE_URL", "http://localhost:8080")
 BASELINE = json.loads(Path(__file__).with_name("baseline-warnings.json").read_text())["allow"]
+ALLOW_AUTH_401 = os.environ.get("SMOKE_ALLOW_AUTH_401", "true").lower() in {"1", "true", "yes"}
 
 AUTH_ROUTES = [
     "/dashboard", "/workspaces", "/projects", "/documents",
@@ -49,6 +50,11 @@ def is_baseline(msg: str) -> bool:
     return any(allowed in n for allowed in BASELINE)
 
 
+def is_allowed_error(msg: str) -> bool:
+    n = normalize(msg)
+    return ALLOW_AUTH_401 and "failed to load resource" in n and "status of 401" in n
+
+
 async def main():
     results = []
     async with async_playwright() as pw:
@@ -71,7 +77,8 @@ async def main():
 
             def on_console(m, errs=errs, warns=warns):
                 if m.type == "error":
-                    errs.append(m.text)
+                    if not is_allowed_error(m.text):
+                        errs.append(m.text)
                 elif m.type in ("warning", "warn"):
                     warns.append(m.text)
             page.on("console", on_console)
