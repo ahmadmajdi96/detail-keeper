@@ -1,0 +1,61 @@
+name: ${PROJECT_NAME}
+
+services:
+  web:
+    image: ${PROJECT_NAME}-web:${APP_VERSION:-latest}
+    build:
+      context: .
+      target: production
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      APP_ENV: ${APP_ENV}
+      APP_DOMAIN: ${APP_DOMAIN}
+      APP_URL: ${APP_URL}
+    networks:
+      - internal
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.middlewares.${PROJECT_NAME}-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.${PROJECT_NAME}-http.entrypoints=http
+      - traefik.http.routers.${PROJECT_NAME}-http.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/`)
+      - traefik.http.routers.${PROJECT_NAME}-http.middlewares=${PROJECT_NAME}-redirect
+      - traefik.http.routers.${PROJECT_NAME}-http.service=${PROJECT_NAME}
+      - traefik.http.routers.${PROJECT_NAME}-https.entrypoints=https
+      - traefik.http.routers.${PROJECT_NAME}-https.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/`)
+      - traefik.http.routers.${PROJECT_NAME}-https.tls=true
+      - traefik.http.routers.${PROJECT_NAME}-https.tls.certresolver=letsencrypt
+      - traefik.http.routers.${PROJECT_NAME}-https.service=${PROJECT_NAME}
+      - traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=${APP_PORT:-9832}
+      - coolify.managed=true
+      - coolify.version=${COOLIFY_VERSION:-4.3.10}
+      - coolify.serviceId=${COOLIFY_SERVICE_ID:-unregistered}
+      - coolify.type=service
+      - coolify.name=web-${COOLIFY_SERVICE_UUID:-unregistered}
+      - coolify.resourceName=${COOLIFY_RESOURCE_NAME:-qualixa}
+      - coolify.projectName=${COOLIFY_PROJECT_NAME:-qualixa}
+      - coolify.serviceName=web
+      - coolify.environmentName=${COOLIFY_ENVIRONMENT_NAME:-production}
+      - coolify.pullRequestId=0
+      - coolify.service.subId=${COOLIFY_WEB_SUB_ID:-unregistered}
+      - coolify.service.subType=application
+      - coolify.service.subName=web
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:${APP_PORT:-9832}/ || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+networks:
+  coolify:
+    external: true
+  internal:

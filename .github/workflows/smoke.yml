@@ -19,22 +19,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: 20
+          cache: npm
 
       - name: Install deps
-        run: bun install --frozen-lockfile
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Typecheck
-        run: bunx tsgo --noEmit || bunx tsc --noEmit
+        run: npx tsc --noEmit
 
       - name: Build
-        run: bun run build
+        run: npm run build
 
       - name: Serve preview
         run: |
-          bunx vite preview --port 8080 --host 127.0.0.1 &
+          npx vite preview --port 8080 --host 127.0.0.1 &
           echo $! > /tmp/preview.pid
           for i in {1..30}; do
             curl -sf http://localhost:8080 > /dev/null && break

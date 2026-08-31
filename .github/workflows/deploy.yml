@@ -1,0 +1,152 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP_SLUG: qualixa
+  APP_DISPLAY_NAME: Qualixa
+  APP_ENV: production
+  APP_PORT: "9832"
+  DEPLOY_ROOT: /opt/qualixa
+  APP_DOMAIN: qualixa.apps.cortanexai.com
+  APP_URL: https://qualixa.apps.cortanexai.com
+  PROJECT_NAME: qualixa-production
+  HEALTH_PATH: /
+  COOLIFY_PROJECT_NAME: qualixa
+  COOLIFY_SERVICE_NAME: qualixa-production
+
+jobs:
+  deploy:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://qualixa.apps.cortanexai.com
+    concurrency:
+      group: qualixa-production
+      cancel-in-progress: false
+
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_NOTIFY_EMAIL_TO: ${{ secrets.DEPLOY_NOTIFY_EMAIL_TO }}
+      DEPLOY_NOTIFY_EMAIL_FROM: ${{ secrets.DEPLOY_NOTIFY_EMAIL_FROM }}
+      DEPLOY_NOTIFY_SLACK_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFY_SLACK_WEBHOOK_URL }}
+      DEPLOY_NOTIFY_SLACK_CHANNEL: ${{ secrets.DEPLOY_NOTIFY_SLACK_CHANNEL }}
+      DEPLOY_NOTIFY_N8N_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFY_N8N_WEBHOOK_URL }}
+      DEPLOY_NOTIFY_N8N_WEBHOOK_SECRET: ${{ secrets.DEPLOY_NOTIFY_N8N_WEBHOOK_SECRET }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+      VITE_PAYMENTS_CLIENT_TOKEN: ${{ secrets.VITE_PAYMENTS_CLIENT_TOKEN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?DEPLOY_HOST secret is required}"
+          : "${DEPLOY_PORT:?DEPLOY_PORT secret is required}"
+          : "${DEPLOY_USER:?DEPLOY_USER secret is required}"
+          : "${DEPLOY_SSH_KEY:?DEPLOY_SSH_KEY secret is required}"
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${DEPLOY_PORT}" "${DEPLOY_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Package release
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive_name="${APP_SLUG}-${{ github.sha }}.tar.gz"
+          tar \
+            --no-xattrs \
+            --exclude .git \
+            --exclude node_modules \
+            --exclude dist \
+            --exclude coverage \
+            --exclude playwright-report \
+            --exclude test-results \
+            -czf "${RUNNER_TEMP}/${archive_name}" .
+
+          echo "archive_name=${archive_name}" >> "${GITHUB_OUTPUT}"
+          echo "archive_path=${RUNNER_TEMP}/${archive_name}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload release
+        shell: bash
+        run: |
+          set -euo pipefail
+          scp \
+            -P "${DEPLOY_PORT}" \
+            -i ~/.ssh/deploy_key \
+            "${{ steps.package.outputs.archive_path }}" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/${{ steps.package.outputs.archive_name }}"
+
+      - name: Deploy release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          b64() {
+            printf '%s' "${1:-}" | base64 -w 0
+          }
+
+          vite_supabase_url_b64="$(b64 "${VITE_SUPABASE_URL:-}")"
+          vite_supabase_publishable_key_b64="$(b64 "${VITE_SUPABASE_PUBLISHABLE_KEY:-}")"
+          vite_supabase_project_id_b64="$(b64 "${VITE_SUPABASE_PROJECT_ID:-}")"
+          vite_payments_client_token_b64="$(b64 "${VITE_PAYMENTS_CLIENT_TOKEN:-}")"
+          notify_email_to_b64="$(b64 "${DEPLOY_NOTIFY_EMAIL_TO:-}")"
+          notify_email_from_b64="$(b64 "${DEPLOY_NOTIFY_EMAIL_FROM:-}")"
+          notify_slack_webhook_url_b64="$(b64 "${DEPLOY_NOTIFY_SLACK_WEBHOOK_URL:-}")"
+          notify_slack_channel_b64="$(b64 "${DEPLOY_NOTIFY_SLACK_CHANNEL:-}")"
+          notify_n8n_webhook_url_b64="$(b64 "${DEPLOY_NOTIFY_N8N_WEBHOOK_URL:-}")"
+          notify_n8n_webhook_secret_b64="$(b64 "${DEPLOY_NOTIFY_N8N_WEBHOOK_SECRET:-}")"
+          github_repository_b64="$(b64 "${GITHUB_REPOSITORY:-}")"
+          github_ref_name_b64="$(b64 "${GITHUB_REF_NAME:-}")"
+          github_sha_b64="$(b64 "${GITHUB_SHA:-}")"
+          github_actor_b64="$(b64 "${GITHUB_ACTOR:-}")"
+          github_event_name_b64="$(b64 "${GITHUB_EVENT_NAME:-}")"
+          github_workflow_b64="$(b64 "${GITHUB_WORKFLOW:-}")"
+          github_run_id_b64="$(b64 "${GITHUB_RUN_ID:-}")"
+          github_run_number_b64="$(b64 "${GITHUB_RUN_NUMBER:-}")"
+          github_run_attempt_b64="$(b64 "${GITHUB_RUN_ATTEMPT:-}")"
+          github_server_url_b64="$(b64 "${GITHUB_SERVER_URL:-}")"
+
+          ssh \
+            -p "${DEPLOY_PORT}" \
+            -i ~/.ssh/deploy_key \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "APP_SLUG='${APP_SLUG}' APP_DISPLAY_NAME='${APP_DISPLAY_NAME}' APP_ENV='${APP_ENV}' APP_DOMAIN='${APP_DOMAIN}' APP_URL='${APP_URL}' PROJECT_NAME='${PROJECT_NAME}' APP_VERSION='${{ github.sha }}' APP_PORT='${APP_PORT}' DEPLOY_ROOT='${DEPLOY_ROOT}' ARCHIVE_NAME='${{ steps.package.outputs.archive_name }}' COMPOSE_FILE_NAME='docker-compose.deploy.yml' HEALTH_PATH='${HEALTH_PATH}' COOLIFY_PROJECT_NAME='${COOLIFY_PROJECT_NAME}' COOLIFY_SERVICE_NAME='${COOLIFY_SERVICE_NAME}' VITE_SUPABASE_URL_B64='${vite_supabase_url_b64}' VITE_SUPABASE_PUBLISHABLE_KEY_B64='${vite_supabase_publishable_key_b64}' VITE_SUPABASE_PROJECT_ID_B64='${vite_supabase_project_id_b64}' VITE_PAYMENTS_CLIENT_TOKEN_B64='${vite_payments_client_token_b64}' DEPLOY_NOTIFY_EMAIL_TO_B64='${notify_email_to_b64}' DEPLOY_NOTIFY_EMAIL_FROM_B64='${notify_email_from_b64}' DEPLOY_NOTIFY_SLACK_WEBHOOK_URL_B64='${notify_slack_webhook_url_b64}' DEPLOY_NOTIFY_SLACK_CHANNEL_B64='${notify_slack_channel_b64}' DEPLOY_NOTIFY_N8N_WEBHOOK_URL_B64='${notify_n8n_webhook_url_b64}' DEPLOY_NOTIFY_N8N_WEBHOOK_SECRET_B64='${notify_n8n_webhook_secret_b64}' GITHUB_REPOSITORY_B64='${github_repository_b64}' GITHUB_REF_NAME_B64='${github_ref_name_b64}' GITHUB_SHA_B64='${github_sha_b64}' GITHUB_ACTOR_B64='${github_actor_b64}' GITHUB_EVENT_NAME_B64='${github_event_name_b64}' GITHUB_WORKFLOW_B64='${github_workflow_b64}' GITHUB_RUN_ID_B64='${github_run_id_b64}' GITHUB_RUN_NUMBER_B64='${github_run_number_b64}' GITHUB_RUN_ATTEMPT_B64='${github_run_attempt_b64}' GITHUB_SERVER_URL_B64='${github_server_url_b64}' bash -s" \
+            < scripts/deploy-remote.sh
+
+      - name: Validate public endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 60); do
+            if curl -fsS "${APP_URL}${HEALTH_PATH}" >/dev/null; then
+              break
+            fi
+
+            if [ "${attempt}" -eq 60 ]; then
+              echo "Timed out waiting for public HTTPS endpoint" >&2
+              exit 1
+            fi
+
+            sleep 5
+          done
