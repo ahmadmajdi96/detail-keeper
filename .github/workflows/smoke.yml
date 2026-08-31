@@ -16,6 +16,7 @@ jobs:
       VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
       SMOKE_BASE_URL: http://localhost:8080
       SMOKE_OUT_DIR: /tmp/browser/smoke
+      SMOKE_ROUTES: /,/login,/register,/pricing,/docs,/terms,/privacy,/security,/refunds
     steps:
       - uses: actions/checkout@v4
 

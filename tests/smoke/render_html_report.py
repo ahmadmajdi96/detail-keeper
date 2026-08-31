@@ -1,5 +1,8 @@
 """Render /tmp/browser/smoke/report.json into a single self-contained HTML report."""
-import json, os, base64
+import base64
+import html as html_lib
+import json
+import os
 from pathlib import Path
 
 OUT = Path(os.environ.get("SMOKE_OUT_DIR", "/tmp/browser/smoke"))
@@ -27,17 +30,32 @@ def status_badge(r):
 rows = []
 for r in routes:
     shot = embed(OUT / "shots" / r.get("screenshot", ""))
+    image_html = f'<img src="{shot}" style="max-width:100%;border:1px solid #1e293b;margin-top:10px"/>' if shot else ""
+    errors_html = ""
+    warnings_html = ""
+    failed_html = ""
+
+    if r.get("console_errors"):
+        errors = html_lib.escape("\n".join(r.get("console_errors", [])))
+        errors_html = f"<h4>Console errors</h4><pre>{errors}</pre>"
+    if r.get("new_warnings"):
+        warnings = html_lib.escape("\n".join(r.get("new_warnings", [])))
+        warnings_html = f"<h4>New warnings</h4><pre>{warnings}</pre>"
+    if r.get("failed_requests"):
+        failed = html_lib.escape("\n".join(r.get("failed_requests", [])))
+        failed_html = f"<h4>Failed requests</h4><pre>{failed}</pre>"
+
     rows.append(f"""
     <details style="border:1px solid #334155;border-radius:6px;padding:10px;margin:8px 0;background:#0f172a">
       <summary style="cursor:pointer;display:flex;gap:10px;align-items:center">
-        <code style="color:#cbd5e1">{r['route']}</code>
+        <code style="color:#cbd5e1">{html_lib.escape(r['route'])}</code>
         {status_badge(r)}
         <span style="color:#64748b;font-size:12px">errors={len(r.get('console_errors',[]))} warns={len(r.get('new_warnings',[]))} fails={len(r.get('failed_requests',[]))}</span>
       </summary>
-      {'<img src="' + shot + '" style="max-width:100%;border:1px solid #1e293b;margin-top:10px"/>' if shot else ''}
-      {'<h4>Console errors</h4><pre>' + '\\n'.join(r.get('console_errors',[])) + '</pre>' if r.get('console_errors') else ''}
-      {'<h4>New warnings</h4><pre>' + '\\n'.join(r.get('new_warnings',[])) + '</pre>' if r.get('new_warnings') else ''}
-      {'<h4>Failed requests</h4><pre>' + '\\n'.join(r.get('failed_requests',[])) + '</pre>' if r.get('failed_requests') else ''}
+      {image_html}
+      {errors_html}
+      {warnings_html}
+      {failed_html}
     </details>""")
 
 html = f"""<!doctype html>

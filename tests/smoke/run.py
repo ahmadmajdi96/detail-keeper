@@ -11,7 +11,7 @@ REPORT = OUT / "report.json"
 BASE = os.environ.get("SMOKE_BASE_URL", "http://localhost:8080")
 BASELINE = json.loads(Path(__file__).with_name("baseline-warnings.json").read_text())["allow"]
 
-ROUTES = [
+AUTH_ROUTES = [
     "/dashboard", "/workspaces", "/projects", "/documents",
     "/test-plans", "/test-cases", "/test-cases/new",
     "/executions", "/releases", "/cycles", "/requirements",
@@ -19,6 +19,25 @@ ROUTES = [
     "/automation", "/reporting", "/notifications", "/settings",
     "/users", "/integrations",
 ]
+
+PUBLIC_ROUTES = [
+    "/", "/login", "/register", "/pricing", "/docs", "/terms",
+    "/privacy", "/security", "/refunds",
+]
+
+
+def configured_routes():
+    raw = os.environ.get("SMOKE_ROUTES", "")
+    if raw.strip():
+        return [route.strip() for route in re.split(r"[\s,]+", raw) if route.strip()]
+
+    if os.environ.get("LOVABLE_BROWSER_SUPABASE_SESSION_JSON"):
+        return AUTH_ROUTES
+
+    return PUBLIC_ROUTES
+
+
+ROUTES = configured_routes()
 
 
 def normalize(msg: str) -> str:
